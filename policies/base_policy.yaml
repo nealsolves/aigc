@@ -1,0 +1,17 @@
+policy_version: "1.0"
+
+# Allowed roles for this invocation
+roles:
+  - planner
+  - synthesizer
+  - verifier
+  - classifier
+
+pre_conditions:
+  required:
+    - role_declared
+    - schema_exists
+
+post_conditions:
+  required:
+    - output_valid

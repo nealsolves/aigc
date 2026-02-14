@@ -1,0 +1,29 @@
+{
+  "type": "object",
+  "properties": {
+    "policy_version": { "type": "string" },
+    "roles": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "pre_conditions": {
+      "type": "object",
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "post_conditions": {
+      "type": "object",
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  },
+  "required": ["policy_version", "roles"]
+}

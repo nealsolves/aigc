@@ -1,0 +1,49 @@
+name: "AIGC Governance SDK CI"
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run tests
+        run: python -m pytest
+      - name: Lint
+        run: flake8 src
+      - name: Markdown lint
+        run: npx markdownlint-cli2 "**/*.md"
+      - name: Validate policies against schema
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import yaml
+          import jsonschema
+
+          schema_path = Path("schemas/policy_dsl.schema.json")
+          with open(schema_path, "r", encoding="utf-8") as f:
+            schema = json.load(f)
+
+          for policy_path in Path("policies").glob("*.yaml"):
+            with open(policy_path, "r", encoding="utf-8") as f:
+              policy = yaml.safe_load(f)
+            jsonschema.validate(policy, schema)
+            print(f"validated: {policy_path}")
+          PY

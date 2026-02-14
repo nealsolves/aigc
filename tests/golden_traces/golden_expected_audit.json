@@ -1,0 +1,6 @@
+{
+  "model_provider": "openai",
+  "model_identifier": "gpt-test-model",
+  "role": "planner",
+  "policy_version": "1.0"
+}

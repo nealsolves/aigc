@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIGC Extended Policy DSL Schema",
+  "type": "object",
+  "properties": {
+    "policy_version": { "type": "string" },
+    "description": { "type": "string" },
+    "roles": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["boolean"] },
+          "required": { "type": "boolean" },
+          "default": {}
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "properties": {
+        "allowed_tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "max_calls": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["name", "max_calls"]
+          }
+        }
+      }
+    },
+    "retry_policy": {
+      "type": "object",
+      "properties": {
+        "max_retries": { "type": "integer", "minimum": 0 },
+        "backoff_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "pre_conditions": {
+      "type": "object",
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "optional": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "post_conditions": {
+      "type": "object",
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "optional": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "output_schema": {
+      "type": "object"
+    },
+    "guards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "when": {
+            "type": "object",
+            "properties": {
+              "condition": { "type": "string" }
+            },
+            "required": ["condition"]
+          },
+          "then": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  },
+  "required": ["policy_version", "roles"]
+}

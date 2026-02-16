@@ -1,0 +1,891 @@
+# AIGC SDK Implementation Plan
+
+**3-Phase Roadmap to Production-Ready Governance**
+
+Version: 1.0.0 | Status: Authoritative | Last Updated: 2026-02-16
+
+---
+
+## Overview
+
+This plan defines the implementation roadmap for the AIGC Governance SDK
+across three phases, progressing from a working prototype to a
+production-ready governance layer integrated with
+[TRACE](https://github.com/nealsolves/trace/tree/develop).
+
+Each phase has explicit deliverables, acceptance criteria, and the golden
+trace test fixtures required to prove the work is complete.
+
+```text
+Phase 1: Foundation          Phase 2: Full DSL          Phase 3: Production
+(Make it real)               (Deliver the promise)      (TRACE integration)
+─────────────────           ─────────────────          ─────────────────
+Packaging                    Guard evaluation           Async enforcement
+Role enforcement             Tool constraints           Audit sinks
+Postconditions               Named conditions           Provider governance
+Input validation             Retry policy               Decorator pattern
+Canonical checksums          Extended audit             Compliance extension
+Test coverage ≥80%           Test coverage ≥90%         TRACE integration tests
+```
+
+### Current State (Pre-Phase 1)
+
+The SDK has a working enforcement pipeline:
+`load_policy → validate_preconditions → validate_schema → generate_audit`.
+
+**What works:** Policy loading, precondition validation, output schema
+validation, audit artifact generation, golden trace testing, CI pipeline.
+
+**What is missing:** Role enforcement, postconditions, guards, tool
+constraints, retry policy, proper packaging, input validation, canonical
+checksums, and the test coverage to prove it all works.
+
+---
+
+## Phase 1: Foundation and Packaging
+
+**Goal:** Make the SDK installable, robust, and trustworthy. Close the
+gap between "it runs" and "it is correct."
+
+### 1.1 Python Packaging
+
+**Problem:** The SDK has no `__init__.py`, no `pyproject.toml`, and cannot
+be installed with `pip install -e .` despite documentation claiming
+otherwise.
+
+**Deliverables:**
+
+- `src/__init__.py` — package initialization with public API exports
+- `pyproject.toml` — PEP 621 compliant package configuration
+- Importable as `from aigc.enforcement import enforce_invocation`
+  (rename `src/` to `aigc/` or configure package discovery)
+
+**Acceptance criteria:**
+
+```bash
+pip install -e .
+python -c "from aigc.enforcement import enforce_invocation; print('OK')"
+```
+
+**Files to create/modify:**
+
+| File | Action |
+| ---- | ------ |
+| `pyproject.toml` | Create — PEP 621 metadata, dependencies, tool config |
+| `src/__init__.py` | Create — export `enforce_invocation` and error types |
+| `CLAUDE.md` | Update — reflect new import paths |
+
+### 1.2 Invocation Input Validation
+
+**Problem:** `enforce_invocation()` accesses dict keys without validation.
+A missing key produces a raw `KeyError` instead of a meaningful governance
+error.
+
+**Deliverables:**
+
+- Validate invocation dict structure at the top of `enforce_invocation()`
+- Raise `GovernanceViolationError` with a clear message for missing or
+  invalid fields
+- Required keys: `policy_file`, `model_provider`, `model_identifier`,
+  `role`, `input`, `output`, `context`
+- Type checks: `input`, `output`, `context` must be dicts; `role` must be
+  a string
+
+**Acceptance criteria:**
+
+- `enforce_invocation({})` raises `GovernanceViolationError`, not `KeyError`
+- `enforce_invocation({"policy_file": "x"})` error message names all
+  missing fields
+- Golden trace: `golden_invocation_missing_fields.json` (new)
+
+**Files to modify:**
+
+| File | Action |
+| ---- | ------ |
+| `src/enforcement.py` | Add validation at top of `enforce_invocation()` |
+| `tests/test_input_validation.py` | Create — test missing/invalid fields |
+| `tests/golden_traces/golden_invocation_missing_fields.json` | Create |
+
+### 1.3 Role Allowlist Enforcement
+
+**Problem:** Every policy defines a `roles` array, but the enforcement
+pipeline never checks whether the invocation's role is authorized.
+
+**Deliverables:**
+
+- Add `validate_role(invocation, policy)` to the enforcement pipeline
+- Check `invocation["role"] in policy["roles"]`
+- Raise `GovernanceViolationError` if the role is not in the allowlist
+- Place this check **before** precondition validation (reject
+  unauthorized callers immediately)
+
+**Acceptance criteria:**
+
+- Invocation with `role: "attacker"` against a policy allowing only
+  `["planner", "verifier"]` raises `GovernanceViolationError`
+- Invocation with `role: "planner"` passes the role check
+- Golden trace: `golden_invocation_unauthorized_role.json` (new)
+
+**Files to modify:**
+
+| File | Action |
+| ---- | ------ |
+| `src/validator.py` | Add `validate_role()` function |
+| `src/enforcement.py` | Call `validate_role()` before preconditions |
+| `tests/test_role_enforcement.py` | Create — success and failure tests |
+| `tests/golden_traces/golden_invocation_unauthorized_role.json` | Create |
+
+### 1.4 Postcondition Validation
+
+**Problem:** Policies define `post_conditions.required` but the SDK
+never evaluates them. The DSL spec and schema both support postconditions.
+
+**Deliverables:**
+
+- Add `validate_postconditions(invocation, policy)` to the enforcement
+  pipeline
+- Postconditions are evaluated **after** schema validation
+- Initial postcondition: `output_schema_valid` is automatically satisfied
+  if schema validation passes (intrinsic postcondition)
+- Custom postconditions are checked against a postcondition registry
+
+**Acceptance criteria:**
+
+- Policy with `post_conditions.required: ["output_schema_valid"]` passes
+  when schema validation passes
+- Policy with `post_conditions.required: ["nonexistent_check"]` raises
+  `GovernanceViolationError`
+- Golden trace: `golden_invocation_postcondition_failure.json` (new)
+
+**Files to modify:**
+
+| File | Action |
+| ---- | ------ |
+| `src/validator.py` | Add `validate_postconditions()` |
+| `src/enforcement.py` | Call `validate_postconditions()` after schema validation |
+| `tests/test_postcondition_validation.py` | Create |
+| `tests/golden_traces/golden_invocation_postcondition_failure.json` | Create |
+
+### 1.5 Canonical Checksums
+
+**Problem:** The current checksum uses `str(sorted(obj.items()))` which
+is not deterministic for nested dicts, not portable across languages,
+and not a recognized serialization format.
+
+**Deliverables:**
+
+- Replace checksum with canonical JSON serialization:
+  `json.dumps(obj, sort_keys=True, separators=(",", ":"))`
+- Update existing tests and golden traces that depend on checksum values
+  (none should, since checksums are volatile — verify this)
+
+**Acceptance criteria:**
+
+- `checksum({"b": 1, "a": 2}) == checksum({"a": 2, "b": 1})`
+  (order-independent)
+- `checksum({"nested": {"z": 1, "a": 2}})` produces consistent results
+  (nested sort)
+- Checksum output is a 64-character hex string (SHA-256)
+
+**Files to modify:**
+
+| File | Action |
+| ---- | ------ |
+| `src/audit.py` | Replace `str(sorted(...))` with `json.dumps(sort_keys=True)` |
+| `tests/test_audit_artifact_contract.py` | Add checksum determinism tests |
+
+### 1.6 Enriched Audit Artifacts
+
+**Problem:** Audit artifacts currently contain only 7 fields. They lack
+enforcement result tracking, precondition details, and policy file
+provenance.
+
+**Deliverables:**
+
+Expand the audit artifact to include:
+
+```python
+{
+    # Existing fields
+    "model_provider": "...",
+    "model_identifier": "...",
+    "role": "...",
+    "policy_version": "...",
+    "input_checksum": "...",
+    "output_checksum": "...",
+    "timestamp": 0,
+    # New fields
+    "policy_file": "policies/base_policy.yaml",
+    "enforcement_result": "PASS",
+    "preconditions_satisfied": ["role_declared", "schema_exists"],
+    "postconditions_satisfied": ["output_schema_valid"],
+    "schema_validation": "passed",  # or "skipped" if no output_schema
+}
+```
+
+**Acceptance criteria:**
+
+- All new fields present in audit artifacts
+- `enforcement_result` is "PASS" on success
+- Golden expected audit updated with new stable fields
+- Existing golden trace tests still pass (only assert stable fields)
+
+**Files to modify:**
+
+| File | Action |
+| ---- | ------ |
+| `src/audit.py` | Expand `generate_audit_artifact()` |
+| `src/enforcement.py` | Pass additional context to audit generator |
+| `tests/golden_traces/golden_expected_audit.json` | Update |
+| `tests/test_audit_artifact_contract.py` | Assert new fields |
+
+### 1.7 Test Coverage Expansion
+
+**Problem:** Only 4 test files with minimal assertions. `test_validation.py`
+has a single test.
+
+**Deliverables:**
+
+- Expand `test_validation.py` with:
+  - Precondition success path
+  - Precondition with falsy value (not just missing key)
+  - Schema validation success and failure
+  - Multiple missing preconditions
+- Add `test_policy_loader.py`:
+  - Valid policy loading
+  - Invalid YAML (parse error)
+  - Schema validation failure (missing required fields)
+  - DSL schema fallback to legacy schema
+- Add `test_enforcement_integration.py`:
+  - Full pipeline success
+  - Each gate's failure mode
+  - Invocation with output_schema vs without
+- Target: **>= 80% line coverage**
+
+**Acceptance criteria:**
+
+```bash
+python -m pytest --cov=src --cov-report=term-missing
+# All tests pass, coverage >= 80%
+```
+
+**Files to create:**
+
+| File | Action |
+| ---- | ------ |
+| `tests/test_validation.py` | Expand with 8+ tests |
+| `tests/test_policy_loader.py` | Create — 6+ tests |
+| `tests/test_enforcement_integration.py` | Create — 5+ tests |
+
+### Phase 1 Definition of Done
+
+- [ ] `pip install -e .` works and SDK is importable
+- [ ] `enforce_invocation({})` raises `GovernanceViolationError` (not `KeyError`)
+- [ ] Unauthorized roles are rejected
+- [ ] Postconditions are validated
+- [ ] Checksums use canonical JSON
+- [ ] Audit artifacts include enforcement result and gate details
+- [ ] Test coverage >= 80%
+- [ ] All existing golden traces still pass
+- [ ] 3 new golden trace pairs (missing fields, unauthorized role,
+  postcondition failure)
+- [ ] CI passes (tests, lint, policy validation)
+
+---
+
+## Phase 2: Full DSL Implementation
+
+**Goal:** Implement every feature declared in the policy DSL schema.
+After this phase, the schema and the runtime are in full alignment.
+
+**Dependency:** Phase 1 complete.
+
+### 2.1 Guard Evaluation Engine
+
+**Problem:** Guards (`when/then` conditional policy expansions) are
+defined in the schema and DSL spec but not implemented.
+
+**Deliverables:**
+
+- `src/guard_evaluator.py` — new module
+- `evaluate_guards(policy, context, invocation) -> effective_policy`
+- Evaluation order: guards are processed in declaration order
+- Guard effects are **additive** — a guard can add preconditions/
+  postconditions but cannot remove them
+- The effective policy is a new dict; the original policy is never mutated
+- Condition expressions supported:
+  - Simple boolean: `"is_enterprise"` resolves via
+    `context.get("is_enterprise", default)`
+  - Equality: `"role == verifier"` resolves via
+    `invocation["role"] == "verifier"`
+
+**Acceptance criteria:**
+
+- Guard with `when.condition: "is_enterprise"` and
+  `context.is_enterprise: true` adds the guard's postconditions to
+  the effective policy
+- Guard with `when.condition: "is_enterprise"` and
+  `context.is_enterprise: false` has no effect
+- Multiple guards can match and their effects accumulate
+- Golden trace: `golden_invocation_guard_match.json` +
+  `golden_invocation_guard_no_match.json`
+
+**Files to create/modify:**
+
+| File | Action |
+| ---- | ------ |
+| `src/guard_evaluator.py` | Create — guard evaluation engine |
+| `src/enforcement.py` | Call `evaluate_guards()` before preconditions |
+| `tests/test_guard_evaluation.py` | Create — 8+ tests |
+| `tests/golden_traces/golden_policy_with_guards.yaml` | Create |
+| `tests/golden_traces/golden_invocation_guard_match.json` | Create |
+| `tests/golden_traces/golden_invocation_guard_no_match.json` | Create |
+
+### 2.2 Named Condition Resolution
+
+**Problem:** The `conditions` block in the policy schema allows named
+boolean conditions with types and defaults, but they are never resolved.
+
+**Deliverables:**
+
+- Add condition resolution to the guard evaluator
+- For each condition defined in `policy["conditions"]`:
+  - Look up the value in the invocation context
+  - If missing, use the declared `default`
+  - If missing and no default, raise `GovernanceViolationError` when
+    `required: true`
+- Resolved conditions are available for guard evaluation
+
+**Acceptance criteria:**
+
+- Condition with `default: false` and no context value resolves to `false`
+- Condition with `required: true` and no context value raises
+  `GovernanceViolationError`
+- Resolved condition value used correctly in guard `when` clause
+
+**Files to modify:**
+
+| File | Action |
+| ---- | ------ |
+| `src/guard_evaluator.py` | Add `resolve_conditions()` |
+| `tests/test_guard_evaluation.py` | Add condition resolution tests |
+
+### 2.3 Tool Constraint Enforcement
+
+**Problem:** The policy schema defines `tools.allowed_tools` with
+`name` and `max_calls`, but tool usage is never validated.
+
+**Deliverables:**
+
+- `src/tool_validator.py` — new module
+- `validate_tool_constraints(invocation, effective_policy)`
+- Invocation gains an optional `tool_calls` field:
+
+  ```python
+  "tool_calls": [
+      {"name": "search_knowledge_base", "call_id": "tc-001"},
+      {"name": "search_knowledge_base", "call_id": "tc-002"},
+      {"name": "analyze_trends", "call_id": "tc-003"},
+  ]
+  ```
+
+- Validation checks:
+  1. Each tool name appears in `allowed_tools` (allowlist)
+  2. Each tool's call count <= its `max_calls`
+- If `tools` is not in the policy, tool validation is skipped
+- If `tool_calls` is not in the invocation, tool validation is skipped
+
+**Acceptance criteria:**
+
+- Tool not in allowlist raises `GovernanceViolationError`
+- Tool exceeding `max_calls` raises `GovernanceViolationError`
+- Tool within limits passes silently
+- Missing `tool_calls` field is not an error
+- Golden trace: `golden_invocation_tool_violation.json` +
+  `golden_invocation_tool_success.json`
+
+**Files to create/modify:**
+
+| File | Action |
+| ---- | ------ |
+| `src/tool_validator.py` | Create — tool constraint validation |
+| `src/enforcement.py` | Call `validate_tool_constraints()` after postconditions |
+| `tests/test_tool_validation.py` | Create — 6+ tests |
+| `tests/golden_traces/golden_policy_with_tools.yaml` | Create |
+| `tests/golden_traces/golden_invocation_tool_violation.json` | Create |
+| `tests/golden_traces/golden_invocation_tool_success.json` | Create |
+
+### 2.4 Retry Policy Enforcement
+
+**Problem:** `retry_policy` (max_retries, backoff_ms) is defined in the
+schema but not enforced.
+
+**Deliverables:**
+
+- `src/retry.py` — new module
+- `RetryPolicy` class that wraps enforcement with retry semantics
+- Retries only on `SchemaValidationError` (transient output failures)
+- `PreconditionError` and `GovernanceViolationError` are **not retried**
+  (policy-level failures)
+- Each retry is individually audited
+- Backoff between retries: `backoff_ms * attempt_number`
+
+**Usage pattern:**
+
+```python
+from aigc.retry import with_retry
+
+audit = with_retry(enforce_invocation, invocation)
+```
+
+The retry wrapper is **opt-in**. `enforce_invocation()` itself remains
+single-shot. The host application decides whether to use retry semantics.
+
+**Acceptance criteria:**
+
+- `max_retries: 0` means no retries (single attempt)
+- `max_retries: 2` allows up to 2 additional attempts after the first failure
+- Each attempt is separately audited
+- `PreconditionError` is never retried
+- If all attempts fail, the last exception is raised
+
+**Files to create:**
+
+| File | Action |
+| ---- | ------ |
+| `src/retry.py` | Create — retry policy implementation |
+| `tests/test_retry_policy.py` | Create — 5+ tests |
+
+### 2.5 Extended Audit Artifacts
+
+**Problem:** Audit artifacts need to capture guard evaluation results
+and tool constraint details for forensic analysis.
+
+**Deliverables:**
+
+Expand audit artifacts with Phase 2 fields:
+
+```python
+{
+    # Phase 1 fields (all retained)
+    ...,
+    # Phase 2 additions
+    "guards_evaluated": [
+        {"condition": "is_enterprise", "matched": True},
+        {"condition": "role == verifier", "matched": False},
+    ],
+    "tool_constraints": {
+        "tools_checked": ["search_knowledge_base", "analyze_trends"],
+        "violations": [],
+    },
+    "conditions_resolved": {
+        "is_enterprise": True,
+        "premium_enabled": False,
+    },
+}
+```
+
+**Acceptance criteria:**
+
+- `guards_evaluated` lists every guard with its match result
+- `tool_constraints` summarizes tool validation (even if no tools in policy)
+- `conditions_resolved` shows all resolved condition values
+- Existing golden trace stable field assertions still pass
+
+**Files to modify:**
+
+| File | Action |
+| ---- | ------ |
+| `src/audit.py` | Add Phase 2 fields |
+| `src/enforcement.py` | Pass guard/tool/condition results to audit |
+| `tests/test_audit_artifact_contract.py` | Assert Phase 2 fields |
+
+### 2.6 Policy Composition (Multi-Policy)
+
+**Problem:** Complex systems need role-specific policies. Currently,
+a single policy file governs all invocations.
+
+**Deliverables:**
+
+- Support a `policies/` directory structure with role-specific files:
+
+  ```text
+  policies/
+  ├── base_policy.yaml          ← shared defaults
+  ├── trace_planner.yaml        ← planner-specific overrides
+  ├── trace_verifier.yaml       ← verifier-specific
+  └── trace_synthesizer.yaml    ← synthesizer-specific
+  ```
+
+- Policy inheritance: role-specific policies can declare
+  `extends: base_policy.yaml` to inherit and override
+- Merge semantics: role-specific arrays are **appended** to base arrays;
+  scalars are **replaced**
+
+**Acceptance criteria:**
+
+- `trace_planner.yaml` with `extends: base_policy.yaml` inherits base
+  preconditions and adds planner-specific ones
+- Override of `retry_policy` in child replaces the base value
+- Circular `extends` raises `GovernanceViolationError`
+
+**Files to create/modify:**
+
+| File | Action |
+| ---- | ------ |
+| `src/policy_loader.py` | Add `extends` resolution and merge logic |
+| `policies/trace_planner.yaml` | Create — example role-specific policy |
+| `tests/test_policy_composition.py` | Create — 5+ tests |
+
+### Phase 2 Definition of Done
+
+- [ ] Guards evaluate correctly — additive, ordered, context-driven
+- [ ] Named conditions resolve from context with defaults
+- [ ] Tool constraints enforce allowlists and max_calls
+- [ ] Retry policy wraps enforcement with bounded retries
+- [ ] Audit artifacts capture all gate evaluation details
+- [ ] Policy composition via `extends` works
+- [ ] 6 new golden trace pairs covering guards, tools, conditions
+- [ ] Test coverage >= 90%
+- [ ] CI passes
+- [ ] `schemas/policy_dsl.schema.json` and runtime are in full alignment —
+  every field in the schema has corresponding enforcement code
+
+---
+
+## Phase 3: Production Readiness and TRACE Integration
+
+**Goal:** Make the SDK production-ready and integrate it with TRACE's
+execution pipeline.
+
+**Dependency:** Phase 2 complete.
+
+### 3.1 Async Enforcement
+
+**Problem:** TRACE uses async Python throughout (FastAPI, async tool
+execution). The SDK's synchronous `enforce_invocation()` blocks the
+event loop during policy file I/O.
+
+**Deliverables:**
+
+- `async def enforce_invocation_async(invocation) -> dict`
+- Async file I/O for policy loading (`aiofiles`)
+- Synchronous `enforce_invocation()` preserved for non-async callers
+- Shared enforcement logic — the async version is not a copy-paste of
+  the sync version
+
+**Acceptance criteria:**
+
+- `await enforce_invocation_async(invocation)` produces identical results
+  to `enforce_invocation(invocation)`
+- Policy file is read without blocking the event loop
+- All existing tests pass against both sync and async paths
+
+**Files to create/modify:**
+
+| File | Action |
+| ---- | ------ |
+| `src/enforcement.py` | Add `enforce_invocation_async()` |
+| `src/policy_loader.py` | Add `load_policy_async()` |
+| `tests/test_async_enforcement.py` | Create — async equivalents of sync tests |
+
+### 3.2 Pluggable Audit Sinks
+
+**Problem:** The SDK returns audit dicts but has no persistence mechanism.
+Host applications must write their own storage code.
+
+**Deliverables:**
+
+- `src/audit.py` — `AuditSink` abstract base class
+- Built-in sinks:
+  - `JsonFileAuditSink` — append to JSONL file
+  - `CallbackAuditSink` — call a user-provided function
+- TRACE-specific sinks (in TRACE repo, not in SDK):
+  - `SQLiteAuditSink` — write to TRACE's audit_log table
+  - `DynamoDBSink` — write to AWS DynamoDB (Phase 3 of TRACE)
+- Sink registration on the enforcement engine:
+
+  ```python
+  from aigc.enforcement import set_audit_sink
+  set_audit_sink(JsonFileAuditSink("audit.jsonl"))
+  ```
+
+**Acceptance criteria:**
+
+- `JsonFileAuditSink` appends one JSON line per enforcement
+- `CallbackAuditSink` invokes callback with the audit dict
+- Sink failures do not prevent enforcement from completing (log warning)
+- Default behavior (no sink) returns audit dict as before
+
+**Files to create/modify:**
+
+| File | Action |
+| ---- | ------ |
+| `src/audit.py` | Add `AuditSink` ABC and built-in sinks |
+| `src/enforcement.py` | Emit to registered sink after generating artifact |
+| `tests/test_audit_sinks.py` | Create — test each sink type |
+
+### 3.3 Structured Logging
+
+**Problem:** The SDK has no logging. Failures are silent except for
+raised exceptions.
+
+**Deliverables:**
+
+- Configure `aigc` logger namespace
+- Log at these points:
+  - `DEBUG`: policy loaded, each gate passed
+  - `INFO`: enforcement complete (PASS/FAIL)
+  - `WARNING`: sink emit failure, deprecated schema fallback
+  - `ERROR`: enforcement exception details
+- No log output by default (NullHandler). Host application configures
+  log level.
+
+**Acceptance criteria:**
+
+- `logging.getLogger("aigc")` returns a properly configured logger
+- No log output unless host configures a handler
+- Each gate logs at DEBUG level with gate name and result
+
+**Files to modify:**
+
+| File | Action |
+| ---- | ------ |
+| All `src/*.py` files | Add `logger = logging.getLogger("aigc")` calls |
+
+### 3.4 Decorator / Middleware Pattern
+
+**Problem:** Wrapping every LLM call in `enforce_invocation()` is
+verbose. TRACE has dozens of model invocations.
+
+**Deliverables:**
+
+- `src/decorators.py` — convenience wrappers
+- `@governed(policy_file, role)` decorator:
+
+  ```python
+  from aigc.decorators import governed
+
+  @governed(policy_file="policies/trace_planner.yaml", role="planner")
+  def plan_investigation(input_data, context):
+      response = llm.generate(input_data)
+      return response  # automatically enforced
+  ```
+
+- The decorator captures input, output, and context; calls
+  `enforce_invocation()`; returns the output if enforcement passes
+- Async-compatible: detects async functions and uses
+  `enforce_invocation_async()`
+
+**Acceptance criteria:**
+
+- Decorated sync function is governed and returns audit alongside result
+- Decorated async function works identically
+- Decorator raises governance exceptions (not swallowed)
+- Decorator can be stacked with other decorators
+
+**Files to create:**
+
+| File | Action |
+| ---- | ------ |
+| `src/decorators.py` | Create — `@governed` decorator |
+| `tests/test_decorators.py` | Create — sync and async tests |
+
+### 3.5 TRACE Tool Invocation Gate
+
+**Problem:** TRACE's tool executor (`core/tools/tool_executor.py`) has
+no governance. Tools execute without policy checks.
+
+**Deliverables:**
+
+This work happens in the **TRACE repository**, not the SDK repo.
+
+- `GovernedToolExecutor` wrapper in TRACE that calls AIGC enforcement
+  before tool execution
+- Maps TRACE's tool call context to an AIGC invocation dict
+- Captures tool name, parameters, and agent role from TRACE session state
+- Stores audit artifacts in TRACE's audit_log via SQLiteAuditSink
+
+**Acceptance criteria:**
+
+- Tool call to `search_knowledge_base` with a planner role and valid
+  policy passes governance
+- Tool call to `generate_rca_draft` exceeding `max_calls: 1` raises
+  `GovernanceViolationError`
+- Audit artifacts appear in TRACE's audit_log table
+- TRACE golden trace GT-001 still passes with governance enabled
+
+**Files to create/modify (in TRACE repo):**
+
+| File | Action |
+| ---- | ------ |
+| `core/tools/governed_executor.py` | Create — AIGC-governed tool executor |
+| `core/tools/tool_executor.py` | Wire governed executor as default |
+| `tests/integration/test_governed_tools.py` | Create |
+
+### 3.6 TRACE Provider Governance Gate
+
+**Problem:** TRACE's provider layer (`core/providers/`) has no governance.
+Any model can be used for any role.
+
+**Deliverables:**
+
+This work happens in the **TRACE repository**, not the SDK repo.
+
+- `GovernedLLMProvider` wrapper that enforces AIGC policies on model
+  invocations
+- Maps TRACE's provider context (model, role, messages, response) to
+  AIGC invocations
+- Validates that the model used matches the role's governance policy
+- Produces audit artifacts for every LLM call
+
+**Acceptance criteria:**
+
+- Planner role using `claude-sonnet-4` with a planner policy passes
+- Planner role using an unauthorized model raises
+  `GovernanceViolationError`
+- Audit artifacts include model_provider and model_identifier
+- Provider swap (Anthropic to Bedrock) does not require governance changes
+
+**Files to create/modify (in TRACE repo):**
+
+| File | Action |
+| ---- | ------ |
+| `core/providers/governed_llm.py` | Create — governed provider wrapper |
+| `core/providers/factory.py` | Wire governed provider |
+| `tests/integration/test_governed_providers.py` | Create |
+
+### 3.7 TRACE Audit Correlation
+
+**Problem:** TRACE has its own audit_log. AIGC produces separate audit
+artifacts. There is no unified view.
+
+**Deliverables:**
+
+This work happens in the **TRACE repository**, not the SDK repo.
+
+- Audit correlator that joins TRACE session events with AIGC audit
+  artifacts
+- Correlation key: `session_id` + `timestamp` range
+- Export format: unified JSON report for compliance review
+- Queryable: "Show me all governance decisions for session X"
+
+**Acceptance criteria:**
+
+- Given a TRACE session ID, retrieve all AIGC audit artifacts for that
+  session
+- Report includes both TRACE compliance events (verify_references,
+  redact_pii) and AIGC governance decisions
+- Export produces valid JSON matching a defined schema
+
+**Files to create (in TRACE repo):**
+
+| File | Action |
+| ---- | ------ |
+| `core/compliance/audit_correlator.py` | Create |
+| `schemas/compliance/governance_report_v1.json` | Create — report schema |
+| `tests/compliance/test_audit_correlation.py` | Create |
+
+### Phase 3 Definition of Done
+
+- [ ] Async enforcement works identically to sync
+- [ ] Audit sinks persist artifacts automatically
+- [ ] Structured logging configured (silent by default)
+- [ ] `@governed` decorator works for sync and async functions
+- [ ] TRACE tool executor governed by AIGC policies
+- [ ] TRACE provider layer governed by AIGC policies
+- [ ] TRACE audit log correlates with AIGC artifacts
+- [ ] End-to-end TRACE + AIGC integration test passes
+- [ ] SDK passes `pip install` from clean environment
+- [ ] All golden traces pass (SDK and TRACE)
+
+---
+
+## Cross-Cutting Concerns
+
+### CI Pipeline Evolution
+
+| Phase | CI Additions |
+| ----- | ------------ |
+| Phase 1 | Coverage reporting (`--cov`), coverage gate (>= 80%) |
+| Phase 2 | Guard/tool golden trace validation, policy composition tests |
+| Phase 3 | Async test runner, integration test suite, package build test |
+
+### Golden Trace Inventory
+
+| Phase | New Golden Traces |
+| ----- | ----------------- |
+| Pre-Phase 1 | `success`, `failure` (schema), `expected_audit` |
+| Phase 1 | `missing_fields`, `unauthorized_role`, `postcondition_failure` |
+| Phase 2 | `guard_match`, `guard_no_match`, `tool_violation`, `tool_success`, `condition_required_missing`, `policy_composition` |
+| Phase 3 | `async_enforcement`, `governed_tool_call`, `governed_provider` |
+
+### Documentation Updates
+
+Each phase requires documentation updates:
+
+| Phase | Documentation |
+| ----- | ------------- |
+| Phase 1 | Update USAGE.md with new error types, update CLAUDE.md with import paths |
+| Phase 2 | Add guard/tool/condition examples to USAGE.md, update DSL spec status from "Draft" to "Implemented" |
+| Phase 3 | Add TRACE integration guide, add async usage examples, add deployment guide |
+
+---
+
+## Dependency Graph
+
+```text
+Phase 1.1 (packaging) ───────────────────────────────────────▶ ALL
+Phase 1.2 (input validation) ────────────────────────────────▶ 1.3+
+Phase 1.3 (role enforcement) ────────────────────────────────▶ 1.4+
+Phase 1.4 (postconditions) ──────────────────────────────────▶ 2.1
+Phase 1.5 (canonical checksums) ─────────────────────────────▶ 2.5
+Phase 1.6 (enriched audit) ──────────────────────────────────▶ 2.5
+Phase 1.7 (test coverage) ───────────────────────────────────▶ 2.*
+
+Phase 2.1 (guards) ──────────────────────────────────────────▶ 2.2
+Phase 2.2 (conditions) ──────────────────────────────────────▶ 2.5
+Phase 2.3 (tool constraints) ────────────────────────────────▶ 2.5
+Phase 2.4 (retry) ───────────────────────────────────────────▶ 3.4
+Phase 2.5 (extended audit) ──────────────────────────────────▶ 3.2
+Phase 2.6 (policy composition) ──────────────────────────────▶ 3.5
+
+Phase 3.1 (async) ───────────────────────────────────────────▶ 3.4
+Phase 3.2 (audit sinks) ─────────────────────────────────────▶ 3.5
+Phase 3.3 (logging) ─────────────────────────────────────────▶ 3.5
+Phase 3.4 (decorators) ──────────────────────────────────────▶ 3.5
+Phase 3.5 (TRACE tool gate) ─────────────────────────────────▶ 3.7
+Phase 3.6 (TRACE provider gate) ─────────────────────────────▶ 3.7
+Phase 3.7 (TRACE audit correlation) ─────────────────────────▶ DONE
+```
+
+---
+
+## Risk Register
+
+| Risk | Impact | Mitigation |
+| ---- | ------ | ---------- |
+| Phase 1 packaging changes break existing imports in tests | High | Run full test suite after every packaging change; update imports incrementally |
+| Guard expression language grows beyond simple conditions | Medium | Keep expressions to boolean lookups and equality checks only; no Turing-completeness |
+| Policy composition creates circular extends chains | Medium | Detect cycles at load time; fail fast with clear error message |
+| Async enforcement diverges from sync behavior | High | Share enforcement logic; async only differs in I/O; test both paths with same fixtures |
+| TRACE integration requires SDK changes | Medium | Keep SDK interface stable; TRACE adapts to SDK, not the other way around |
+| Checksum format change invalidates external audit records | Low | Checksums are volatile fields; no external systems should depend on exact values yet |
+
+---
+
+## Success Criteria
+
+When all three phases are complete:
+
+1. **Every field in `policy_dsl.schema.json` has corresponding enforcement
+   code** — the DSL promise is fully delivered
+2. **TRACE's tool executor and provider layer are governed** — no ungoverned
+   model invocations in TRACE
+3. **Every enforcement produces a comprehensive audit artifact** — full
+   chain of custody from input to output
+4. **Test coverage >= 90%** with golden traces for every governance feature
+5. **The SDK is installable, importable, and documented** — a developer
+   can `pip install` and govern their first invocation in under 5 minutes
+6. **AIGC audit artifacts correlate with TRACE audit logs** — unified
+   governance reporting across the entire system

@@ -1,3 +1,5 @@
+# Auditable Intelligence Governance Contract (AIGC)
+ 
 # AIGC Governance SDK
 
 Python SDK for deterministic governance enforcement over AI model invocations.

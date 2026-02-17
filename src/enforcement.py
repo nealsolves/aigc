@@ -6,10 +6,13 @@ Combines:
 - validation
 - error handling
 - audit logging triggers
+- audit sink emission
 """
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import Any, Mapping
 
 from src.policy_loader import load_policy
@@ -22,6 +25,7 @@ from src.validator import (
 from src.audit import generate_audit_artifact
 from src.guards import evaluate_guards
 from src.tools import validate_tool_constraints
+from src.sinks import emit_to_sink
 from src.errors import (
     AIGCError,
     ConditionResolutionError,
@@ -35,6 +39,8 @@ from src.errors import (
     SchemaValidationError,
     ToolConstraintViolationError,
 )
+
+logger = logging.getLogger("aigc.enforcement")
 
 REQUIRED_INVOCATION_KEYS = (
     "policy_file",
@@ -77,7 +83,6 @@ def _map_exception_to_failure_gate(exc: Exception) -> str:
 
     Check subclasses before parent classes to ensure correct mapping.
     """
-    # Check most specific exceptions first
     if isinstance(exc, FeatureNotImplementedError):
         return "feature_not_implemented"
     if isinstance(exc, InvocationValidationError):
@@ -94,78 +99,66 @@ def _map_exception_to_failure_gate(exc: Exception) -> str:
         return "precondition_validation"
     if isinstance(exc, SchemaValidationError):
         return "schema_validation"
-    # Generic GovernanceViolationError (base class) - check last
     if isinstance(exc, GovernanceViolationError):
-        # Could be role or postcondition - check message
         if "role" in str(exc).lower():
             return "role_validation"
         return "postcondition_validation"
     return "unknown"
 
 
-def enforce_invocation(invocation: Mapping[str, Any]) -> dict[str, Any]:
+def _run_pipeline(policy: dict[str, Any], invocation: Mapping[str, Any]) -> dict[str, Any]:
     """
-    Enforce all governance rules for a model invocation.
+    Run the enforcement pipeline against a pre-loaded policy.
 
-    :param invocation: Dict with:
-      - "policy_file": path to policy
-      - "input": model input
-      - "output": model output (to be validated)
-      - "context": additional context
-    :return: audit artifact (PASS or FAIL)
-    :raises: AIGCError subclasses on governance violation (after audit emission)
+    Shared by enforce_invocation (sync) and enforce_invocation_async (async).
+    Generates and emits an audit artifact on both PASS and FAIL.
+
+    :param policy: Pre-loaded and validated policy dict
+    :param invocation: Validated invocation dict
+    :return: PASS audit artifact
+    :raises: AIGCError subclasses on governance violation (FAIL audit emitted first)
     """
-    if not isinstance(invocation, Mapping):
-        raise InvocationValidationError(
-            "Invocation must be a mapping object",
-            details={"received_type": type(invocation).__name__},
-        )
-
-    _validate_invocation(invocation)
-
-    # Load policy (needed for audit artifact generation)
-    policy = load_policy(invocation["policy_file"])
-
     try:
-        # Phase 2 features - guards/tools/retry all implemented
-        # Retry is opt-in via with_retry() wrapper in src/retry.py
-
-        # Evaluate guards to produce effective policy (Phase 2.1)
         effective_policy = policy
         guards_evaluated = []
         conditions_resolved = {}
         if policy.get("guards") or policy.get("conditions"):
+            logger.debug(
+                "Evaluating guards and conditions for policy %s",
+                invocation.get("policy_file"),
+            )
             effective_policy, guards_evaluated, conditions_resolved = evaluate_guards(
                 policy, invocation["context"], invocation
             )
+        logger.debug("Guards evaluated: %d results", len(guards_evaluated))
 
-        # Validate role allowlist
         validate_role(invocation["role"], effective_policy)
+        logger.debug("Role validated: %s", invocation["role"])
 
-        # Validate preconditions
         preconditions_satisfied = validate_preconditions(
             invocation["context"], effective_policy
         )
+        logger.debug("Preconditions satisfied: %s", preconditions_satisfied)
 
-        # Validate output schema (if provided in policy)
         schema_validation = "skipped"
         schema_valid = False
         if "output_schema" in effective_policy:
             validate_schema(invocation["output"], effective_policy["output_schema"])
             schema_validation = "passed"
             schema_valid = True
+            logger.debug("Output schema validation passed")
 
         postconditions_satisfied = validate_postconditions(
             effective_policy,
             schema_valid=schema_valid,
         )
+        logger.debug("Postconditions satisfied: %s", postconditions_satisfied)
 
-        # Validate tool constraints (Phase 2.3)
         tool_validation_result = validate_tool_constraints(
             invocation, effective_policy
         )
+        logger.debug("Tool constraints validated")
 
-        # Generate PASS audit artifact
         audit_record = generate_audit_artifact(
             invocation,
             policy,
@@ -180,17 +173,20 @@ def enforce_invocation(invocation: Mapping[str, Any]) -> dict[str, Any]:
             },
         )
 
+        emit_to_sink(audit_record)
+        logger.info(
+            "Enforcement complete: PASS [policy=%s, role=%s]",
+            invocation.get("policy_file"),
+            invocation.get("role"),
+        )
         return audit_record
 
     except AIGCError as exc:
-        # Generate FAIL audit artifact before re-raising
         failure_gate = _map_exception_to_failure_gate(exc)
         failure_reason = str(exc)
 
-        # Extract structured failures from exception if available
         failures = None
         if hasattr(exc, "details") and exc.details:
-            # Convert exception details to failure format
             failures = [
                 {
                     "code": exc.__class__.__name__,
@@ -209,8 +205,66 @@ def enforce_invocation(invocation: Mapping[str, Any]) -> dict[str, Any]:
             metadata={},
         )
 
-        # Store audit record on exception for caller to retrieve
         exc.audit_artifact = audit_record
-
-        # Re-raise original exception (fail-closed)
+        emit_to_sink(audit_record)
+        logger.error(
+            "Enforcement failed at gate '%s': %s",
+            failure_gate,
+            failure_reason,
+        )
+        logger.info(
+            "Enforcement complete: FAIL [gate=%s, policy=%s, role=%s]",
+            failure_gate,
+            invocation.get("policy_file"),
+            invocation.get("role"),
+        )
         raise
+
+
+def enforce_invocation(invocation: Mapping[str, Any]) -> dict[str, Any]:
+    """
+    Enforce all governance rules for a model invocation (synchronous).
+
+    :param invocation: Dict with:
+      - "policy_file": path to policy
+      - "input": model input
+      - "output": model output (to be validated)
+      - "context": additional context
+      - "model_provider", "model_identifier", "role": identity fields
+    :return: audit artifact (PASS or FAIL)
+    :raises: AIGCError subclasses on governance violation (after audit emission)
+    """
+    if not isinstance(invocation, Mapping):
+        raise InvocationValidationError(
+            "Invocation must be a mapping object",
+            details={"received_type": type(invocation).__name__},
+        )
+
+    _validate_invocation(invocation)
+    policy = load_policy(invocation["policy_file"])
+    return _run_pipeline(policy, invocation)
+
+
+async def enforce_invocation_async(invocation: Mapping[str, Any]) -> dict[str, Any]:
+    """
+    Enforce all governance rules for a model invocation (asynchronous).
+
+    Policy file I/O runs in a thread pool via asyncio.to_thread to avoid
+    blocking the event loop.  The enforcement pipeline itself is synchronous
+    (CPU-bound and fast).
+
+    Produces identical results to enforce_invocation() given the same inputs.
+
+    :param invocation: Same shape as enforce_invocation()
+    :return: audit artifact (PASS or FAIL)
+    :raises: AIGCError subclasses on governance violation (after audit emission)
+    """
+    if not isinstance(invocation, Mapping):
+        raise InvocationValidationError(
+            "Invocation must be a mapping object",
+            details={"received_type": type(invocation).__name__},
+        )
+
+    _validate_invocation(invocation)
+    policy = await asyncio.to_thread(load_policy, invocation["policy_file"])
+    return _run_pipeline(policy, invocation)

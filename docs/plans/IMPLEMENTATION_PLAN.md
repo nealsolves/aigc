@@ -13,8 +13,14 @@ Implementation status note (2026-02-16):
   - Phase 1.8 (failure audit emission) discovered as critical gap during PR1
     validation and implemented as final Phase 1 item
   - ADR-0001 documents the course correction
-- Phase 2 completed: guards, conditions, tools, retry policy, and policy
+- **Phase 2: COMPLETE** ✅ Guards, conditions, tools, retry policy, and policy
   composition via extends are fully implemented and tested. Coverage at 94%.
+- **Phase 3 SDK items: COMPLETE** ✅ (3.1-3.4 implemented 2026-02-16)
+  - Async enforcement (`enforce_invocation_async`), pluggable audit sinks
+    (`AuditSink`, `JsonFileAuditSink`, `CallbackAuditSink`), structured logging
+    (`aigc.*` namespace with NullHandler default), and `@governed` decorator.
+  - TRACE integration items (3.5-3.7) remain in the TRACE repository.
+  - ADR-0004 documents Phase 3 architectural decisions.
 
 ---
 
@@ -880,18 +886,18 @@ This work happens in the **TRACE repository**, not the SDK repo.
 | `schemas/compliance/governance_report_v1.json` | Create — report schema |
 | `tests/compliance/test_audit_correlation.py` | Create |
 
-### Phase 3 Definition of Done
+### Phase 3 Definition of Done (SDK items completed 2026-02-16)
 
-- [ ] Async enforcement works identically to sync
-- [ ] Audit sinks persist artifacts automatically
-- [ ] Structured logging configured (silent by default)
-- [ ] `@governed` decorator works for sync and async functions
-- [ ] TRACE tool executor governed by AIGC policies
-- [ ] TRACE provider layer governed by AIGC policies
-- [ ] TRACE audit log correlates with AIGC artifacts
-- [ ] End-to-end TRACE + AIGC integration test passes
-- [ ] SDK passes `pip install` from clean environment
-- [ ] All golden traces pass (SDK and TRACE)
+- [x] Async enforcement works identically to sync
+- [x] Audit sinks persist artifacts automatically
+- [x] Structured logging configured (silent by default)
+- [x] `@governed` decorator works for sync and async functions
+- [ ] TRACE tool executor governed by AIGC policies (TRACE repo)
+- [ ] TRACE provider layer governed by AIGC policies (TRACE repo)
+- [ ] TRACE audit log correlates with AIGC artifacts (TRACE repo)
+- [ ] End-to-end TRACE + AIGC integration test passes (TRACE repo)
+- [x] SDK passes `pip install` from clean environment
+- [x] All golden traces pass (SDK)
 
 ---
 

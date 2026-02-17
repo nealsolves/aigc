@@ -60,6 +60,35 @@ Legacy `src.*` imports remain available for compatibility.
 - **Policy composition** — `extends` inheritance with recursive merge
   (arrays append, dicts recurse, scalars replace) and cycle detection
 
+### Phase 3 (Production Readiness)
+
+- **Async enforcement** — `enforce_invocation_async()` runs policy I/O off the
+  event loop via `asyncio.to_thread`; identical governance behavior to sync
+- **Pluggable audit sinks** — register a sink once; every enforcement emits to
+  it automatically:
+
+  ```python
+  from aigc.sinks import JsonFileAuditSink, set_audit_sink
+  set_audit_sink(JsonFileAuditSink("audit.jsonl"))
+  ```
+
+- **Structured logging** — `aigc.*` logger namespace with `NullHandler` default;
+  host applications configure log levels and handlers
+- **`@governed` decorator** — wraps sync and async LLM call sites:
+
+  ```python
+  from aigc.decorators import governed
+
+  @governed(
+      policy_file="policies/trace_planner.yaml",
+      role="planner",
+      model_provider="anthropic",
+      model_identifier="claude-sonnet-4-5-20250929",
+  )
+  async def plan_investigation(input_data: dict, context: dict) -> dict:
+      return await llm.generate(input_data)
+  ```
+
 ## Audit Artifact Contract
 
 Audit artifacts follow `schemas/audit_artifact.schema.json` and include:

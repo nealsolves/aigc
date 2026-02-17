@@ -8,7 +8,9 @@ Policy loading and normalization.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import yaml
 from pathlib import Path
 from typing import Any
@@ -16,6 +18,8 @@ from typing import Any
 from jsonschema import Draft7Validator
 
 from src.errors import PolicyLoadError, PolicyValidationError
+
+logger = logging.getLogger("aigc.policy_loader")
 
 SCHEMAS_DIR = Path(__file__).parent.parent / "schemas"
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -36,6 +40,7 @@ def _resolve_policy_schema_path() -> Path:
             "No policy schema file found",
             details={"searched": [str(POLICY_DSL_SCHEMA_PATH), str(LEGACY_POLICY_SCHEMA_PATH)]},
         )
+    logger.warning("Using legacy policy schema: %s", LEGACY_POLICY_SCHEMA_PATH)
     return LEGACY_POLICY_SCHEMA_PATH
 
 
@@ -226,4 +231,25 @@ def load_policy(policy_file: str, visited: set[Path] | None = None) -> dict[str,
             },
         )
 
+    logger.debug(
+        "Policy loaded and validated: %s (version=%s)",
+        policy_file,
+        policy.get("policy_version"),
+    )
     return policy
+
+
+async def load_policy_async(
+    policy_file: str, visited: set[Path] | None = None
+) -> dict[str, Any]:
+    """
+    Async wrapper for load_policy.
+
+    Runs load_policy in a thread pool to avoid blocking the event loop
+    during file I/O and schema validation.
+
+    :param policy_file: Path to YAML policy file
+    :param visited: Set of visited policy paths (for cycle detection during extends resolution)
+    :return: Python dict representing the policy
+    """
+    return await asyncio.to_thread(load_policy, policy_file, visited)

@@ -97,17 +97,24 @@ invokes AI models.
   merging (arrays append, dicts recurse, scalars replace; circular
   dependency detection)
 
-### Planned
+### Phase 3 (Production Readiness - In Progress)
 
-- **Pluggable audit sinks** — file, SQLite, DynamoDB, CloudWatch
+- **Async enforcement** — `enforce_invocation_async()` via `asyncio.to_thread`
+  for non-blocking policy I/O in async orchestrators (Phase 3.1)
+- **Pluggable audit sinks** — `AuditSink` ABC with `JsonFileAuditSink` and
+  `CallbackAuditSink`; registered via `set_audit_sink()`; sink failures log
+  a warning and do not block enforcement (Phase 3.2)
+- **Structured logging** — `aigc` logger namespace with `NullHandler` default;
+  gate-level DEBUG, INFO on complete, WARNING on sink failure (Phase 3.3)
+- **Decorator/middleware pattern** — `@governed(policy_file, role,
+  model_provider, model_identifier)` for sync and async LLM call sites (Phase 3.4)
+
+### Planned (Post-Phase 3)
+
 - **Custom validators** — host applications register domain-specific
   validation functions
 - **Policy resolvers** — dynamic policy selection (multi-tenant,
   feature-flagged)
-- **Async enforcement** — non-blocking enforcement for async orchestrators
-- **Decorator/middleware pattern** — `@governed(policy="...")` for wrapping
-  LLM calls
-- **Structured logging** — Python `logging` integration for observability
 - **TRACE integration** — tool gate, provider gate, compliance extension,
   audit correlator
 
@@ -146,6 +153,18 @@ enforce_invocation(invocation)
 Optional Wrapper:
   with_retry(invocation)        retry.py            [Phase 2.4]
     Opt-in retry wrapper for transient SchemaValidationError failures
+
+Async Entry Point:
+  enforce_invocation_async()    enforcement.py      [Phase 3.1]
+    Async wrapper; policy I/O via asyncio.to_thread; shared sync pipeline
+
+Audit Sinks:
+  set_audit_sink(sink)          sinks.py            [Phase 3.2]
+    Register AuditSink; emits after every enforcement (PASS and FAIL)
+
+Decorator Pattern:
+  @governed(policy_file, role)  decorators.py       [Phase 3.4]
+    Sync/async LLM call wrapper; captures input/output/context
 ```
 
 For the full architecture, see
@@ -195,22 +214,27 @@ aigc-governance-sdk/
 │
 ├── aigc/
 │   ├── __init__.py                    Stable public API package
-│   ├── enforcement.py                 Public enforcement import
+│   ├── enforcement.py                 Public enforcement import (sync + async)
 │   ├── errors.py                      Public exception imports
 │   ├── policy_loader.py               Public policy loader import
 │   ├── validator.py                   Public validator imports
-│   └── audit.py                       Public audit helpers
+│   ├── audit.py                       Public audit helpers
+│   ├── sinks.py                       Public audit sink imports (Phase 3.2)
+│   └── decorators.py                  Public decorator imports (Phase 3.4)
 │
 ├── src/
 │   ├── __init__.py                    Package initialization
-│   ├── enforcement.py                 Orchestrator — single entry point
+│   ├── enforcement.py                 Orchestrator — sync + async entry points (Phase 3.1)
 │   ├── policy_loader.py               YAML loading + composition + JSON Schema validation
+│   │                                  load_policy_async added in Phase 3.1
 │   ├── validator.py                   Precondition + schema validation
 │   ├── audit.py                       Audit artifact generation
 │   ├── guards.py                      Guard evaluation engine (Phase 2.1)
 │   ├── conditions.py                  Named condition resolution (Phase 2.2)
 │   ├── tools.py                       Tool constraint validation (Phase 2.3)
 │   ├── retry.py                       Retry policy wrapper (Phase 2.4)
+│   ├── sinks.py                       Audit sink registry + built-in sinks (Phase 3.2)
+│   ├── decorators.py                  @governed decorator (Phase 3.4)
 │   ├── utils.py                       Canonical JSON serialization + checksums
 │   └── errors.py                      Custom exception hierarchy
 │
@@ -253,7 +277,10 @@ aigc-governance-sdk/
 │   ├── test_invocation_validation.py  Invocation shape validation tests
 │   ├── test_policy_loader.py          Policy loading and validation tests
 │   ├── test_public_api.py             Public API import tests
-│   └── test_validation.py             Validation unit tests
+│   ├── test_validation.py             Validation unit tests
+│   ├── test_async_enforcement.py      Async enforcement tests (Phase 3.1)
+│   ├── test_audit_sinks.py            Audit sink tests (Phase 3.2)
+│   └── test_decorators.py             @governed decorator tests (Phase 3.4)
 │
 ├── .flake8                            Flake8 linter configuration
 ├── .markdownlint-cli2.yaml            Markdown lint configuration

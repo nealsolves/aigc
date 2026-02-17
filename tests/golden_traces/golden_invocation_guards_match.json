@@ -1,0 +1,16 @@
+{
+  "model_provider": "anthropic",
+  "model_identifier": "claude-sonnet-4",
+  "role": "planner",
+  "policy_file": "tests/golden_traces/policy_guards_multi.yaml",
+  "input": {"task": "analyze system"},
+  "output": {"result": "analysis complete", "confidence": 0.95},
+  "context": {
+    "role_declared": true,
+    "schema_exists": true,
+    "is_enterprise": true,
+    "audit_enabled": true,
+    "enterprise_quota_available": true,
+    "audit_log_configured": true
+  }
+}

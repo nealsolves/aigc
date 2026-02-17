@@ -18,13 +18,13 @@ This guide shows how to use the Python SDK to:
 Install in editable mode during development:
 
 ```bash
-pip install -e .
+pip install -e .[dev]
 ```
 
 ## Example 1: Simple Enforcement
 
 ```python
-from src.enforcement import enforce_invocation
+from aigc.enforcement import enforce_invocation
 
 invocation = {
     "policy_file": "policies/base_policy.yaml",
@@ -49,8 +49,8 @@ Precondition validation raises `PreconditionError` when required conditions are
 missing.
 
 ```python
-from src.enforcement import enforce_invocation
-from src.errors import PreconditionError
+from aigc.enforcement import enforce_invocation
+from aigc.errors import PreconditionError
 
 try:
     enforce_invocation(
@@ -71,7 +71,7 @@ except PreconditionError as err:
 ## Example 3: Integrating an External LLM Call
 
 ```python
-from src.enforcement import enforce_invocation
+from aigc.enforcement import enforce_invocation
 import openai
 
 task_input = {"task": "Draft API design"}
@@ -117,3 +117,5 @@ with open("audit.json", "w", encoding="utf-8") as file_obj:
 - Keep policy paths explicit and versioned
 - Keep `context` complete so required preconditions can be checked
 - Persist audit artifacts for replay and compliance workflows
+- Treat `guards`, `tools`, and `retry_policy` as fail-closed until Phase 2
+  runtime support is implemented

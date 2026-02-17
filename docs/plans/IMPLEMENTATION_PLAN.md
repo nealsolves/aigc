@@ -4,6 +4,18 @@
 
 Version: 1.0.0 | Status: Authoritative | Last Updated: 2026-02-16
 
+Implementation status note (2026-02-16):
+
+- **Phase 1: COMPLETE** ✅ (items 1.1-1.8 implemented)
+  - Packaging, invocation validation, role enforcement, postconditions,
+    canonical checksums, enriched audit artifacts, test coverage at 93%,
+    and failure audit emission
+  - Phase 1.8 (failure audit emission) discovered as critical gap during PR1
+    validation and implemented as final Phase 1 item
+  - ADR-0001 documents the course correction
+- Phase 2 runtime items (guards, tools, retry_policy) remain pending and are
+  currently fail-closed when declared in policy.
+
 ---
 
 ## Overview
@@ -28,17 +40,19 @@ Canonical checksums          Extended audit             Compliance extension
 Test coverage ≥80%           Test coverage ≥90%         TRACE integration tests
 ```
 
-### Current State (Pre-Phase 1)
+### Current State (Post-Phase 1 Hardening)
 
 The SDK has a working enforcement pipeline:
 `load_policy → validate_preconditions → validate_schema → generate_audit`.
 
-**What works:** Policy loading, precondition validation, output schema
-validation, audit artifact generation, golden trace testing, CI pipeline.
+**What works:** Policy loading, invocation validation, role enforcement,
+precondition validation, output schema validation, postcondition validation,
+canonical checksum generation, audit artifact contract, golden trace testing,
+CI pipeline, and packaging (`pyproject.toml`, `aigc` import path).
 
-**What is missing:** Role enforcement, postconditions, guards, tool
-constraints, retry policy, proper packaging, input validation, canonical
-checksums, and the test coverage to prove it all works.
+**What is still missing:** Guard evaluation, tool constraint runtime
+enforcement, retry policy runtime enforcement, and test coverage progression
+to the long-term Phase 2/3 targets.
 
 ---
 
@@ -277,19 +291,99 @@ python -m pytest --cov=src --cov-report=term-missing
 | `tests/test_policy_loader.py` | Create — 6+ tests |
 | `tests/test_enforcement_integration.py` | Create — 5+ tests |
 
+### 1.8 Failure Audit Artifact Emission
+
+**Problem (discovered 2026-02-16):** When enforcement fails at any gate
+(role, preconditions, schema, postconditions), an exception is raised but
+**no audit artifact is generated**. This violates the audit contract
+principle: every enforcement attempt must produce an audit artifact,
+whether PASS or FAIL. Compliance and forensic analysis require auditing
+failed attempts.
+
+**Why this was missed:** Phase 1.6 (Enriched Audit Artifacts) focused on
+PASS artifacts. The implementation plan did not explicitly call out FAIL
+artifact emission as a separate deliverable, assuming it would be handled
+implicitly. This was a planning oversight.
+
+**Course correction:** Adding this as Phase 1.8 (final Phase 1 item)
+before Phase 2. This must complete before Phase 2 guard/tool/retry
+implementation because Phase 2 will add more failure modes that also need
+audit emission.
+
+**Deliverables:**
+
+- Wrap enforcement pipeline in try/except to catch all governance failures
+- On exception, generate audit artifact with:
+  - `enforcement_result: "FAIL"`
+  - `failure_gate`: which gate failed (e.g., "role", "precondition",
+    "schema", "postcondition")
+  - `failure_reason`: exception message
+  - `failures`: structured failure list from exception details
+  - All standard audit fields (checksums, timestamps, policy metadata)
+- Emit FAIL artifact (when audit sink is configured in future)
+- Re-raise original exception (fail-closed behavior preserved)
+- Update audit artifact schema to formalize `failure_gate` and
+  `failure_reason` fields
+
+**Acceptance criteria:**
+
+- Role validation failure produces FAIL audit artifact + raises
+  `GovernanceViolationError`
+- Precondition failure produces FAIL audit artifact + raises
+  `PreconditionError`
+- Schema validation failure produces FAIL audit artifact + raises
+  `SchemaValidationError`
+- Postcondition failure produces FAIL audit artifact + raises
+  `GovernanceViolationError`
+- FAIL artifacts include same checksums/metadata as PASS artifacts
+- Golden trace: `golden_invocation_failure_with_audit.json` (new)
+- Audit artifact schema updated with FAIL-specific fields
+
+**Files to modify/create:**
+
+| File | Action |
+| ---- | ------ |
+| `src/enforcement.py` | Wrap pipeline in try/except for audit-before-raise |
+| `src/audit.py` | Add `failure_gate` and `failure_reason` to artifact generation |
+| `schemas/audit_artifact.schema.json` | Add FAIL-specific fields to schema |
+| `tests/test_enforcement_pipeline.py` | Add FAIL artifact emission tests |
+| `tests/golden_traces/golden_invocation_failure_with_audit.json` | Create |
+
+**Original plan path (before course correction):**
+
+```
+Phase 1 (items 1.1-1.7) → Phase 2 (guards, tools, retry)
+```
+
+**Corrected plan path (2026-02-16):**
+
+```
+Phase 1 (items 1.1-1.8) → Phase 2 (guards, tools, retry)
+                    ↑
+                    └─ 1.8 added: FAIL audit emission (critical gap)
+```
+
+**Rationale:** Discovered that FAIL audits were not emitted during PR1
+validation. This is a Phase 1 gap (audit contract completeness), not a
+Phase 2 feature. Must fix before adding Phase 2 complexity.
+
 ### Phase 1 Definition of Done
 
-- [ ] `pip install -e .` works and SDK is importable
-- [ ] `enforce_invocation({})` raises `GovernanceViolationError` (not `KeyError`)
-- [ ] Unauthorized roles are rejected
-- [ ] Postconditions are validated
-- [ ] Checksums use canonical JSON
-- [ ] Audit artifacts include enforcement result and gate details
-- [ ] Test coverage >= 80%
-- [ ] All existing golden traces still pass
-- [ ] 3 new golden trace pairs (missing fields, unauthorized role,
+- [x] `pip install -e .` works and SDK is importable
+- [x] `enforce_invocation({})` raises `GovernanceViolationError` (not `KeyError`)
+- [x] Unauthorized roles are rejected
+- [x] Postconditions are validated
+- [x] Checksums use canonical JSON
+- [x] Audit artifacts include enforcement result and gate details
+- [x] Test coverage >= 80% (current: 93%)
+- [x] All existing golden traces still pass
+- [x] 3 new golden trace pairs (missing fields, unauthorized role,
   postcondition failure)
-- [ ] CI passes (tests, lint, policy validation)
+- [x] CI passes (tests, lint, policy validation)
+- [x] **Failure audit artifacts emitted before exception propagation (1.8)**
+- [x] **CI coverage reporting with 80% threshold enforcement**
+
+**Phase 1 Status:** ✅ **COMPLETE** (2026-02-16)
 
 ---
 

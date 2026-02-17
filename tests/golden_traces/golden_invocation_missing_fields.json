@@ -1,0 +1,14 @@
+{
+  "description": "Golden trace for invocation validation failure (missing required fields)",
+  "invocation": {
+    "policy_file": "tests/golden_traces/golden_policy_v1.yaml",
+    "model_provider": "openai"
+  },
+  "expected_exception": "InvocationValidationError",
+  "expected_exception_code": "INVOCATION_VALIDATION_ERROR",
+  "notes": [
+    "This golden trace validates that invocations with missing required fields",
+    "raise InvocationValidationError (subclass of GovernanceViolationError)",
+    "Missing fields: model_identifier, role, input, output, context"
+  ]
+}

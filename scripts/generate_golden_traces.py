@@ -59,10 +59,14 @@ def main(input_file: str):
 
         # Create associated expected audit (partial)
         audit_template = {
+            "audit_schema_version": audit["audit_schema_version"],
             "model_provider": audit["model_provider"],
             "model_identifier": audit["model_identifier"],
             "policy_version": audit["policy_version"],
             "role": audit["role"],
+            "policy_file": audit["policy_file"],
+            "policy_schema_version": audit["policy_schema_version"],
+            "enforcement_result": audit["enforcement_result"],
         }
         audit_path = GOLDEN_DIR / f"auto_golden_expected_audit_{idx}.json"
         with open(audit_path, "w", encoding="utf-8") as out:

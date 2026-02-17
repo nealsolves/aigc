@@ -1,0 +1,22 @@
+policy_version: "1.0"
+roles:
+  - planner
+pre_conditions:
+  required:
+    - role_declared
+post_conditions:
+  required:
+    - output_schema_valid
+output_schema:
+  type: object
+  properties:
+    result:
+      type: string
+    confidence:
+      type: number
+  required:
+    - result
+    - confidence
+retry_policy:
+  max_retries: 2
+  backoff_ms: 500

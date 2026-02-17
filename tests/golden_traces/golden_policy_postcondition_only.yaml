@@ -1,0 +1,13 @@
+# Policy that requires postcondition without output_schema
+policy_version: "1.0"
+roles:
+  - planner
+  - verifier
+
+pre_conditions:
+  required:
+    - role_declared
+
+post_conditions:
+  required:
+    - output_schema_valid

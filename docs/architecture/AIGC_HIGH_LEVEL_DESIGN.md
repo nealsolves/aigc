@@ -260,9 +260,9 @@ enforcement. It serves as the chain of custody for the invocation.
 
 **Design constraints for audit artifacts:**
 
-- **Stable fields** (deterministic): `model_provider`, `model_identifier`,
-  `role`, `policy_version`, `enforcement_result` — used in golden trace
-  assertions
+- **Stable fields** (deterministic): `audit_schema_version`, `policy_file`,
+  `policy_schema_version`, `model_provider`, `model_identifier`, `role`,
+  `policy_version`, `enforcement_result` — used in golden trace assertions
 - **Volatile fields** (non-deterministic): `timestamp`, `input_checksum`,
   `output_checksum` — excluded from golden trace assertions
 - **Checksums** use SHA-256 over canonical JSON (`json.dumps(obj,
@@ -289,11 +289,10 @@ enforce_invocation(invocation)
 │     Check invocation["role"] ∈ policy["roles"]
 │     └─ Raise GovernanceViolationError if unauthorized
 │
-├─ 3. RESOLVE GUARDS                         [Phase 2 — new]
-│     For each guard in policy["guards"]:
-│       ├─ Evaluate guard.when.condition against context
-│       ├─ If matched: merge guard.then into effective policy
-│       └─ Record evaluation result for audit
+├─ 3. RESOLVE GUARDS                         [Phase 2]
+│     Runtime support not implemented yet.
+│     If policy declares guards, enforcement fails closed with
+│     FeatureNotImplementedError.
 │
 ├─ 4. VALIDATE PRECONDITIONS
 │     For each key in effective_policy["pre_conditions"]["required"]:
@@ -310,11 +309,10 @@ enforce_invocation(invocation)
 │       ├─ Check key is satisfiable from invocation state
 │       └─ Raise PreconditionError if unsatisfied
 │
-├─ 7. VALIDATE TOOL CONSTRAINTS              [Phase 2 — new]
-│     If invocation contains tool_calls:
-│       ├─ Check each tool ∈ policy["tools"]["allowed_tools"]
-│       ├─ Check call count ≤ max_calls
-│       └─ Raise GovernanceViolationError on violation
+├─ 7. VALIDATE TOOL CONSTRAINTS              [Phase 2]
+│     Runtime support not implemented yet.
+│     If policy declares tools/retry_policy, enforcement fails closed with
+│     FeatureNotImplementedError.
 │
 ├─ 8. GENERATE AUDIT ARTIFACT
 │     Collect all enforcement decisions into structured record

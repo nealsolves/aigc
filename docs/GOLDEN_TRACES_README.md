@@ -58,10 +58,14 @@ versioned.
 
 Stable audit fields usually include:
 
+- `audit_schema_version`
 - `model_provider`
 - `model_identifier`
 - `policy_version`
 - `role`
+- `policy_file`
+- `policy_schema_version`
+- `enforcement_result`
 
 Avoid strict checks on volatile fields like timestamps or full checksums unless
 you canonicalize them.
@@ -140,10 +144,14 @@ Example expected audit template:
 
 ```json
 {
+  "audit_schema_version": "1.0",
   "model_provider": "openai",
   "model_identifier": "gpt-4.1",
   "policy_version": "1.0",
-  "role": "planner"
+  "role": "planner",
+  "policy_file": "policies/base_policy.yaml",
+  "policy_schema_version": "http://json-schema.org/draft-07/schema#",
+  "enforcement_result": "PASS"
 }
 ```
 

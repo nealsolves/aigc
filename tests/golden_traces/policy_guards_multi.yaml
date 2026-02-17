@@ -1,0 +1,41 @@
+policy_version: "1.0"
+roles:
+  - planner
+  - verifier
+conditions:
+  is_enterprise:
+    type: boolean
+    default: false
+  audit_enabled:
+    type: boolean
+    default: false
+pre_conditions:
+  required:
+    - role_declared
+    - schema_exists
+post_conditions:
+  required:
+    - output_schema_valid
+output_schema:
+  type: object
+  properties:
+    result:
+      type: string
+    confidence:
+      type: number
+  required:
+    - result
+    - confidence
+guards:
+  - when:
+      condition: "is_enterprise"
+    then:
+      pre_conditions:
+        required:
+          - enterprise_quota_available
+  - when:
+      condition: "audit_enabled"
+    then:
+      pre_conditions:
+        required:
+          - audit_log_configured

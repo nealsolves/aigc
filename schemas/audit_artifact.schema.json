@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIGC Audit Artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "audit_schema_version": {
+      "type": "string"
+    },
+    "policy_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "policy_schema_version": {
+      "type": "string"
+    },
+    "policy_version": {
+      "type": "string"
+    },
+    "model_provider": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model_identifier": {
+      "type": "string",
+      "minLength": 1
+    },
+    "role": {
+      "type": "string",
+      "minLength": 1
+    },
+    "enforcement_result": {
+      "type": "string",
+      "enum": ["PASS", "FAIL"]
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "field": { "type": ["string", "null"] }
+        },
+        "required": ["code", "message", "field"]
+      }
+    },
+    "failure_gate": {
+      "type": ["string", "null"],
+      "enum": [null, "invocation_validation", "role_validation", "precondition_validation", "schema_validation", "postcondition_validation", "feature_not_implemented", "tool_validation", "guard_evaluation", "condition_resolution"],
+      "description": "Which enforcement gate failed (null for PASS results)"
+    },
+    "failure_reason": {
+      "type": ["string", "null"],
+      "description": "Human-readable failure reason (null for PASS results)"
+    },
+    "input_checksum": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "output_checksum": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "audit_schema_version",
+    "policy_file",
+    "policy_schema_version",
+    "policy_version",
+    "model_provider",
+    "model_identifier",
+    "role",
+    "enforcement_result",
+    "failures",
+    "input_checksum",
+    "output_checksum",
+    "timestamp",
+    "metadata"
+  ]
+}

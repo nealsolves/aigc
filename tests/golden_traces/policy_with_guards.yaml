@@ -1,0 +1,30 @@
+policy_version: "1.0"
+roles:
+  - planner
+conditions:
+  is_enterprise:
+    type: boolean
+    default: false
+pre_conditions:
+  required:
+    - role_declared
+post_conditions:
+  required:
+    - output_schema_valid
+output_schema:
+  type: object
+  properties:
+    result:
+      type: string
+    confidence:
+      type: number
+  required:
+    - result
+    - confidence
+guards:
+  - when:
+      condition: "is_enterprise"
+    then:
+      post_conditions:
+        required:
+          - audit_level_high

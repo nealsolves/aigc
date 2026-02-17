@@ -61,6 +61,9 @@ tests/
 - [ ] Contains `model_identifier`
 - [ ] Contains `role`
 - [ ] Contains `policy_version`
+- [ ] Contains `policy_file`
+- [ ] Contains `policy_schema_version`
+- [ ] Contains `enforcement_result`
 - [ ] Avoids transient fields (e.g., timestamp)
 
 ---

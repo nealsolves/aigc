@@ -1,0 +1,27 @@
+{
+  "description": "Golden trace for postcondition validation failure (postcondition required without schema)",
+  "invocation": {
+    "policy_file": "tests/golden_traces/golden_policy_postcondition_only.yaml",
+    "model_provider": "openai",
+    "model_identifier": "gpt-test-model",
+    "role": "planner",
+    "input": {"task": "describe system"},
+    "output": {"result": "description"},
+    "context": {"role_declared": true}
+  },
+  "expected_exception": "GovernanceViolationError",
+  "expected_exception_code": "POSTCONDITION_FAILED",
+  "expected_audit_artifact_stable_fields": {
+    "enforcement_result": "FAIL",
+    "failure_gate": "postcondition_validation",
+    "model_provider": "openai",
+    "model_identifier": "gpt-test-model",
+    "role": "planner",
+    "policy_file": "tests/golden_traces/golden_policy_postcondition_only.yaml"
+  },
+  "notes": [
+    "This golden trace validates postcondition failures emit FAIL audit artifacts",
+    "The policy requires 'output_schema_valid' postcondition but has no output_schema",
+    "This causes postcondition validation to fail with POSTCONDITION_FAILED code"
+  ]
+}

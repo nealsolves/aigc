@@ -1,0 +1,34 @@
+# Markdown lint configuration for AIGC Governance SDK
+
+# Globs to ignore
+ignores:
+  - "aigc-env/**"
+  - "node_modules/**"
+  - ".git/**"
+  - "docs/audits/**"  # Audit reports are generated externally
+
+# Rule configuration
+config:
+  # Allow longer lines for code examples and tables
+  MD013:
+    line_length: 300
+    code_blocks: false
+    tables: false
+
+  # Allow headings without surrounding blank lines (common in technical docs)
+  MD022: false
+
+  # Allow fenced code blocks without surrounding blank lines
+  MD031: false
+
+  # Allow lists without surrounding blank lines
+  MD032: false
+
+  # Allow emphasis as heading for special formatting
+  MD036: false
+
+  # Allow fenced code blocks without language (for plain text examples)
+  MD040: false
+
+  # Allow first line to not be heading (for metadata, etc.)
+  MD041: false

@@ -12,7 +12,7 @@ from src.errors import SchemaValidationError
 GOLDEN_FAILURE = "tests/golden_traces/golden_invocation_failure.json"
 
 def load_json(p):
-    with open(p, "r") as f:
+    with open(p, "r", encoding="utf-8") as f:
         return json.load(f)
 
 def test_golden_trace_failure():
@@ -22,5 +22,6 @@ def test_golden_trace_failure():
     """
     invocation = load_json(GOLDEN_FAILURE)
 
-    with pytest.raises(SchemaValidationError):
+    with pytest.raises(SchemaValidationError) as exc_info:
         enforce_invocation(invocation)
+    assert exc_info.value.code == "OUTPUT_SCHEMA_VALIDATION_ERROR"

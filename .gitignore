@@ -23,3 +23,6 @@ aigc-env/
 .coverage
 coverage.xml
 htmlcov/
+
+# Audit artifacts/reports generated during local audit runs
+docs/audits/

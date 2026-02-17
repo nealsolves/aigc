@@ -14,4 +14,14 @@ pre_conditions:
 
 post_conditions:
   required:
-    - output_valid
+    - output_schema_valid
+
+output_schema:
+  $schema: "http://json-schema.org/draft-07/schema#"
+  title: "Base Output Schema"
+  type: object
+  properties:
+    result:
+      type: string
+  required:
+    - result

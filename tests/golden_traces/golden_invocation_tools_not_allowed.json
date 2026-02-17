@@ -1,0 +1,19 @@
+{
+  "description": "Tool not in allowed_tools list",
+  "invocation": {
+    "model_provider": "anthropic",
+    "model_identifier": "claude-sonnet-4",
+    "role": "planner",
+    "policy_file": "tests/golden_traces/policy_with_tools.yaml",
+    "input": {"task": "research topic"},
+    "output": {"result": "research complete", "confidence": 0.92},
+    "context": {
+      "role_declared": true
+    },
+    "tool_calls": [
+      {"name": "unauthorized_tool", "call_id": "tc-1"}
+    ]
+  },
+  "expected_exception": "ToolConstraintViolationError",
+  "expected_exception_code": "TOOL_CONSTRAINT_VIOLATION"
+}

@@ -22,11 +22,52 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Run tests
-        run: python -m pytest
+          pip install -e .[dev]
+      - name: Run tests with coverage
+        run: |
+          python -m pytest \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=json \
+            --cov-report=xml \
+            --cov-fail-under=80
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-reports
+          path: |
+            coverage.json
+            coverage.xml
+          retention-days: 30
+      - name: Enforce coverage threshold (Phase 1 - 80%)
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+
+          with open("coverage.json") as f:
+              cov = json.load(f)
+
+          total = cov["totals"]["percent_covered"]
+          threshold = 80.0
+
+          print(f"Coverage: {total:.2f}%")
+          print(f"Threshold: {threshold:.2f}%")
+
+          if total < threshold:
+              print(f"❌ Coverage {total:.2f}% is below threshold {threshold:.2f}%")
+              sys.exit(1)
+          else:
+              print(f"✅ Coverage {total:.2f}% meets threshold {threshold:.2f}%")
+          PY
       - name: Lint
-        run: flake8 src
+        run: flake8 src aigc
+      - name: Golden trace regression tests
+        run: |
+          python -m pytest \
+            tests/test_golden_trace_success.py \
+            tests/test_golden_trace_failure.py \
+            tests/test_audit_artifact_contract.py
       - name: Markdown lint
         run: npx markdownlint-cli2 "**/*.md"
       - name: Validate policies against schema
@@ -35,15 +76,23 @@ jobs:
           import json
           from pathlib import Path
           import yaml
-          import jsonschema
+          from jsonschema import Draft7Validator, validate
 
-          schema_path = Path("schemas/policy_dsl.schema.json")
-          with open(schema_path, "r", encoding="utf-8") as f:
-            schema = json.load(f)
+          policy_schema_path = Path("schemas/policy_dsl.schema.json")
+          with open(policy_schema_path, "r", encoding="utf-8") as f:
+            policy_schema = json.load(f)
+          Draft7Validator.check_schema(policy_schema)
+          assert policy_schema.get("$schema") == "http://json-schema.org/draft-07/schema#"
+
+          audit_schema_path = Path("schemas/audit_artifact.schema.json")
+          with open(audit_schema_path, "r", encoding="utf-8") as f:
+            audit_schema = json.load(f)
+          Draft7Validator.check_schema(audit_schema)
+          assert audit_schema.get("$schema") == "http://json-schema.org/draft-07/schema#"
 
           for policy_path in Path("policies").glob("*.yaml"):
             with open(policy_path, "r", encoding="utf-8") as f:
               policy = yaml.safe_load(f)
-            jsonschema.validate(policy, schema)
+            validate(policy, policy_schema)
             print(f"validated: {policy_path}")
           PY

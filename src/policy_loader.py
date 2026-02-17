@@ -142,14 +142,16 @@ def _resolve_extends(
     if base_path in visited:
         raise PolicyLoadError(
             f"Circular extends detected: {base_path}",
-            details={"policy_path": str(policy_path), "extends": extends},
+            details={
+                "policy_path": str(policy_path),
+                "extends": extends,
+                "chain": sorted(str(p) for p in visited),
+            },
         )
 
     # Load base policy (recursively, to handle chained extends)
-    base_policy_dict = load_policy(str(base_path))
-
-    # Recursively resolve base's extends
-    base_policy_dict = _resolve_extends(base_policy_dict, base_path, visited)
+    # Pass visited set to maintain cycle detection across the chain
+    base_policy_dict = load_policy(str(base_path), visited)
 
     # Merge current policy into base (current overrides base)
     merged = _merge_policies(base_policy_dict, policy)
@@ -160,11 +162,12 @@ def _resolve_extends(
     return merged
 
 
-def load_policy(policy_file: str) -> dict[str, Any]:
+def load_policy(policy_file: str, visited: set[Path] | None = None) -> dict[str, Any]:
     """
     Load and validate a policy YAML file.
 
     :param policy_file: Path to YAML policy file
+    :param visited: Set of visited policy paths (for cycle detection during extends resolution)
     :return: Python dict representing the policy
     """
     policy_path = _resolve_policy_path(policy_file)
@@ -185,7 +188,7 @@ def load_policy(policy_file: str) -> dict[str, Any]:
 
     # Resolve inheritance BEFORE schema validation (Phase 2.6)
     if "extends" in policy:
-        policy = _resolve_extends(policy, policy_path)
+        policy = _resolve_extends(policy, policy_path, visited)
 
     schema_path = _resolve_policy_schema_path()
     # Validate against JSON schema

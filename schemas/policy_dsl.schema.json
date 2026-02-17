@@ -23,7 +23,7 @@
         "properties": {
           "type": { "type": "string", "enum": ["boolean"] },
           "required": { "type": "boolean" },
-          "default": {}
+          "default": { "type": "boolean" }
         },
         "required": ["type"]
       }

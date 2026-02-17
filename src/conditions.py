@@ -51,7 +51,13 @@ def resolve_conditions(
             resolved[name] = value
         elif "default" in spec:
             # Use default value
-            resolved[name] = spec["default"]
+            default = spec["default"]
+            if not isinstance(default, bool):
+                raise ConditionResolutionError(
+                    f"Condition '{name}' default must be boolean, got {type(default).__name__}",
+                    details={"condition": name, "default_type": type(default).__name__},
+                )
+            resolved[name] = default
         elif spec.get("required", False):
             # Required condition missing
             raise ConditionResolutionError(

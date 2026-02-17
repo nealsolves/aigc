@@ -1,0 +1,17 @@
+{
+  "policy_file": "tests/golden_traces/policy_child_extends_base.yaml",
+  "model_provider": "anthropic",
+  "model_identifier": "claude-sonnet-4",
+  "role": "verifier",
+  "input": {
+    "task": "Verify composition behavior with inheritance",
+    "data_source": "test-suite"
+  },
+  "output": {
+    "result": "Composition test passed"
+  },
+  "context": {
+    "role_declared": true,
+    "citations_available": true
+  }
+}

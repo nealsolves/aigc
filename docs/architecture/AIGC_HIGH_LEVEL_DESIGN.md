@@ -289,10 +289,12 @@ enforce_invocation(invocation)
 │     Check invocation["role"] ∈ policy["roles"]
 │     └─ Raise GovernanceViolationError if unauthorized
 │
-├─ 3. RESOLVE GUARDS                         [Phase 2]
-│     Runtime support not implemented yet.
-│     If policy declares guards, enforcement fails closed with
-│     FeatureNotImplementedError.
+├─ 3. RESOLVE GUARDS                         [Phase 2 — implemented]
+│     If policy declares guards or conditions, evaluate_guards() is called.
+│     ├─ Resolve named conditions from context or defaults
+│     ├─ Evaluate guard expressions in declaration order
+│     ├─ Apply additive merge to produce effective_policy
+│     └─ Raise GuardEvaluationError or ConditionResolutionError on failure
 │
 ├─ 4. VALIDATE PRECONDITIONS
 │     For each key in effective_policy["pre_conditions"]["required"]:
@@ -309,10 +311,11 @@ enforce_invocation(invocation)
 │       ├─ Check key is satisfiable from invocation state
 │       └─ Raise PreconditionError if unsatisfied
 │
-├─ 7. VALIDATE TOOL CONSTRAINTS              [Phase 2]
-│     Runtime support not implemented yet.
-│     If policy declares tools/retry_policy, enforcement fails closed with
-│     FeatureNotImplementedError.
+├─ 7. VALIDATE TOOL CONSTRAINTS              [Phase 2 — implemented]
+│     If policy declares tools, validate_tool_constraints() is called.
+│     ├─ Enforce tool allowlist
+│     ├─ Enforce max_calls limits per tool
+│     └─ Raise ToolConstraintViolationError on violation
 │
 ├─ 8. GENERATE AUDIT ARTIFACT
 │     Collect all enforcement decisions into structured record

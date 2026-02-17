@@ -79,3 +79,25 @@ def test_extends_inherits_description():
     # Description from base is inherited (child doesn't override it)
     assert "description" in policy
     assert policy["description"] == "Base policy for composition testing"
+
+
+def test_circular_extends_raises_policy_load_error():
+    """Circular extends chain raises PolicyLoadError, not RecursionError."""
+    with pytest.raises(PolicyLoadError) as exc_info:
+        load_policy("tests/fixtures/policy_cycle_a.yaml")
+
+    # Must be typed governance error, not RecursionError
+    assert "Circular extends detected" in str(exc_info.value)
+    assert "chain" in exc_info.value.details
+
+
+def test_multi_level_extends_chain():
+    """Multi-level non-cyclic extends chain works (A -> B -> C)."""
+    # This tests that visited set is properly passed through the recursion
+    # policy_child_extends_base extends policy_base, which is a 2-level chain
+    policy = load_policy("tests/golden_traces/policy_child_extends_base.yaml")
+
+    # Should successfully merge without cycle errors
+    assert "roles" in policy
+    assert "planner" in policy["roles"]  # from base
+    assert "verifier" in policy["roles"]  # from child

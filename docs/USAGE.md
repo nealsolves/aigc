@@ -117,5 +117,5 @@ with open("audit.json", "w", encoding="utf-8") as file_obj:
 - Keep policy paths explicit and versioned
 - Keep `context` complete so required preconditions can be checked
 - Persist audit artifacts for replay and compliance workflows
-- Treat `guards`, `tools`, and `retry_policy` as fail-closed until Phase 2
-  runtime support is implemented
+- Use `guards`, `tools`, `conditions`, `retry_policy`, and policy composition
+  (`extends`) for advanced governance control (Phase 2 complete)

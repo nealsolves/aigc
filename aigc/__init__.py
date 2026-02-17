@@ -13,6 +13,7 @@ from aigc.errors import (
     PreconditionError,
     SchemaValidationError,
 )
+from aigc.retry import with_retry, RetryExhaustedError
 
 __version__ = "0.1.0"
 
@@ -24,6 +25,8 @@ __all__ = [
     "PolicyLoadError",
     "PolicyValidationError",
     "PreconditionError",
+    "RetryExhaustedError",
     "SchemaValidationError",
     "enforce_invocation",
+    "with_retry",
 ]

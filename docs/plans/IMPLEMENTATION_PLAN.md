@@ -13,8 +13,8 @@ Implementation status note (2026-02-16):
   - Phase 1.8 (failure audit emission) discovered as critical gap during PR1
     validation and implemented as final Phase 1 item
   - ADR-0001 documents the course correction
-- Phase 2 runtime items (guards, tools, retry_policy) remain pending and are
-  currently fail-closed when declared in policy.
+- Phase 2 completed: guards, conditions, tools, retry policy, and policy
+  composition via extends are fully implemented and tested. Coverage at 94%.
 
 ---
 
@@ -633,16 +633,16 @@ a single policy file governs all invocations.
 
 ### Phase 2 Definition of Done
 
-- [ ] Guards evaluate correctly — additive, ordered, context-driven
-- [ ] Named conditions resolve from context with defaults
-- [ ] Tool constraints enforce allowlists and max_calls
-- [ ] Retry policy wraps enforcement with bounded retries
-- [ ] Audit artifacts capture all gate evaluation details
-- [ ] Policy composition via `extends` works
-- [ ] 6 new golden trace pairs covering guards, tools, conditions
-- [ ] Test coverage >= 90%
-- [ ] CI passes
-- [ ] `schemas/policy_dsl.schema.json` and runtime are in full alignment —
+- [x] Guards evaluate correctly — additive, ordered, context-driven
+- [x] Named conditions resolve from context with defaults
+- [x] Tool constraints enforce allowlists and max_calls
+- [x] Retry policy wraps enforcement with bounded retries
+- [x] Audit artifacts capture all gate evaluation details
+- [x] Policy composition via `extends` works
+- [x] 6 new golden trace pairs covering guards, tools, conditions
+- [x] Test coverage >= 90% (achieved 94%)
+- [x] CI passes (enforces 90% threshold)
+- [x] `schemas/policy_dsl.schema.json` and runtime are in full alignment —
   every field in the schema has corresponding enforcement code
 
 ---

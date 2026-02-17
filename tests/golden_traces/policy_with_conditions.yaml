@@ -1,0 +1,36 @@
+policy_version: "1.0"
+description: "Test policy with named conditions for golden trace testing"
+
+roles:
+  - "planner"
+  - "reviewer"
+
+conditions:
+  is_enterprise:
+    type: "boolean"
+    default: false
+  audit_enabled:
+    type: "boolean"
+    required: true
+  premium_features:
+    type: "boolean"
+    default: false
+
+pre_conditions:
+  required:
+    - "role_declared"
+    - "context_valid"
+
+post_conditions:
+  required:
+    - "output_schema_valid"
+
+output_schema:
+  type: "object"
+  properties:
+    result:
+      type: "string"
+    timestamp:
+      type: "string"
+  required:
+    - "result"

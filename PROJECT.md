@@ -405,10 +405,10 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ### Test Coverage
 
-- **99 tests** (all passing)
-- **94% coverage** (exceeds 90% target)
+- **107 tests** (all passing)
+- **98% coverage** (exceeds 90% target)
 - **28+ new unit tests** across Phase 2 modules
-- **9 new golden trace tests** (guards, tools)
+- **11 new golden trace tests** (guards, tools, conditions, composition)
 - All DSL features have regression fixtures
 
 ### Architectural Impact

@@ -35,7 +35,9 @@ from aigc.errors import (
 
 Legacy `src.*` imports remain available for compatibility.
 
-## Enforced Phase 1 Controls
+## Enforced Controls
+
+### Phase 1 (Core Pipeline)
 
 - Invocation shape validation (typed errors, no raw `KeyError`)
 - Policy loading with safe YAML + Draft-07 schema validation
@@ -43,15 +45,20 @@ Legacy `src.*` imports remain available for compatibility.
 - Preconditions + output schema validation
 - Postcondition enforcement (`output_schema_valid`)
 - Deterministic audit artifact generation with canonical SHA-256 checksums
+- FAIL audit artifacts emitted before exception propagation
 
-## Explicitly Not Implemented Yet (Fail-Closed)
+### Phase 2 (Full DSL)
 
-If a policy includes these features, enforcement raises
-`FeatureNotImplementedError`:
-
-- `guards`
-- `tools`
-- `retry_policy`
+- **Conditional guards** — `when/then` rules expand effective policy from
+  runtime context; evaluated before role validation; effects are additive
+- **Named conditions** — boolean flags resolved from invocation context with
+  defaults and required enforcement
+- **Tool constraints** — per-tool `max_calls` cap and tool allowlist
+  enforcement; violations emit FAIL audits
+- **Retry policy** — opt-in `with_retry()` wrapper for transient
+  `SchemaValidationError` failures with linear backoff
+- **Policy composition** — `extends` inheritance with recursive merge
+  (arrays append, dicts recurse, scalars replace) and cycle detection
 
 ## Audit Artifact Contract
 
@@ -67,7 +74,7 @@ Audit artifacts follow `schemas/audit_artifact.schema.json` and include:
 
 `.github/workflows/sdk_ci.yml` enforces:
 
-- `python -m pytest` with coverage gate (`--cov-fail-under=85`)
+- `python -m pytest` with coverage gate (`--cov-fail-under=90`)
 - `flake8` for `src` and `aigc`
 - markdown lint
 - policy YAML validation against the Draft-07 policy schema

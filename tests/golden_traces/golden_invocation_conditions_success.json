@@ -1,0 +1,21 @@
+{
+  "policy_file": "tests/golden_traces/policy_with_conditions.yaml",
+  "model_provider": "anthropic",
+  "model_identifier": "claude-sonnet-4",
+  "role": "planner",
+  "input": {
+    "task": "Analyze user feedback and generate insights",
+    "priority": "high"
+  },
+  "output": {
+    "result": "Completed analysis with 15 key insights",
+    "timestamp": "2026-02-16T12:00:00Z"
+  },
+  "context": {
+    "role_declared": true,
+    "context_valid": true,
+    "is_enterprise": true,
+    "audit_enabled": true,
+    "premium_features": false
+  }
+}

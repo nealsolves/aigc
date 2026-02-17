@@ -139,3 +139,21 @@ def test_resolve_condition_false_value():
     resolved = resolve_conditions(policy, context)
 
     assert resolved == {"is_enterprise": False}
+
+
+def test_resolve_condition_non_boolean_default_raises_error():
+    """Raise error when condition default is not boolean."""
+    policy = {
+        "conditions": {
+            "is_enterprise": {"type": "boolean", "default": "false"}  # Wrong type
+        }
+    }
+    context = {}
+
+    with pytest.raises(ConditionResolutionError) as exc_info:
+        resolve_conditions(policy, context)
+
+    assert exc_info.value.code == "CONDITION_RESOLUTION_ERROR"
+    assert exc_info.value.details["condition"] == "is_enterprise"
+    assert exc_info.value.details["default_type"] == "str"
+    assert "default must be boolean" in str(exc_info.value)

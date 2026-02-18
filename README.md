@@ -105,6 +105,8 @@ Audit artifacts follow `schemas/audit_artifact.schema.json` and include:
 
 `.github/workflows/sdk_ci.yml` enforces:
 
+- build-tool bootstrap (`pip`, `setuptools`, `wheel`) and editable install with
+  `--no-build-isolation` for restricted-environment parity
 - `python -m pytest` with coverage gate (`--cov-fail-under=90`)
 - `flake8` for `src` and `aigc`
 - markdown lint

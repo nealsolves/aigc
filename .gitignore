@@ -21,8 +21,12 @@ aigc-env/
 
 # Coverage
 .coverage
+coverage.json
 coverage.xml
 htmlcov/
+
+# Editable install metadata
+*.egg-info/
 
 # Audit artifacts/reports generated during local audit runs
 docs/audits/

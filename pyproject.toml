@@ -1,5 +1,7 @@
 [build-system]
-requires = ["setuptools>=40", "wheel"]
+# Keep build deps minimal; editable installs do not require an explicit wheel
+# dependency and restricted environments should use --no-build-isolation.
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]

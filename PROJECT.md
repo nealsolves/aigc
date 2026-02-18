@@ -1,55 +1,7 @@
-# AIGC — Auditable Intelligence Governance Contract
+# PROJECT.md — AIGC Governance SDK
 
-**The governance primitive for trustworthy AI systems.**
-
----
-
-## What is AIGC?
-
-AIGC is a Python SDK that enforces deterministic governance over AI model
-invocations. It ensures that every interaction with an AI model — regardless
-of provider, framework, or orchestration pattern — is:
-
-1. **Explicitly specified** — governance rules are declared in versioned
-   YAML policies, not buried in code
-2. **Deterministically enforced** — the same invocation + policy always
-   produces the same pass/fail decision
-3. **Observable** — every enforcement produces a structured audit artifact
-   with checksums and metadata
-4. **Replayable and auditable** — golden trace fixtures enable forensic
-   regression testing of governance behavior
-5. **Model/provider independent** — governance sits above the provider
-   layer; switch from OpenAI to Anthropic to Bedrock without touching
-   governance logic
-
-## Why AIGC Exists
-
-Agentic AI systems (multi-model orchestrators, tool-calling agents, RAG
-pipelines) make autonomous decisions at scale. Without governance:
-
-- There is no proof that the right model was used under the right constraints
-- Outputs cannot be deterministically replayed for audit
-- Role boundaries, tool budgets, and output contracts are advisory, not enforced
-- When something goes wrong, there is no forensic chain of custody
-
-AIGC makes governance a **first-class engineering concern** — not a
-compliance afterthought.
-
-## Relationship to TRACE
-
-AIGC is the governance layer for the
-[TRACE project](https://github.com/nealsolves/trace/tree/develop) (Temporal
-Root-cause Analytics & Correlation Engine), an agentic RAG system for
-root-cause analysis. TRACE uses AIGC to govern:
-
-- Model invocations across planner, verifier, and synthesizer agents
-- Tool usage constraints (which tools, how many calls)
-- Output schema compliance (structured RCA outputs)
-- Audit trail generation for compliance reporting
-
-While built for TRACE, AIGC is designed to be **portable** — it has no
-dependency on TRACE internals and can be embedded in any Python system that
-invokes AI models.
+Authoritative structural and implementation contract for the AIGC Governance SDK.
+See [README.md](README.md) for quick-start, public API, and usage.
 
 ---
 
@@ -97,7 +49,7 @@ invokes AI models.
   merging (arrays append, dicts recurse, scalars replace; circular
   dependency detection)
 
-### Phase 3 (Production Readiness - In Progress)
+### Phase 3 (Production Readiness - Complete)
 
 - **Async enforcement** — `enforce_invocation_async()` via `asyncio.to_thread`
   for non-blocking policy I/O in async orchestrators (Phase 3.1)
@@ -109,14 +61,15 @@ invokes AI models.
 - **Decorator/middleware pattern** — `@governed(policy_file, role,
   model_provider, model_identifier)` for sync and async LLM call sites (Phase 3.4)
 
-### Planned (Post-Phase 3)
+### Planned (Post-SDK)
 
 - **Custom validators** — host applications register domain-specific
   validation functions
 - **Policy resolvers** — dynamic policy selection (multi-tenant,
   feature-flagged)
-- **TRACE integration** — tool gate, provider gate, compliance extension,
-  audit correlator
+- **Host integration** — tool gate, provider gate, compliance extension,
+  audit correlator (see [TRACE_INTEGRATION.md](docs/architecture/TRACE_INTEGRATION.md)
+  for the reference integration design)
 
 ---
 
@@ -185,9 +138,11 @@ aigc-governance-sdk/
 │
 ├── docs/
 │   ├── architecture/
-│   │   └── AIGC_HIGH_LEVEL_DESIGN.md  High-level architecture design
+│   │   ├── AIGC_HIGH_LEVEL_DESIGN.md  High-level architecture design
+│   │   └── TRACE_INTEGRATION.md       Integration design for agentic host systems
 │   ├── audits/
-│   │   └── PHASE1_AUDIT_REPORT.md     Phase 1 audit findings and fixes
+│   │   ├── PHASE1_AUDIT_REPORT.md     Phase 1 audit findings and fixes
+│   │   └── PHASE3_AUDIT_REPORT.md     Phase 3 audit findings and resolution
 │   ├── decisions/
 │   │   └── ADR-0001-phase1-failure-audit-emission.md  Phase 1 audit decision
 │   ├── plans/
@@ -280,7 +235,8 @@ aigc-governance-sdk/
 │   ├── test_validation.py             Validation unit tests
 │   ├── test_async_enforcement.py      Async enforcement tests (Phase 3.1)
 │   ├── test_audit_sinks.py            Audit sink tests (Phase 3.2)
-│   └── test_decorators.py             @governed decorator tests (Phase 3.4)
+│   ├── test_decorators.py             @governed decorator tests (Phase 3.4)
+│   └── test_errors.py                 Error taxonomy unit tests
 │
 ├── .flake8                            Flake8 linter configuration
 ├── .markdownlint-cli2.yaml            Markdown lint configuration
@@ -290,97 +246,6 @@ aigc-governance-sdk/
 ├── README.md                          Quick-start documentation
 ├── pyproject.toml                     Packaging metadata + build config
 └── requirements.txt                   Python dependencies
-```
-
----
-
-## Quick Start
-
-### Installation
-
-```bash
-git clone https://github.com/nealsolves/aigc-governance-sdk.git
-cd aigc-governance-sdk
-python3 -m venv aigc-env
-source aigc-env/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-pip install -e .[dev]
-```
-
-### Basic Usage
-
-```python
-from aigc.enforcement import enforce_invocation
-
-invocation = {
-    "policy_file": "policies/base_policy.yaml",
-    "model_provider": "anthropic",
-    "model_identifier": "claude-sonnet-4-20250514",
-    "role": "planner",
-    "input": {"task": "Generate architecture proposal"},
-    "output": {"result": "Architecture proposal v1"},
-    "context": {
-        "role_declared": True,
-        "schema_exists": True,
-    },
-}
-
-audit = enforce_invocation(invocation)
-print(audit)
-# {
-#   "audit_schema_version": "1.0",
-#   "policy_file": "policies/base_policy.yaml",
-#   "policy_schema_version": "http://json-schema.org/draft-07/schema#",
-#   "model_provider": "anthropic",
-#   "model_identifier": "claude-sonnet-4-20250514",
-#   "role": "planner",
-#   "policy_version": "1.0",
-#   "enforcement_result": "PASS",
-#   "failures": [],
-#   "input_checksum": "a3f8c2...",
-#   "output_checksum": "7b2e19...",
-#   "timestamp": 1739750400,
-#   "metadata": {
-#     "preconditions_satisfied": ["role_declared", "schema_exists"],
-#     "postconditions_satisfied": ["output_schema_valid"],
-#     "schema_validation": "passed"
-#   }
-# }
-```
-
-### Handling Failures
-
-```python
-from aigc.enforcement import enforce_invocation
-from aigc.errors import PreconditionError, SchemaValidationError
-
-try:
-    audit = enforce_invocation(invocation)
-except PreconditionError as e:
-    print(f"Context incomplete: {e}")
-except SchemaValidationError as e:
-    print(f"Output invalid: {e}")
-```
-
-### Running Tests
-
-```bash
-python -m pytest                          # All tests
-python -m pytest tests/test_golden_trace_success.py  # Single file
-flake8 src                                # Lint
-```
-
-### Validating Policies
-
-```bash
-python -c "
-import json, yaml, jsonschema
-from pathlib import Path
-schema = json.load(open('schemas/policy_dsl.schema.json'))
-for p in Path('policies').glob('*.yaml'):
-    jsonschema.validate(yaml.safe_load(open(p)), schema)
-    print(f'OK: {p}')
-"
 ```
 
 ---
@@ -432,11 +297,9 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ### Test Coverage
 
-- **107 tests** (all passing)
-- **98% coverage** (exceeds 90% target)
-- **28+ new unit tests** across Phase 2 modules
-- **11 new golden trace tests** (guards, tools, conditions, composition)
-- All DSL features have regression fixtures
+- **180 tests** (all passing)
+- **100% coverage** across all `src/` modules
+- All DSL features have golden trace regression fixtures
 
 ### Architectural Impact
 
@@ -447,11 +310,45 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ---
 
+## Phase 3 Implementation (Completed 2026-02-17)
+
+Phase 3 brought production-readiness capabilities to the SDK runtime.
+
+Authoritative phase label mapping (plan definitions 3.1–3.4):
+
+| Plan Label | Name | Description |
+| ---------- | ---- | ----------- |
+| Phase 3.1 | Async enforcement | `enforce_invocation_async()` via `asyncio.to_thread`; identical governance to sync path |
+| Phase 3.2 | Pluggable audit sinks | `AuditSink` ABC; `JsonFileAuditSink`, `CallbackAuditSink`; `set_audit_sink()` registry |
+| Phase 3.3 | Structured logging | `aigc` logger namespace; `NullHandler` default; gate-level DEBUG/INFO/WARNING |
+| Phase 3.4 | `@governed` decorator | Sync and async LLM call-site wrapper; captures input/output/context automatically |
+
+Phases 3.5–3.7 (host integration: `GovernedToolExecutor`, `GovernedLLMProvider`,
+`SQLiteAuditSink`, trace correlator) are scoped to the TRACE host-system repository
+and are not part of this SDK.
+
+### Phase 3 Test Coverage
+
+- **180 tests** (all passing)
+- **100% line coverage** across all `src/` modules
+- Phase 3 runtime features have dedicated test files:
+  `test_async_enforcement.py`, `test_audit_sinks.py`, `test_decorators.py`
+
+### Phase 3 Architectural Impact
+
+- **No TRACE runtime classes** in SDK packages (`src/`, `aigc/`) — boundary is clean
+- **Async entry point** shares the sync enforcement pipeline; governance is identical
+- **Sink failures do not block enforcement** — logged at WARNING level, invocation continues
+- **Backward compatible** — all Phase 1 and Phase 2 behavior unchanged
+
+---
+
 ## Documentation
 
 | Document | Purpose |
 | -------- | ------- |
-| [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | High-level design, core abstractions, TRACE integration |
+| [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | High-level design, core abstractions, enforcement pipeline |
+| [TRACE Integration Design](docs/architecture/TRACE_INTEGRATION.md) | Integration architecture and implementation plan for host-system integration |
 | [Implementation Plan](docs/plans/IMPLEMENTATION_PLAN.md) | 3-phase roadmap with deliverables and acceptance criteria |
 | [Architecture Decisions](docs/decisions/) | ADRs documenting significant architectural choices |
 | [Policy DSL Spec](policies/policy_dsl_spec.md) | Full specification of the policy YAML format |

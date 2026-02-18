@@ -47,17 +47,21 @@ def _resolve_policy_schema_path() -> Path:
 def _resolve_policy_path(policy_file: str) -> Path:
     candidate = Path(policy_file)
     if not candidate.is_absolute():
+        # Relative paths are resolved against REPO_ROOT and must stay within it.
         candidate = (REPO_ROOT / candidate).resolve()
+        try:
+            candidate.relative_to(REPO_ROOT)
+        except ValueError:
+            raise PolicyLoadError(
+                "Policy path escapes repository root",
+                details={"policy_file": policy_file},
+            )
     else:
+        # Absolute paths are accepted as-is.  The caller is responsible for
+        # ensuring the path is intentional (e.g. a consumer project's own
+        # policy directory).  See ADR-0005.
         candidate = candidate.resolve()
 
-    try:
-        candidate.relative_to(REPO_ROOT)
-    except ValueError:
-        raise PolicyLoadError(
-            "Policy path escapes repository root",
-            details={"policy_file": policy_file},
-        )
     if candidate.suffix not in {".yaml", ".yml"}:
         raise PolicyLoadError(
             "Policy file must be YAML",

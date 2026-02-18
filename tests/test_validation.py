@@ -1,6 +1,6 @@
 import pytest
-from src.validator import validate_preconditions
-from src.errors import PreconditionError
+from src.validator import validate_preconditions, validate_postconditions
+from src.errors import GovernanceViolationError, PreconditionError
 
 
 def test_precondition_missing():
@@ -24,3 +24,12 @@ def test_precondition_success_returns_satisfied():
         {"pre_conditions": {"required": ["role_declared", "schema_exists"]}},
     )
     assert satisfied == ["role_declared", "schema_exists"]
+
+
+def test_postcondition_unsupported_name_raises():
+    """validate_postconditions raises on an unknown postcondition name (line 98)."""
+    policy = {"post_conditions": {"required": ["nonexistent_check"]}}
+    with pytest.raises(GovernanceViolationError) as exc_info:
+        validate_postconditions(policy, schema_valid=True)
+    assert exc_info.value.code == "UNSUPPORTED_POSTCONDITION"
+    assert "nonexistent_check" in str(exc_info.value)

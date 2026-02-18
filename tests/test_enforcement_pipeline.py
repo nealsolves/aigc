@@ -1,11 +1,18 @@
 import pytest
 
-from src.enforcement import enforce_invocation
+from src.enforcement import enforce_invocation, _map_exception_to_failure_gate
 from src.errors import (
+    AIGCError,
+    ConditionResolutionError,
     FeatureNotImplementedError,
     GovernanceViolationError,
+    GuardEvaluationError,
+    InvocationValidationError,
+    PolicyLoadError,
+    PolicyValidationError,
     PreconditionError,
     SchemaValidationError,
+    ToolConstraintViolationError,
 )
 
 
@@ -166,3 +173,75 @@ def test_success_has_null_failure_fields():
     assert audit["failure_gate"] is None
     assert audit["failure_reason"] is None
     assert audit["failures"] == []
+
+
+# --- _map_exception_to_failure_gate unit tests ---
+# These cover the individual branches of the gate-mapping function directly,
+# since several exception types (FeatureNotImplementedError, InvocationValidationError,
+# PolicyLoadError) are raised before _run_pipeline and cannot reach it through the
+# normal enforcement flow.
+
+def test_map_feature_not_implemented():
+    exc = FeatureNotImplementedError("custom_validator")
+    assert _map_exception_to_failure_gate(exc) == "feature_not_implemented"
+
+
+def test_map_invocation_validation_error():
+    exc = InvocationValidationError("bad field", details={"field": "role"})
+    assert _map_exception_to_failure_gate(exc) == "invocation_validation"
+
+
+def test_map_policy_load_error():
+    exc = PolicyLoadError("file missing", details={})
+    assert _map_exception_to_failure_gate(exc) == "invocation_validation"
+
+
+def test_map_policy_validation_error():
+    exc = PolicyValidationError("schema mismatch", details={})
+    assert _map_exception_to_failure_gate(exc) == "invocation_validation"
+
+
+def test_map_guard_evaluation_error():
+    exc = GuardEvaluationError("bad guard", details={})
+    assert _map_exception_to_failure_gate(exc) == "guard_evaluation"
+
+
+def test_map_condition_resolution_error():
+    exc = ConditionResolutionError("missing condition", details={})
+    assert _map_exception_to_failure_gate(exc) == "condition_resolution"
+
+
+def test_map_tool_constraint_violation():
+    exc = ToolConstraintViolationError("too many calls", details={})
+    assert _map_exception_to_failure_gate(exc) == "tool_validation"
+
+
+def test_map_precondition_error():
+    exc = PreconditionError("missing key", details={})
+    assert _map_exception_to_failure_gate(exc) == "precondition_validation"
+
+
+def test_map_schema_validation_error():
+    exc = SchemaValidationError("bad output", details={})
+    assert _map_exception_to_failure_gate(exc) == "schema_validation"
+
+
+def test_map_governance_violation_role():
+    exc = GovernanceViolationError("Unauthorized role 'attacker'", code="ROLE_NOT_ALLOWED")
+    assert _map_exception_to_failure_gate(exc) == "role_validation"
+
+
+def test_map_governance_violation_postcondition():
+    exc = GovernanceViolationError("Postcondition failed", code="POSTCONDITION_FAILED")
+    assert _map_exception_to_failure_gate(exc) == "postcondition_validation"
+
+
+def test_map_unknown_aigc_error():
+    """An AIGCError subclass that does not match any known gate returns 'unknown'."""
+
+    class _UnknownAIGCError(AIGCError):
+        def __init__(self):
+            super().__init__("unknown failure", code="UNKNOWN")
+
+    exc = _UnknownAIGCError()
+    assert _map_exception_to_failure_gate(exc) == "unknown"

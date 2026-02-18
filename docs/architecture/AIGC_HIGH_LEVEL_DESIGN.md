@@ -14,14 +14,11 @@ and the model, ensuring every invocation is policy-governed, schema-validated,
 and produces a tamper-evident audit artifact — regardless of which model,
 provider, or orchestration framework is used.
 
-AIGC is the governance primitive for the
-[TRACE](https://github.com/nealsolves/trace/tree/develop) project (Temporal
-Root-cause Analytics & Correlation Engine), but is designed to be portable
-across any system that invokes AI models.
+AIGC is designed to be portable across any system that invokes AI models.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
-│                    Calling System (e.g. TRACE)                   │
+│                       Calling System                             │
 │                                                                  │
 │   invoke model ──▶ ┌──────────────────────────┐ ──▶ audit record │
 │                    │   AIGC Governance SDK     │                  │
@@ -63,7 +60,7 @@ artifacts) at every invocation.
 | **Audit is mandatory** | Every successful enforcement produces an artifact. There is no "silent" mode. |
 | **Provider-agnostic** | The SDK governs invocations, not providers. It works with OpenAI, Anthropic, Bedrock, local models, or any future provider. |
 | **Fail-closed** | Missing preconditions, invalid schemas, unauthorized roles — all raise typed exceptions. The default answer is "no." |
-| **Portable** | The SDK has no dependency on TRACE internals. It can be embedded in any Python system. |
+| **Portable** | The SDK has no dependency on any specific host application. It can be embedded in any Python system. |
 | **Schema-first** | Every contract (policy DSL, audit artifact, output format) is defined as JSON Schema before code is written. |
 
 ---
@@ -78,7 +75,7 @@ decides to call an AI model and receives a response.
 ```text
                    ┌──────────────────────────────────────┐
                    │          Host Application             │
-                   │  (TRACE, custom agent, pipeline)      │
+                   │  (custom agent, orchestrator)         │
                    │                                       │
                    │    ┌─────────────────────────────┐    │
                    │    │     Application Logic        │    │
@@ -113,8 +110,8 @@ AIGC is intentionally scoped. It does **not**:
 - Manage sessions or state (that belongs to the host)
 - Handle authentication or authorization (it enforces role allowlists
   declared in policy)
-- Replace compliance pipelines (it complements them — TRACE's
-  verify_references/redact_pii are orthogonal)
+- Replace compliance pipelines (it complements them; host-level compliance
+  steps such as reference verification and PII redaction are orthogonal)
 
 ---
 
@@ -129,7 +126,7 @@ for a class of invocations.
 
 ```yaml
 policy_version: "1.0"
-description: "Governance contract for TRACE planner agents"
+description: "Governance contract for planner agents"
 
 roles:
   - planner
@@ -194,7 +191,7 @@ captures everything about a single model interaction.
 
 ```python
 invocation = {
-    "policy_file": "policies/trace_planner.yaml",
+    "policy_file": "policies/planner.yaml",
     "model_provider": "anthropic",
     "model_identifier": "claude-sonnet-4-20250514",
     "role": "planner",
@@ -244,7 +241,7 @@ enforcement. It serves as the chain of custody for the invocation.
   "model_identifier": "claude-sonnet-4-20250514",
   "role": "planner",
   "policy_version": "1.0",
-  "policy_file": "policies/trace_planner.yaml",
+  "policy_file": "policies/planner.yaml",
   "input_checksum": "a3f8c2...sha256",
   "output_checksum": "7b2e19...sha256",
   "preconditions_satisfied": ["role_declared", "schema_exists"],
@@ -454,8 +451,8 @@ chooses the persistence strategy:
 
 | Host Context | Storage Strategy |
 | ------------ | ---------------- |
-| TRACE (local) | SQLite `audit_log` table via StateManager |
-| TRACE (AWS) | DynamoDB audit table + S3 archival |
+| Local / dev | SQLite table or `JsonFileAuditSink` |
+| Cloud | DynamoDB, S3 archival, or log stream |
 | Standalone | JSON file, database, or log stream |
 | CI/CD | Golden trace fixtures in `tests/golden_traces/` |
 
@@ -483,117 +480,15 @@ tests/golden_traces/
 
 ---
 
-## 9. TRACE Integration Architecture
+## 9. Host Integration
 
-### 9.1 Integration Points
+AIGC is designed to integrate with any agentic host system at the tool,
+provider, and compliance pipeline layers. The recommended integration
+pattern uses the `@governed` decorator or direct `enforce_invocation`
+calls at each model invocation boundary.
 
-AIGC integrates with TRACE at five specific points in the TRACE architecture:
-
-```text
-┌───────────────────────────────────────────────────────────────────┐
-│                         TRACE v5.0                                │
-│                                                                   │
-│   ┌─────────────┐    ┌──────────────┐    ┌────────────────────┐  │
-│   │  Orchestrator│───▶│ Tool Executor│───▶│  Model Provider    │  │
-│   │  (Planner/  │    │              │    │  (Anthropic, etc.) │  │
-│   │   Executor) │    └──────┬───────┘    └────────┬───────────┘  │
-│   └──────┬──────┘           │                     │              │
-│          │            ┌─────▼─────┐         ┌─────▼─────┐        │
-│          │            │ ❶ AIGC    │         │ ❷ AIGC    │        │
-│          │            │ Tool Gate │         │ Provider  │        │
-│          │            │           │         │ Gate      │        │
-│          │            └───────────┘         └───────────┘        │
-│          │                                                       │
-│          ▼                                                       │
-│   ┌──────────────┐    ┌──────────────┐    ┌────────────────────┐│
-│   │  Compliance  │───▶│   State      │───▶│  Audit Sink        ││
-│   │  Pipeline    │    │   Manager    │    │  (SQLite/DynamoDB) ││
-│   └──────┬───────┘    └──────┬───────┘    └────────────────────┘│
-│          │                   │                                   │
-│    ┌─────▼─────┐       ┌────▼──────┐                            │
-│    │ ❸ AIGC    │       │ ❹ AIGC    │                            │
-│    │ Compliance│       │ Audit     │                            │
-│    │ Extension │       │ Correlator│                            │
-│    └───────────┘       └───────────┘                            │
-│                                                                  │
-│          ❺ AIGC Policy Registry (shared policies for all gates)  │
-│                                                                  │
-└───────────────────────────────────────────────────────────────────┘
-```
-
-### 9.2 Integration Point Details
-
-**❶ Tool Invocation Gate**
-
-Intercepts tool execution in TRACE's ToolExecutor. Enforces tool allowlists
-and per-tool call caps defined in the policy.
-
-```python
-# In TRACE's tool_executor.py
-from aigc.enforcement import enforce_invocation
-
-class GovernedToolExecutor(ToolExecutor):
-    async def execute(self, tool_name, params, context):
-        audit = enforce_invocation({
-            "policy_file": context.governance_policy,
-            "model_provider": context.provider,
-            "model_identifier": context.model,
-            "role": context.agent_role,
-            "input": {"tool": tool_name, "params": params},
-            "output": {},  # pre-invocation check
-            "context": context.to_governance_context(),
-        })
-        result = await super().execute(tool_name, params, context)
-        return result, audit
-```
-
-**❷ Provider Governance Gate**
-
-Wraps TRACE's provider layer. Enforces that only approved models are used
-for each role and that invocation outputs conform to declared schemas.
-
-```python
-# Governed provider wrapper
-class GovernedLLMProvider(BaseLLM):
-    async def generate(self, messages, tools=None):
-        response = await self.inner.generate(messages, tools)
-        audit = enforce_invocation({
-            "policy_file": self.policy_file,
-            "model_provider": self.provider_name,
-            "model_identifier": self.model_id,
-            "role": self.current_role,
-            "input": {"messages": messages},
-            "output": response,
-            "context": self.governance_context,
-        })
-        return response, audit
-```
-
-**❸ Compliance Pipeline Extension**
-
-TRACE's mandatory compliance pipeline (verify_references → redact_pii)
-can delegate governance decisions to AIGC for policy-driven compliance
-rules beyond reference verification and PII redaction.
-
-**❹ Audit Correlator**
-
-Extracts AIGC audit artifacts and correlates them with TRACE's native
-audit log (session events, tool calls, compliance decisions) to produce
-unified governance reports.
-
-**❺ Policy Registry**
-
-A shared directory of AIGC policies that govern all integration points.
-Policies are versioned and validated in CI.
-
-```text
-policies/
-├── trace_planner.yaml        ← policy for planner role
-├── trace_verifier.yaml       ← policy for verifier role
-├── trace_synthesizer.yaml    ← policy for synthesis role
-├── trace_tools.yaml          ← tool-level governance
-└── base_policy.yaml          ← default fallback
-```
+For a detailed integration architecture and implementation plan, see
+[TRACE_INTEGRATION.md](TRACE_INTEGRATION.md).
 
 ---
 
@@ -699,7 +594,7 @@ These properties must hold for every enforcement:
 | ----------- | ------ | --------- |
 | Enforcement latency | < 5ms per invocation (excluding I/O) | Must not be a bottleneck in agentic loops |
 | Zero external dependencies at runtime | PyYAML + jsonschema only | Portability; no network calls |
-| Python version | >= 3.10 | Match TRACE's runtime |
+| Python version | >= 3.10 | Compatible with modern async orchestrators |
 | Thread safety | Enforcement is stateless and reentrant | Safe for async orchestrators |
 | Package size | < 50KB (source only) | Embeddable in any project |
 | Test coverage | >= 90% line coverage | Governance code demands high assurance |
@@ -711,7 +606,6 @@ These properties must hold for every enforcement:
 | Term | Definition |
 | ---- | ---------- |
 | **AIGC** | Auditable Intelligence Governance Contract — the SDK |
-| **TRACE** | Temporal Root-cause Analytics & Correlation Engine — the host application |
 | **Policy** | Declarative YAML contract defining governance rules |
 | **Invocation** | Structured dict representing a single model interaction |
 | **Enforcement** | The act of evaluating an invocation against a policy |

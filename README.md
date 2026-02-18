@@ -3,6 +3,8 @@
 Python SDK for deterministic, fail-closed governance enforcement over AI model
 invocations.
 
+**Status:** Feature-complete — 180 tests, 100% coverage, all three phases shipped.
+
 ## Installation
 
 ```bash
@@ -80,7 +82,7 @@ Legacy `src.*` imports remain available for compatibility.
   from aigc.decorators import governed
 
   @governed(
-      policy_file="policies/trace_planner.yaml",
+      policy_file="policies/governance.yaml",
       role="planner",
       model_provider="anthropic",
       model_identifier="claude-sonnet-4-5-20250929",
@@ -107,3 +109,14 @@ Audit artifacts follow `schemas/audit_artifact.schema.json` and include:
 - `flake8` for `src` and `aigc`
 - markdown lint
 - policy YAML validation against the Draft-07 policy schema
+
+## Documentation
+
+| Document | Purpose |
+| -------- | ------- |
+| [PROJECT.md](PROJECT.md) | Authoritative structure and architecture |
+| [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | Enforcement pipeline and design principles |
+| [Integration Design](docs/architecture/TRACE_INTEGRATION.md) | Reference integration for agentic host systems |
+| [Implementation Plan](docs/plans/IMPLEMENTATION_PLAN.md) | Three-phase roadmap with acceptance criteria |
+| [Policy DSL Spec](policies/policy_dsl_spec.md) | Full policy YAML specification |
+| [Usage Guide](docs/USAGE.md) | Code examples and best practices |

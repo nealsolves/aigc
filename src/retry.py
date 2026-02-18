@@ -100,12 +100,11 @@ def with_retry(
             raise
 
     # Should never reach here, but satisfy type checker
-    if last_error:
-        raise RetryExhaustedError(
+    if last_error:  # pragma: no cover
+        raise RetryExhaustedError(  # pragma: no cover
             f"Retry exhausted after {max_retries + 1} attempts",
             attempts=max_retries + 1,
             last_error=last_error,
         ) from last_error
 
-    # Truly should never happen
-    return enforcement_fn(invocation)
+    return enforcement_fn(invocation)  # pragma: no cover

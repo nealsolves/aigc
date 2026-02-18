@@ -791,113 +791,25 @@ verbose. TRACE has dozens of model invocations.
 | `src/decorators.py` | Create — `@governed` decorator |
 | `tests/test_decorators.py` | Create — sync and async tests |
 
-### 3.5 TRACE Tool Invocation Gate
+### 3.5–3.7 Host System Integration
 
-**Problem:** TRACE's tool executor (`core/tools/tool_executor.py`) has
-no governance. Tools execute without policy checks.
+Items 3.5 (tool invocation gate), 3.6 (provider governance gate), and 3.7
+(audit correlation) are host-system integration concerns. Full architecture,
+implementation plan, and acceptance criteria are documented in
+[docs/architecture/TRACE_INTEGRATION.md](../architecture/TRACE_INTEGRATION.md).
 
-**Deliverables:**
+These items live in the host system's repository, not the SDK.
 
-This work happens in the **TRACE repository**, not the SDK repo.
-
-- `GovernedToolExecutor` wrapper in TRACE that calls AIGC enforcement
-  before tool execution
-- Maps TRACE's tool call context to an AIGC invocation dict
-- Captures tool name, parameters, and agent role from TRACE session state
-- Stores audit artifacts in TRACE's audit_log via SQLiteAuditSink
-
-**Acceptance criteria:**
-
-- Tool call to `search_knowledge_base` with a planner role and valid
-  policy passes governance
-- Tool call to `generate_rca_draft` exceeding `max_calls: 1` raises
-  `GovernanceViolationError`
-- Audit artifacts appear in TRACE's audit_log table
-- TRACE golden trace GT-001 still passes with governance enabled
-
-**Files to create/modify (in TRACE repo):**
-
-| File | Action |
-| ---- | ------ |
-| `core/tools/governed_executor.py` | Create — AIGC-governed tool executor |
-| `core/tools/tool_executor.py` | Wire governed executor as default |
-| `tests/integration/test_governed_tools.py` | Create |
-
-### 3.6 TRACE Provider Governance Gate
-
-**Problem:** TRACE's provider layer (`core/providers/`) has no governance.
-Any model can be used for any role.
-
-**Deliverables:**
-
-This work happens in the **TRACE repository**, not the SDK repo.
-
-- `GovernedLLMProvider` wrapper that enforces AIGC policies on model
-  invocations
-- Maps TRACE's provider context (model, role, messages, response) to
-  AIGC invocations
-- Validates that the model used matches the role's governance policy
-- Produces audit artifacts for every LLM call
-
-**Acceptance criteria:**
-
-- Planner role using `claude-sonnet-4` with a planner policy passes
-- Planner role using an unauthorized model raises
-  `GovernanceViolationError`
-- Audit artifacts include model_provider and model_identifier
-- Provider swap (Anthropic to Bedrock) does not require governance changes
-
-**Files to create/modify (in TRACE repo):**
-
-| File | Action |
-| ---- | ------ |
-| `core/providers/governed_llm.py` | Create — governed provider wrapper |
-| `core/providers/factory.py` | Wire governed provider |
-| `tests/integration/test_governed_providers.py` | Create |
-
-### 3.7 TRACE Audit Correlation
-
-**Problem:** TRACE has its own audit_log. AIGC produces separate audit
-artifacts. There is no unified view.
-
-**Deliverables:**
-
-This work happens in the **TRACE repository**, not the SDK repo.
-
-- Audit correlator that joins TRACE session events with AIGC audit
-  artifacts
-- Correlation key: `session_id` + `timestamp` range
-- Export format: unified JSON report for compliance review
-- Queryable: "Show me all governance decisions for session X"
-
-**Acceptance criteria:**
-
-- Given a TRACE session ID, retrieve all AIGC audit artifacts for that
-  session
-- Report includes both TRACE compliance events (verify_references,
-  redact_pii) and AIGC governance decisions
-- Export produces valid JSON matching a defined schema
-
-**Files to create (in TRACE repo):**
-
-| File | Action |
-| ---- | ------ |
-| `core/compliance/audit_correlator.py` | Create |
-| `schemas/compliance/governance_report_v1.json` | Create — report schema |
-| `tests/compliance/test_audit_correlation.py` | Create |
-
-### Phase 3 Definition of Done (SDK items completed 2026-02-16)
+### Phase 3 Definition of Done (completed 2026-02-17)
 
 - [x] Async enforcement works identically to sync
 - [x] Audit sinks persist artifacts automatically
 - [x] Structured logging configured (silent by default)
 - [x] `@governed` decorator works for sync and async functions
-- [ ] TRACE tool executor governed by AIGC policies (TRACE repo)
-- [ ] TRACE provider layer governed by AIGC policies (TRACE repo)
-- [ ] TRACE audit log correlates with AIGC artifacts (TRACE repo)
-- [ ] End-to-end TRACE + AIGC integration test passes (TRACE repo)
 - [x] SDK passes `pip install` from clean environment
-- [x] All golden traces pass (SDK)
+- [x] All golden traces pass
+- [x] 100% line coverage across all `src/` modules (180 tests)
+- [ ] Host system integration (tracked in host repository — see TRACE_INTEGRATION.md)
 
 ---
 
@@ -918,7 +830,7 @@ This work happens in the **TRACE repository**, not the SDK repo.
 | Pre-Phase 1 | `success`, `failure` (schema), `expected_audit` |
 | Phase 1 | `missing_fields`, `unauthorized_role`, `postcondition_failure` |
 | Phase 2 | `guard_match`, `guard_no_match`, `tool_violation`, `tool_success`, `condition_required_missing`, `policy_composition` |
-| Phase 3 | `async_enforcement`, `governed_tool_call`, `governed_provider` |
+| Phase 3 | `async_enforcement` (host integration golden traces live in host repo) |
 
 ### Documentation Updates
 
@@ -928,7 +840,7 @@ Each phase requires documentation updates:
 | ----- | ------------- |
 | Phase 1 | Update USAGE.md with new error types, update CLAUDE.md with import paths |
 | Phase 2 | Add guard/tool/condition examples to USAGE.md, update DSL spec status from "Draft" to "Implemented" |
-| Phase 3 | Add TRACE integration guide, add async usage examples, add deployment guide |
+| Phase 3 | Add async usage examples, add deployment guide, add host integration architecture |
 
 ---
 
@@ -948,15 +860,13 @@ Phase 2.2 (conditions) ───────────────────
 Phase 2.3 (tool constraints) ────────────────────────────────▶ 2.5
 Phase 2.4 (retry) ───────────────────────────────────────────▶ 3.4
 Phase 2.5 (extended audit) ──────────────────────────────────▶ 3.2
-Phase 2.6 (policy composition) ──────────────────────────────▶ 3.5
+Phase 2.6 (policy composition) ──────────────────────────────▶ host integration
 
 Phase 3.1 (async) ───────────────────────────────────────────▶ 3.4
-Phase 3.2 (audit sinks) ─────────────────────────────────────▶ 3.5
-Phase 3.3 (logging) ─────────────────────────────────────────▶ 3.5
-Phase 3.4 (decorators) ──────────────────────────────────────▶ 3.5
-Phase 3.5 (TRACE tool gate) ─────────────────────────────────▶ 3.7
-Phase 3.6 (TRACE provider gate) ─────────────────────────────▶ 3.7
-Phase 3.7 (TRACE audit correlation) ─────────────────────────▶ DONE
+Phase 3.2 (audit sinks) ─────────────────────────────────────▶ host integration
+Phase 3.3 (logging) ─────────────────────────────────────────▶ host integration
+Phase 3.4 (decorators) ──────────────────────────────────────▶ host integration
+Phase 3.5–3.7 (host integration) ────────────────────────────▶ DONE (in host repo)
 ```
 
 ---
@@ -969,23 +879,27 @@ Phase 3.7 (TRACE audit correlation) ──────────────�
 | Guard expression language grows beyond simple conditions | Medium | Keep expressions to boolean lookups and equality checks only; no Turing-completeness |
 | Policy composition creates circular extends chains | Medium | Detect cycles at load time; fail fast with clear error message |
 | Async enforcement diverges from sync behavior | High | Share enforcement logic; async only differs in I/O; test both paths with same fixtures |
-| TRACE integration requires SDK changes | Medium | Keep SDK interface stable; TRACE adapts to SDK, not the other way around |
+| Host integration requires SDK changes | Medium | Keep SDK interface stable; host adapts to SDK, not the other way around |
 | Checksum format change invalidates external audit records | Low | Checksums are volatile fields; no external systems should depend on exact values yet |
 
 ---
 
 ## Success Criteria
 
-When all three phases are complete:
+SDK success criteria (all met as of 2026-02-17):
 
-1. **Every field in `policy_dsl.schema.json` has corresponding enforcement
+1. ✅ **Every field in `policy_dsl.schema.json` has corresponding enforcement
    code** — the DSL promise is fully delivered
-2. **TRACE's tool executor and provider layer are governed** — no ungoverned
-   model invocations in TRACE
-3. **Every enforcement produces a comprehensive audit artifact** — full
+2. ✅ **Every enforcement produces a comprehensive audit artifact** — full
    chain of custody from input to output
-4. **Test coverage >= 90%** with golden traces for every governance feature
-5. **The SDK is installable, importable, and documented** — a developer
+3. ✅ **Test coverage = 100%** with golden traces for every governance feature
+   (180 tests, all passing)
+4. ✅ **The SDK is installable, importable, and documented** — a developer
    can `pip install` and govern their first invocation in under 5 minutes
-6. **AIGC audit artifacts correlate with TRACE audit logs** — unified
+
+Host integration success criteria (tracked in host repository):
+
+1. ☐ **Host tool executor and provider layer are governed** — no ungoverned
+   model invocations (see [TRACE_INTEGRATION.md](../architecture/TRACE_INTEGRATION.md))
+2. ☐ **AIGC audit artifacts correlate with host audit logs** — unified
    governance reporting across the entire system

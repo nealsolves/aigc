@@ -18,7 +18,7 @@ from src.utils import canonical_json_bytes
 
 
 POLICY_SCHEMA_VERSION = "http://json-schema.org/draft-07/schema#"
-AUDIT_SCHEMA_VERSION = "1.0"
+AUDIT_SCHEMA_VERSION = "1.1"
 
 
 def checksum(obj: Mapping[str, Any]) -> str:
@@ -93,6 +93,7 @@ def generate_audit_artifact(
         "failure_reason": failure_reason,
         "input_checksum": checksum(invocation["input"]),
         "output_checksum": checksum(invocation["output"]),
+        "context": dict(invocation.get("context") or {}),
         "timestamp": int(time.time()) if timestamp is None else int(timestamp),
         "metadata": metadata_dict,
     }

@@ -67,6 +67,10 @@
       "type": "integer",
       "minimum": 0
     },
+    "context": {
+      "type": "object",
+      "description": "Invocation context fields (e.g. session_id, tenant_id) for sink consumers"
+    },
     "metadata": {
       "type": "object"
     }
@@ -84,6 +88,7 @@
     "input_checksum",
     "output_checksum",
     "timestamp",
+    "context",
     "metadata"
   ]
 }

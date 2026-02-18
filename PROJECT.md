@@ -22,7 +22,9 @@ See [README.md](README.md) for quick-start, public API, and usage.
 - **Postcondition validation** — `output_schema_valid` enforced after schema
   validation
 - **Audit artifact generation** — SHA-256 checksummed records with model,
-  role, and policy metadata via `schemas/audit_artifact.schema.json`
+  role, policy, and invocation context metadata via
+  `schemas/audit_artifact.schema.json` (schema version 1.1; `context` field
+  carries caller-supplied session/tenant identifiers for sink correlation)
 - **Failure audit emission** — FAIL audit artifacts emitted and attached to
   exceptions before propagation (Phase 1.8)
 - **Custom exception hierarchy** — typed exceptions with machine-readable

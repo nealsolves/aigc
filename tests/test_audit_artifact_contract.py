@@ -38,7 +38,7 @@ def test_audit_contract():
     )
     schema = load_json(AUDIT_SCHEMA)
     validate(instance=audit, schema=schema)
-    assert audit["audit_schema_version"] == "1.0"
+    assert audit["audit_schema_version"] == "1.1"
     assert audit["enforcement_result"] == "PASS"
     assert audit["policy_file"] == invocation["policy_file"]
     assert audit["failures"] == []

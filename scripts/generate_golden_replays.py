@@ -13,7 +13,7 @@ import json
 import argparse
 from copy import deepcopy
 from pathlib import Path
-from src.enforcement import enforce_invocation
+from aigc.enforcement import enforce_invocation
 
 GOLDEN_DIR = Path("tests/golden_replays")
 

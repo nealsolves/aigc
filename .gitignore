@@ -37,7 +37,7 @@ htmlcov/
 docs/audits/
 
 # Private integration docs (host-specific, not public)
-docs/architecture/TRACE_INTEGRATION.md
+docs/architecture/HOST_INTEGRATION.md
 
 # Internal development artifacts (not public)
 docs/prs/

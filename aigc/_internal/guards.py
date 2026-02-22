@@ -10,8 +10,8 @@ from __future__ import annotations
 import copy
 from typing import Any, Mapping
 
-from src.conditions import resolve_conditions
-from src.errors import GuardEvaluationError
+from aigc._internal.conditions import resolve_conditions
+from aigc._internal.errors import GuardEvaluationError
 
 
 def _merge_policy_blocks(base: dict[str, Any], overlay: Mapping[str, Any]) -> None:

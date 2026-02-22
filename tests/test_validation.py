@@ -1,6 +1,6 @@
 import pytest
-from src.validator import validate_preconditions, validate_postconditions
-from src.errors import GovernanceViolationError, PreconditionError
+from aigc._internal.validator import validate_preconditions, validate_postconditions
+from aigc._internal.errors import GovernanceViolationError, PreconditionError
 
 
 def test_precondition_missing():

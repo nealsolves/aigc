@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 from collections import Counter
 
-from src.errors import ToolConstraintViolationError
+from aigc._internal.errors import ToolConstraintViolationError
 
 
 def validate_tool_constraints(

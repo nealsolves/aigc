@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.errors import (
+from aigc._internal.errors import (
     AIGCError,
     ConditionResolutionError,
     FeatureNotImplementedError,

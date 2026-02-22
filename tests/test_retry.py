@@ -2,8 +2,8 @@
 
 import pytest
 from unittest.mock import MagicMock
-from src.retry import with_retry, RetryExhaustedError
-from src.errors import SchemaValidationError, PreconditionError, GovernanceViolationError
+from aigc._internal.retry import with_retry, RetryExhaustedError
+from aigc._internal.errors import SchemaValidationError, PreconditionError, GovernanceViolationError
 
 
 def _base_invocation_with_retry():

@@ -1,4 +1,4 @@
-from src.validator import (
+from aigc._internal.validator import (
     validate_postconditions,
     validate_preconditions,
     validate_role,

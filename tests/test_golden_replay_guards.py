@@ -1,7 +1,7 @@
 """Golden replay tests for guard evaluation."""
 
 import json
-from src.enforcement import enforce_invocation
+from aigc._internal.enforcement import enforce_invocation
 
 
 def load_json(path):

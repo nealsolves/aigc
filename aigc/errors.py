@@ -1,4 +1,4 @@
-from src.errors import (
+from aigc._internal.errors import (
     AIGCError,
     FeatureNotImplementedError,
     GovernanceViolationError,

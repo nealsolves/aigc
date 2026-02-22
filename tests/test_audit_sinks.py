@@ -11,9 +11,9 @@ import json
 
 import pytest
 
-from src.enforcement import enforce_invocation
-from src.errors import GovernanceViolationError
-from src.sinks import (
+from aigc._internal.enforcement import enforce_invocation
+from aigc._internal.errors import GovernanceViolationError
+from aigc._internal.sinks import (
     AuditSink,
     CallbackAuditSink,
     JsonFileAuditSink,

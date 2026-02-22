@@ -1,7 +1,7 @@
 import hashlib
 
-from src.audit import checksum
-from src.utils import canonical_json_bytes
+from aigc._internal.audit import checksum
+from aigc._internal.utils import canonical_json_bytes
 
 
 def test_canonical_json_bytes_stable_for_dict_order():

@@ -1,7 +1,7 @@
 import pytest
 
-from src.enforcement import enforce_invocation, _map_exception_to_failure_gate
-from src.errors import (
+from aigc._internal.enforcement import enforce_invocation, _map_exception_to_failure_gate
+from aigc._internal.errors import (
     AIGCError,
     ConditionResolutionError,
     FeatureNotImplementedError,

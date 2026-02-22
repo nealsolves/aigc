@@ -1,4 +1,4 @@
-from src.audit import (
+from aigc._internal.audit import (
     AUDIT_SCHEMA_VERSION,
     POLICY_SCHEMA_VERSION,
     checksum,

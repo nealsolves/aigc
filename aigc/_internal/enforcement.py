@@ -15,18 +15,18 @@ import asyncio
 import logging
 from typing import Any, Mapping
 
-from src.policy_loader import load_policy
-from src.validator import (
+from aigc._internal.policy_loader import load_policy
+from aigc._internal.validator import (
     validate_postconditions,
     validate_preconditions,
     validate_role,
     validate_schema,
 )
-from src.audit import generate_audit_artifact
-from src.guards import evaluate_guards
-from src.tools import validate_tool_constraints
-from src.sinks import emit_to_sink
-from src.errors import (
+from aigc._internal.audit import generate_audit_artifact
+from aigc._internal.guards import evaluate_guards
+from aigc._internal.tools import validate_tool_constraints
+from aigc._internal.sinks import emit_to_sink
+from aigc._internal.errors import (
     AIGCError,
     ConditionResolutionError,
     FeatureNotImplementedError,

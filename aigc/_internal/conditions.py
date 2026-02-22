@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from src.errors import ConditionResolutionError
+from aigc._internal.errors import ConditionResolutionError
 
 
 def resolve_conditions(

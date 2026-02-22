@@ -10,8 +10,8 @@ from __future__ import annotations
 import time
 from typing import Any, Mapping, Callable
 
-from src.enforcement import enforce_invocation
-from src.errors import SchemaValidationError, AIGCError
+from aigc._internal.enforcement import enforce_invocation
+from aigc._internal.errors import SchemaValidationError, AIGCError
 
 
 class RetryExhaustedError(AIGCError):
@@ -57,7 +57,7 @@ def with_retry(
         audit = with_retry(invocation)
     """
     # Load policy to check retry_policy
-    from src.policy_loader import load_policy
+    from aigc._internal.policy_loader import load_policy
 
     policy = load_policy(invocation["policy_file"])
 

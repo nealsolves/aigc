@@ -2,9 +2,9 @@
 Backward-compatible public API under `src`.
 """
 
-from src.enforcement import enforce_invocation
-from src.retry import with_retry, RetryExhaustedError
-from src.errors import (
+from aigc._internal.enforcement import enforce_invocation
+from aigc._internal.retry import with_retry, RetryExhaustedError
+from aigc._internal.errors import (
     AIGCError,
     FeatureNotImplementedError,
     GovernanceViolationError,

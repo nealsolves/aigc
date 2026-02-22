@@ -13,7 +13,7 @@ from typing import Any, Mapping
 
 import jsonschema
 from jsonschema import ValidationError
-from src.errors import (
+from aigc._internal.errors import (
     GovernanceViolationError,
     PreconditionError,
     SchemaValidationError,

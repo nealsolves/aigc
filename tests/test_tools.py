@@ -1,8 +1,8 @@
 """Tests for tool constraint validation."""
 
 import pytest
-from src.tools import validate_tool_constraints
-from src.errors import ToolConstraintViolationError
+from aigc._internal.tools import validate_tool_constraints
+from aigc._internal.errors import ToolConstraintViolationError
 
 
 def test_tool_within_limits_passes():

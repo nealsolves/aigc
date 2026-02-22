@@ -71,7 +71,7 @@ def governed(
 
                 output = await fn(*args, **kwargs)
 
-                from src.enforcement import enforce_invocation_async
+                from aigc._internal.enforcement import enforce_invocation_async
                 await enforce_invocation_async({
                     "policy_file": policy_file,
                     "role": role,
@@ -93,7 +93,7 @@ def governed(
 
                 output = fn(*args, **kwargs)
 
-                from src.enforcement import enforce_invocation
+                from aigc._internal.enforcement import enforce_invocation
                 enforce_invocation({
                     "policy_file": policy_file,
                     "role": role,

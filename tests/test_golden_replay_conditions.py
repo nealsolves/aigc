@@ -2,8 +2,8 @@
 
 import json
 import pytest
-from src.enforcement import enforce_invocation
-from src.errors import ConditionResolutionError
+from aigc._internal.enforcement import enforce_invocation
+from aigc._internal.errors import ConditionResolutionError
 
 
 def load_json(path):

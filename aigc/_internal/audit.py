@@ -14,7 +14,7 @@ import time
 import hashlib
 from typing import Any, Dict, Iterable, Mapping
 
-from src.utils import canonical_json_bytes
+from aigc._internal.utils import canonical_json_bytes
 
 
 POLICY_SCHEMA_VERSION = "http://json-schema.org/draft-07/schema#"

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from jsonschema import validate
 
-from src.audit import generate_audit_artifact
+from aigc._internal.audit import generate_audit_artifact
 
 GOLDEN_SUCCESS = "tests/golden_replays/golden_invocation_success.json"
 AUDIT_SCHEMA = "schemas/audit_artifact.schema.json"
@@ -76,7 +76,7 @@ def test_audit_schema_file_exists():
 
 def test_audit_includes_guards_evaluated():
     """Verify guards_evaluated in audit metadata when policy has guards."""
-    from src.enforcement import enforce_invocation
+    from aigc._internal.enforcement import enforce_invocation
 
     # Use guards_multi policy which adds preconditions, not postconditions
     invocation = load_json("tests/golden_replays/golden_invocation_guards_none.json")
@@ -90,7 +90,7 @@ def test_audit_includes_guards_evaluated():
 
 def test_audit_includes_tool_constraints():
     """Verify tool_constraints in audit metadata when policy has tools."""
-    from src.enforcement import enforce_invocation
+    from aigc._internal.enforcement import enforce_invocation
 
     invocation = load_json("tests/golden_replays/golden_invocation_tools_success.json")
 
@@ -103,7 +103,7 @@ def test_audit_includes_tool_constraints():
 
 def test_audit_includes_conditions_resolved():
     """Verify conditions_resolved in audit metadata when policy has conditions."""
-    from src.enforcement import enforce_invocation
+    from aigc._internal.enforcement import enforce_invocation
 
     # Use guards_multi policy
     invocation = load_json("tests/golden_replays/golden_invocation_guards_partial.json")

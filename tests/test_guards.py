@@ -1,8 +1,8 @@
 """Tests for guard evaluation engine."""
 
 import pytest
-from src.guards import evaluate_guards, _merge_policy_blocks, _evaluate_condition_expression
-from src.errors import GuardEvaluationError, ConditionResolutionError
+from aigc._internal.guards import evaluate_guards, _merge_policy_blocks, _evaluate_condition_expression
+from aigc._internal.errors import GuardEvaluationError, ConditionResolutionError
 
 
 def test_guard_matches_boolean_condition():

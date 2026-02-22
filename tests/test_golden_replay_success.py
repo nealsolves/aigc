@@ -6,7 +6,7 @@ and produces an audit artifact that matches expectations.
 """
 
 import json
-from src.enforcement import enforce_invocation
+from aigc._internal.enforcement import enforce_invocation
 
 GOLDEN_SUCCESS = "tests/golden_replays/golden_invocation_success.json"
 EXPECTED_AUDIT = "tests/golden_replays/golden_expected_audit.json"

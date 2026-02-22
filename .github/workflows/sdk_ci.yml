@@ -27,7 +27,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           python -m pytest \
-            --cov=src \
+            --cov=aigc \
             --cov-report=term-missing \
             --cov-report=json \
             --cov-report=xml \
@@ -62,7 +62,7 @@ jobs:
               print(f"✅ Coverage {total:.2f}% meets threshold {threshold:.2f}%")
           PY
       - name: Lint
-        run: flake8 src aigc
+        run: flake8 aigc
       - name: Golden replay regression tests
         run: |
           python -m pytest \

@@ -17,12 +17,12 @@ from typing import Any
 
 from jsonschema import Draft7Validator
 
-from src.errors import PolicyLoadError, PolicyValidationError
+from aigc._internal.errors import PolicyLoadError, PolicyValidationError
 
 logger = logging.getLogger("aigc.policy_loader")
 
-SCHEMAS_DIR = Path(__file__).parent.parent / "schemas"
-REPO_ROOT = Path(__file__).resolve().parent.parent
+SCHEMAS_DIR = Path(__file__).parent.parent.parent / "schemas"
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 LEGACY_POLICY_SCHEMA_PATH = SCHEMAS_DIR / "invocation_policy.schema.json"
 POLICY_DSL_SCHEMA_PATH = SCHEMAS_DIR / "policy_dsl.schema.json"
 POLICY_SCHEMA_DRAFT_07 = "http://json-schema.org/draft-07/schema#"

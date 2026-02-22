@@ -1,3 +1,3 @@
-from src.policy_loader import load_policy
+from aigc._internal.policy_loader import load_policy
 
 __all__ = ["load_policy"]

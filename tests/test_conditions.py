@@ -1,8 +1,8 @@
 """Tests for named condition resolution."""
 
 import pytest
-from src.conditions import resolve_conditions
-from src.errors import ConditionResolutionError
+from aigc._internal.conditions import resolve_conditions
+from aigc._internal.errors import ConditionResolutionError
 
 
 def test_resolve_condition_from_context():

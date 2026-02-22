@@ -1,6 +1,6 @@
 """Public API wrapper for audit sink registry."""
 
-from src.sinks import (
+from aigc._internal.sinks import (
     AuditSink,
     CallbackAuditSink,
     JsonFileAuditSink,

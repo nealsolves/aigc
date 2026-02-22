@@ -170,8 +170,8 @@ aigc/
 │   ├── sinks.py                       Public audit sink imports (Phase 3.2)
 │   └── decorators.py                  Public decorator imports (Phase 3.4)
 │
-├── src/
-│   ├── __init__.py                    Package initialization
+├── aigc/_internal/
+│   ├── __init__.py                    Internal package initialization
 │   ├── enforcement.py                 Orchestrator — sync + async entry points (Phase 3.1)
 │   ├── policy_loader.py               YAML loading + composition + JSON Schema validation
 │   │                                  load_policy_async added in Phase 3.1
@@ -294,7 +294,7 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 ### Test Coverage
 
 - **180 tests** (all passing)
-- **100% coverage** across all `src/` modules
+- **100% coverage** across all `aigc._internal` modules
 - All DSL features have golden replay regression fixtures
 
 ### Architectural Impact
@@ -326,13 +326,13 @@ and are not part of this SDK.
 ### Phase 3 Test Coverage
 
 - **180 tests** (all passing)
-- **100% line coverage** across all `src/` modules
+- **100% line coverage** across all `aigc._internal` modules
 - Phase 3 runtime features have dedicated test files:
   `test_async_enforcement.py`, `test_audit_sinks.py`, `test_decorators.py`
 
 ### Phase 3 Architectural Impact
 
-- **No host-specific runtime classes** in SDK packages (`src/`, `aigc/`) — boundary is clean
+- **No host-specific runtime classes** in SDK packages (`aigc._internal`, `aigc`) — boundary is clean
 - **Async entry point** shares the sync enforcement pipeline; governance is identical
 - **Sink failures do not block enforcement** — logged at WARNING level, invocation continues
 - **Backward compatible** — all Phase 1 and Phase 2 behavior unchanged

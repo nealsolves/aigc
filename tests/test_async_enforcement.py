@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from src.enforcement import enforce_invocation, enforce_invocation_async
-from src.errors import (
+from aigc._internal.enforcement import enforce_invocation, enforce_invocation_async
+from aigc._internal.errors import (
     GovernanceViolationError,
     InvocationValidationError,
     PreconditionError,

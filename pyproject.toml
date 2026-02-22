@@ -59,4 +59,4 @@ asyncio_mode = "auto"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["aigc", "aigc.*", "src", "src.*"]
+include = ["aigc", "aigc.*"]

@@ -1,7 +1,7 @@
-# Golden Trace Checklist
+# Golden Replay Checklist
 
 This checklist is a machine-readable, human-verifiable summary of
-requirements for golden trace compliance.
+requirements for golden replay compliance.
 
 Use this as a PR checklist or CI rule reference.
 
@@ -11,7 +11,7 @@ Use this as a PR checklist or CI rule reference.
 
 ```text
 tests/
-├── golden_traces/
+├── golden_replays/
 │   ├── golden_policy_.yaml
 │   ├── golden_schema_.json
 │   ├── golden_invocation_success_.json
@@ -70,23 +70,23 @@ tests/
 
 ## 📈 7. Test Files
 
-- [ ] `test_golden_trace_success.py` exists
-- [ ] `test_golden_trace_failure.py` exists
-- [ ] Optional: `test_golden_trace_edgecases.py`
+- [ ] `test_golden_replay_success.py` exists
+- [ ] `test_golden_replay_failure.py` exists
+- [ ] Optional: `test_golden_replay_edgecases.py`
 - [ ] `test_audit_artifact_contract.py`
 
 ---
 
 ## 🔁 8. Version Control
 
-- [ ] Golden trace changes are intentional and documented  
+- [ ] Golden replay changes are intentional and documented  
 - [ ] Golden fixture version increments on change
 
 ---
 
 ## 📊 9. CI Integration
 
-- [ ] CI runs golden trace tests
+- [ ] CI runs golden replay tests
 - [ ] CI blocks merge on failure
 - [ ] Test failure output includes artifact differences
 
@@ -94,8 +94,8 @@ tests/
 
 ## 👥 10. Team Awareness
 
-- [ ] Team knows how to update golden traces
-- [ ] Team knows when new golden traces are required
+- [ ] Team knows how to update golden replays
+- [ ] Team knows when new golden replays are required
 
 ---
 
@@ -103,5 +103,5 @@ tests/
 
 By checking all the above boxes, you confirm that:
 
-> Golden traces fully cover core governance enforcement behaviors
+> Golden replays fully cover core governance enforcement behaviors
 > and are ready for automated validation in CI.

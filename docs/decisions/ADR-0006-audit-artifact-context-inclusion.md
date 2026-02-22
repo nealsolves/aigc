@@ -84,7 +84,7 @@ Cons:
   `enforce_invocation`.
 - The `AUDIT_SCHEMA_VERSION = "1.1"` change is detectable by any consumer
   reading the `audit_schema_version` field in the artifact.
-- Replay tools and golden traces that check `audit_schema_version == "1.0"`
+- Replay tools and golden replays that check `audit_schema_version == "1.0"`
   must be updated (golden_expected_audit.json updated in this same change).
 
 ---
@@ -97,7 +97,7 @@ Cons:
 - Schema impact: `context` property added; `context` added to `required`;
   `audit_schema_version` in artifact changes from `"1.0"` to `"1.1"`
 - Audit artifact impact: New `context` field always present
-- Golden traces impact: `golden_expected_audit.json` `audit_schema_version`
+- Golden replays impact: `golden_expected_audit.json` `audit_schema_version`
   updated to `"1.1"`
 - Structural impact: None
 - Backward compatibility: `audit_schema_version` field allows consumers to
@@ -110,7 +110,7 @@ Cons:
 
 - `python -m pytest` passes with 180 tests (including `test_audit_contract`
   which validates the artifact against the schema).
-- `test_golden_trace_success` passes because it asserts named fields only and
+- `test_golden_replay_success` passes because it asserts named fields only and
   the `audit_schema_version` comparison now uses `"1.1"`.
 - Host application integration tests pass with `session_id` correctly
   populated in every `aigc_audit_log` row.

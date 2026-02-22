@@ -1,14 +1,14 @@
-# Golden Traces for AIGC Governance
+# Golden Replays for AIGC Governance
 
-This document defines golden traces for the AIGC Governance SDK.
+This document defines golden replays for the AIGC Governance SDK.
 It is a single source of truth for humans, language models, and agents.
 
-Golden traces are deterministic fixtures that encode expected governance
+Golden replays are deterministic fixtures that encode expected governance
 behavior and run as regression tests.
 
 ## Purpose
 
-Golden traces exist to:
+Golden replays exist to:
 
 - Detect unintended governance changes
 - Keep policy and schema enforcement stable
@@ -21,14 +21,14 @@ Canonical layout:
 
 ```text
 tests/
-|-- golden_traces/
+|-- golden_replays/
 |   |-- golden_invocation_success.json
 |   |-- golden_invocation_failure.json
 |   |-- golden_policy_v1.yaml
 |   |-- golden_schema.json
 |   `-- golden_expected_audit.json
-|-- test_golden_trace_success.py
-|-- test_golden_trace_failure.py
+|-- test_golden_replay_success.py
+|-- test_golden_replay_failure.py
 `-- test_audit_artifact_contract.py
 ```
 
@@ -42,8 +42,8 @@ Artifact contract:
 
 ## Test Mapping
 
-- `test_golden_trace_success.py`: valid invocation must succeed
-- `test_golden_trace_failure.py`: invalid invocation must fail
+- `test_golden_replay_success.py`: valid invocation must succeed
+- `test_golden_replay_failure.py`: invalid invocation must fail
 - `test_audit_artifact_contract.py`: required audit fields must exist
 
 Together these tests keep governance behavior invariant unless intentionally
@@ -51,10 +51,10 @@ versioned.
 
 ## Authoring Rules
 
-1. Keep each trace focused on one behavior dimension.
+1. Keep each replay focused on one behavior dimension.
 2. Version artifacts when behavior changes intentionally.
 3. Assert only stable fields in expected audit artifacts.
-4. Pair complex success traces with corresponding failure traces.
+4. Pair complex success replays with corresponding failure replays.
 
 Stable audit fields usually include:
 
@@ -70,9 +70,9 @@ Stable audit fields usually include:
 Avoid strict checks on volatile fields like timestamps or full checksums unless
 you canonicalize them.
 
-## Automatic Golden Trace Generation Pipeline
+## Automatic Golden Replay Generation Pipeline
 
-Use `scripts/generate_golden_traces.py` to build fixtures from invocation logs.
+Use `scripts/generate_golden_replays.py` to build fixtures from invocation logs.
 
 ### What This Pipeline Does
 
@@ -111,13 +111,13 @@ Requirements:
 ### Run the Generator
 
 ```bash
-python scripts/generate_golden_traces.py --input logs/invocations.json
+python scripts/generate_golden_replays.py --input logs/invocations.json
 ```
 
 Typical outputs:
 
-- `tests/golden_traces/auto_golden_invocation_0.json`
-- `tests/golden_traces/auto_golden_expected_audit_0.json`
+- `tests/golden_replays/auto_golden_invocation_0.json`
+- `tests/golden_replays/auto_golden_expected_audit_0.json`
 
 ### What Gets Generated
 
@@ -169,11 +169,11 @@ Developer workflow:
 
 CI workflow:
 
-1. Run golden trace tests on pull requests.
+1. Run golden replay tests on pull requests.
 2. Block merges on mismatches.
 3. Version fixtures when policy or schema changes are intentional.
 
-### Versioning Golden Traces
+### Versioning Golden Replays
 
 When a fixture changes intentionally, introduce versioned file names, for
 example:
@@ -190,11 +190,11 @@ This preserves historical behavior checks and supports controlled upgrades.
 - Inspect generated fixtures before committing them.
 - Remove values that are non-deterministic across runs.
 - Keep file names aligned with policy or schema version identifiers.
-- Maintain both success and failure trace coverage.
+- Maintain both success and failure replay coverage.
 
 ### Why This Matters
 
-Automatic trace generation ensures:
+Automatic replay generation ensures:
 
 - Golden tests reflect real-world invocation behavior.
 - Governance invariants stay protected over time.
@@ -204,16 +204,16 @@ Automatic trace generation ensures:
 ## Update Workflow
 
 1. Modify policy, schema, or enforcement logic.
-2. Run golden trace tests.
+2. Run golden replay tests.
 3. Classify failures as intentional or unintentional.
 4. If intentional, add or version artifacts.
 5. Keep older versions when historical behavior must stay auditable.
 
 ## Governance Contract
 
-Golden traces are executable contract artifacts:
+Golden replays are executable contract artifacts:
 
-> Behavior in a golden trace must remain true unless replaced by an
+> Behavior in a golden replay must remain true unless replaced by an
 > intentional, versioned update.
 
 This protects CI pipelines from silent drift during model upgrades, policy

@@ -117,7 +117,7 @@ FeatureNotImplementedError → "feature_not_implemented"
    **Mitigation:** Wrap audit generation in try/except — if audit fails, log warning and re-raise original exception
 
 2. **Risk:** Audit artifacts could leak sensitive exception details
-   **Mitigation:** Only include structured failure fields (code, message, field) — no raw stack traces
+   **Mitigation:** Only include structured failure fields (code, message, field) — no raw exception output
 
 3. **Risk:** Performance overhead from generating FAIL audits
    **Mitigation:** Audit generation is already fast (<1ms) — FAIL path adds negligible overhead
@@ -146,10 +146,10 @@ Updated `schemas/audit_artifact.schema.json`:
 - Added `failure_reason` property (nullable string)
 - Both fields are optional (not in `required` array)
 
-### Golden Traces Impact
+### Golden Replays Impact
 
-- **New golden trace:** `tests/golden_traces/golden_invocation_failure_with_audit.json`
-- **New test:** `tests/test_golden_trace_failure_with_audit.py`
+- **New golden replay:** `tests/golden_replays/golden_invocation_failure_with_audit.json`
+- **New test:** `tests/test_golden_replay_failure_with_audit.py`
 - **Updated tests:** `tests/test_enforcement_pipeline.py` (added 5 FAIL audit tests)
 
 ### Error Taxonomy Impact
@@ -168,7 +168,7 @@ Updated `schemas/audit_artifact.schema.json`:
 3. `test_schema_failure_emits_audit_artifact` — schema validation FAIL audit
 4. `test_postcondition_failure_emits_audit_artifact` — postcondition FAIL audit
 5. `test_success_has_null_failure_fields` — PASS audit has null failure fields
-6. `test_golden_trace_failure_with_audit` — golden trace regression
+6. `test_golden_replay_failure_with_audit` — golden replay regression
 
 ### Coverage Impact
 
@@ -183,7 +183,7 @@ Updated `schemas/audit_artifact.schema.json`:
 - [x] Schema validation failure produces FAIL audit artifact + raises `SchemaValidationError`
 - [x] Postcondition failure produces FAIL audit artifact + raises `GovernanceViolationError`
 - [x] FAIL audits include same checksums/metadata as PASS audits
-- [x] Golden trace created and passing
+- [x] Golden replay created and passing
 - [x] Audit artifact schema updated with FAIL-specific fields
 
 ---
@@ -213,4 +213,4 @@ Discovered during PR1 validation that FAIL audits were not emitted. This is a Ph
 ## References
 
 - Audit artifact schema: `schemas/audit_artifact.schema.json`
-- Golden trace: `tests/golden_traces/golden_invocation_failure_with_audit.json`
+- Golden replay: `tests/golden_replays/golden_invocation_failure_with_audit.json`

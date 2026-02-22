@@ -12,7 +12,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Invocation `context` included in audit artifacts for sink correlation
-  (session ID, tenant ID, trace ID) — ADR-0006
+  (session ID, tenant ID, correlation_id) — ADR-0006
 - Absolute policy paths supported for installed-library use — ADR-0005
 - CI parity with network-restricted environments (`--no-build-isolation`)
 
@@ -30,7 +30,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - FAIL audit artifacts emitted before exception propagation — ADR-0001
   - Typed exception hierarchy (`PreconditionError`, `SchemaValidationError`,
     `GovernanceViolationError`)
-  - Golden trace regression testing framework
+  - Golden replay regression testing framework
 
 - **Phase 2 — Full DSL**
   - Conditional guards (`when/then` rules with additive effects) — Phase 2.1

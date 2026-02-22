@@ -1,9 +1,9 @@
-# Golden Traces CI Guide
+# Golden Replays CI Guide
 
-This document explains how to integrate golden traces into CI pipelines so that
+This document explains how to integrate golden replays into CI pipelines so that
 governance violations are detected automatically before merges.
 
-Golden traces are executable governance specifications. In CI, they guard
+Golden replays are executable governance specifications. In CI, they guard
 against:
 
 - Accidental policy regressions
@@ -13,9 +13,9 @@ against:
 
 ## CI Goals
 
-A golden trace CI pipeline should:
+A golden replay CI pipeline should:
 
-1. Validate every golden trace success case passes
+1. Validate every golden replay success case passes
 2. Confirm every golden failure case fails as expected
 3. Ensure audit artifacts match golden contracts
 4. Block merges on unexpected behavior changes
@@ -25,7 +25,7 @@ A golden trace CI pipeline should:
 Canonical GitHub Actions workflow snippet:
 
 ```yaml
-name: "Golden Trace Governance Checks"
+name: "Golden Replay Governance Checks"
 
 on:
   pull_request:
@@ -34,7 +34,7 @@ on:
       - dev
 
 jobs:
-  golden-traces:
+  golden-replays:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -49,14 +49,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev]
 
-      - name: Run Golden Trace Tests
+      - name: Run Golden Replay Tests
         run: |
-          pytest tests/test_golden_trace_success.py \
-                 tests/test_golden_trace_failure.py \
+          pytest tests/test_golden_replay_success.py \
+                 tests/test_golden_replay_failure.py \
                  tests/test_audit_artifact_contract.py
 
       - name: Report Test Results
-        run: echo "Golden trace tests completed"
+        run: echo "Golden replay tests completed"
 ```
 
 ## Interpretation of Results
@@ -76,7 +76,7 @@ Failures indicate:
 
 The CI failure output should include:
 
-- Which golden trace failed
+- Which golden replay failed
 - What schema validation was violated
 - A diff against expected audit fields
 
@@ -92,9 +92,9 @@ When golden artifacts are updated intentionally, version them:
 
 This helps CI distinguish intentional from unintentional changes.
 
-### Keep Golden Traces Fast
+### Keep Golden Replays Fast
 
-Avoid heavy external calls inside golden trace tests.
+Avoid heavy external calls inside golden replay tests.
 
 Stub or mock model calls so CI runs quickly and deterministically.
 
@@ -111,7 +111,7 @@ CI gates should be fail-closed.
 
 ## Summary
 
-Golden trace CI integration ensures the governance layer:
+Golden replay CI integration ensures the governance layer:
 
 - Remains stable over time
 - Detects regressions automatically

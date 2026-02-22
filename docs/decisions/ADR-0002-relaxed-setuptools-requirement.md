@@ -93,7 +93,7 @@ Cons:
 - **Policy DSL impact**: None
 - **Schema impact**: None
 - **Audit artifact impact**: None
-- **Golden traces impact**: None
+- **Golden replays impact**: None
 - **Structural impact**: None (pyproject.toml only)
 - **Backward compatibility**: Improved (wider compatibility)
 

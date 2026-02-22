@@ -88,7 +88,7 @@ Cons:
 - Policy DSL impact: None
 - Schema impact: None
 - Audit artifact impact: None
-- Golden traces impact: None (golden traces use relative paths)
+- Golden replays impact: None (golden replays use relative paths)
 - Structural impact: Minimal — one conditional in `_resolve_policy_path`
 - Backward compatibility: Fully backward compatible
 

@@ -54,7 +54,7 @@ Before submitting:
 
 1. All tests pass (`python -m pytest`)
 2. Linters pass (`flake8 src aigc` and `npx markdownlint-cli2 "**/*.md"`)
-3. Golden traces updated if governance behavior changed
+3. Golden replays updated if governance behavior changed
 4. Documentation updated if architecture changed
 
 ## Governance Hard Gates

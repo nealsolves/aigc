@@ -167,7 +167,7 @@ directly.
 - Policy DSL impact: none
 - Schema impact: none
 - Audit artifact impact: none (same artifact schema)
-- Golden traces impact: new async golden traces use same artifact format
+- Golden replays impact: new async golden replays use same artifact format
 - Structural impact: new `src/sinks.py`, `src/decorators.py`,
   `aigc/sinks.py`, `aigc/decorators.py`
 - Backward compatibility: all existing sync call sites unchanged;

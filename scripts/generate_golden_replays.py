@@ -1,12 +1,12 @@
 """
-Automatic Golden Trace Capture
+Automatic Golden Replay Capture
 
 This script is intended to be used with real invocation logs
 or sample runs. It captures invocation artifacts and
-creates templated golden traces with minimal manual effort.
+creates templated golden replays with minimal manual effort.
 
 Usage:
-    python generate_golden_traces.py --input logs/invocations.json
+    python generate_golden_replays.py --input logs/invocations.json
 """
 
 import json
@@ -15,11 +15,11 @@ from copy import deepcopy
 from pathlib import Path
 from src.enforcement import enforce_invocation
 
-GOLDEN_DIR = Path("tests/golden_traces")
+GOLDEN_DIR = Path("tests/golden_replays")
 
 def make_golden_invocation(inv):
     """
-    Remove variable artifacts and create a stable golden trace.
+    Remove variable artifacts and create a stable golden replay.
     """
     normalized = deepcopy(inv)
 
@@ -28,7 +28,7 @@ def make_golden_invocation(inv):
 
     # Remove request-scoped ids when present
     normalized.pop("request_id", None)
-    normalized.pop("trace_id", None)
+    normalized.pop("correlation_id", None)
     normalized.pop("invocation_id", None)
 
     return normalized
@@ -36,7 +36,7 @@ def make_golden_invocation(inv):
 def main(input_file: str):
     """
     Read a list of invocation records, apply governance, and
-    generate golden traces.
+    generate golden replays.
     """
     with open(input_file, "r", encoding="utf-8") as f:
         invocations = json.load(f)

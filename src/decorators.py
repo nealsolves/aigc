@@ -6,7 +6,7 @@ Usage (sync)::
     from aigc.decorators import governed
 
     @governed(
-        policy_file="policies/trace_planner.yaml",
+        policy_file="policies/planner_policy.yaml",
         role="planner",
         model_provider="anthropic",
         model_identifier="claude-sonnet-4-5-20250929",
@@ -17,7 +17,7 @@ Usage (sync)::
 Usage (async)::
 
     @governed(
-        policy_file="policies/trace_planner.yaml",
+        policy_file="policies/planner_policy.yaml",
         role="planner",
         model_provider="anthropic",
         model_identifier="claude-sonnet-4-5-20250929",

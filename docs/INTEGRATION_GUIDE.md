@@ -186,7 +186,7 @@ Sink failures log a `WARNING` and never block enforcement.
 
 ### Correlation
 
-Include `session_id`, `tenant_id`, or `trace_id` in the invocation
+Include `session_id`, `tenant_id`, or `correlation_id` in the invocation
 `context` dict. These fields appear in the audit artifact's `context`
 key, enabling cross-session governance reports.
 
@@ -208,7 +208,7 @@ The SDK validates **complete outputs**. If your application uses streaming:
 When changing models or providers:
 
 1. Update `model_provider` and `model_identifier` in your invocations.
-2. Run your test suite — golden traces and governance tests will catch
+2. Run your test suite — golden replays and governance tests will catch
    any behavioral drift.
 3. Verify audit artifacts still pass schema validation.
 4. No policy changes are required unless role constraints differ.
@@ -225,8 +225,8 @@ Your CI pipeline should include:
 - **Schema validation** — validate your policies against
   `schemas/policy_dsl.schema.json`
 - **Governance tests** — test PASS and FAIL paths for each role
-- **Golden traces** — deterministic regression fixtures for governance
-  behavior (see [Golden Traces Guide](GOLDEN_TRACES_README.md))
+- **Golden replays** — deterministic regression fixtures for governance
+  behavior (see [Golden Replays Guide](GOLDEN_REPLAYS_README.md))
 - **Coverage gate** — enforce minimum coverage on governance-related code
 
 ---

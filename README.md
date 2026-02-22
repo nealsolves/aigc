@@ -30,7 +30,7 @@ designed to satisfy all five conditions or fail closed.
 | Behavioral Specification | No implicit behavior | YAML policies validated against JSON Schema (Draft-07) |
 | Deterministic Enforcement | Machine-verifiable constraints | `enforce_invocation()` pipeline — fail-closed on any violation |
 | Observability | Structured, persistent artifacts | SHA-256 checksummed audit records per invocation |
-| Replay & Audit | Replayable execution paths | Golden traces + deterministic artifact generation |
+| Replay & Audit | Replayable execution paths | Golden replays + deterministic artifact generation |
 | Model-Independent Governance | Provider-agnostic control | Roles, schemas, and policies — not prompts |
 
 ---
@@ -128,7 +128,7 @@ Audit artifacts follow `schemas/audit_artifact.schema.json` and include:
 - policy identity: `policy_file`, `policy_version`, `policy_schema_version`
 - model identity: `model_provider`, `model_identifier`, `role`
 - result: `enforcement_result`, structured `failures`
-- integrity + traceability: `input_checksum`, `output_checksum`, `timestamp`
+- integrity + auditability: `input_checksum`, `output_checksum`, `timestamp`
 - deterministic metadata container: `metadata`
 
 ## CI Gates

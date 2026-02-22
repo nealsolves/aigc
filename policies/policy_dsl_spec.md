@@ -212,7 +212,7 @@ Every policy change should be:
 
 - versioned
 - linked to a decision record
-- regression-tested with golden traces
+- regression-tested with golden replays
 
 The DSL should be validated against:
 `schemas/policy_dsl.schema.json`

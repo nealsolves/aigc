@@ -259,9 +259,9 @@ enforcement. It serves as the chain of custody for the invocation.
 
 - **Stable fields** (deterministic): `audit_schema_version`, `policy_file`,
   `policy_schema_version`, `model_provider`, `model_identifier`, `role`,
-  `policy_version`, `enforcement_result` — used in golden trace assertions
+  `policy_version`, `enforcement_result` — used in golden replay assertions
 - **Volatile fields** (non-deterministic): `timestamp`, `input_checksum`,
-  `output_checksum` — excluded from golden trace assertions
+  `output_checksum` — excluded from golden replay assertions
 - **Checksums** use SHA-256 over canonical JSON (`json.dumps(obj,
   sort_keys=True)`) for cross-platform determinism
 - **Append-only semantics** — artifacts are produced, never modified
@@ -454,17 +454,17 @@ chooses the persistence strategy:
 | Local / dev | SQLite table or `JsonFileAuditSink` |
 | Cloud | DynamoDB, S3 archival, or log stream |
 | Standalone | JSON file, database, or log stream |
-| CI/CD | Golden trace fixtures in `tests/golden_traces/` |
+| CI/CD | Golden replay fixtures in `tests/golden_replays/` |
 
 This separation keeps the SDK portable.
 
-### 8.3 Golden Trace Testing
+### 8.3 Golden Replay Testing
 
-Golden traces are deterministic fixtures that encode expected governance
+Golden replays are deterministic fixtures that encode expected governance
 behavior. They serve as regression tests for the enforcement pipeline.
 
 ```text
-tests/golden_traces/
+tests/golden_replays/
 ├── golden_policy_v1.yaml              ← policy under test
 ├── golden_schema.json                 ← output schema
 ├── golden_invocation_success.json     ← input that must PASS
@@ -476,7 +476,7 @@ tests/golden_traces/
 - Assert only **stable fields** (`model_provider`, `model_identifier`,
   `role`, `policy_version`, `enforcement_result`)
 - Never assert timestamps or checksums (volatile)
-- Every new governance feature requires paired success/failure golden traces
+- Every new governance feature requires paired success/failure golden replays
 
 ---
 
@@ -610,7 +610,7 @@ These properties must hold for every enforcement:
 | **Invocation** | Structured dict representing a single model interaction |
 | **Enforcement** | The act of evaluating an invocation against a policy |
 | **Audit Artifact** | Immutable record produced by successful enforcement |
-| **Golden Trace** | Deterministic test fixture encoding expected governance behavior |
+| **Golden Replay** | Deterministic test fixture encoding expected governance behavior |
 | **Guard** | Conditional policy expansion triggered by runtime context |
 | **Gate** | A single validation step in the enforcement pipeline |
 | **Effective Policy** | The result of merging base policy with matched guard expansions |

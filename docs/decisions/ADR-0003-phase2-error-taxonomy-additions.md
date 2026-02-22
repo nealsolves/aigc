@@ -103,7 +103,7 @@ Cons:
 - Audit artifact impact: `failure_gate` field in FAIL artifacts records the
   new error codes (`CONDITION_RESOLUTION_ERROR`, `GUARD_EVALUATION_ERROR`,
   `TOOL_CONSTRAINT_VIOLATION`).
-- Golden traces impact: new FAIL golden traces added for each error type.
+- Golden replays impact: new FAIL golden replays added for each error type.
 - Structural impact: `src/errors.py` — three new classes appended.
 - Backward compatibility: existing error types unchanged; new types are
   additive.
@@ -119,4 +119,4 @@ Cons:
   `GUARD_EVALUATION_ERROR` on unknown condition reference.
 - `tests/test_tools.py` asserts `ToolConstraintViolationError` with code
   `TOOL_CONSTRAINT_VIOLATION` on allowlist and `max_calls` violations.
-- Golden trace FAIL fixtures for each new error type in `tests/golden_traces/`.
+- Golden replay FAIL fixtures for each new error type in `tests/golden_replays/`.

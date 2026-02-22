@@ -30,7 +30,7 @@ See [README.md](README.md) for quick-start, public API, and usage.
   exceptions before propagation (Phase 1.8)
 - **Custom exception hierarchy** — typed exceptions with machine-readable
   error codes/details
-- **Golden trace testing** — deterministic fixtures for regression testing
+- **Golden replay testing** — deterministic fixtures for regression testing
   governance behavior
 - **CI pipeline** — tests with coverage gates, linting, markdown lint, and
   policy schema validation
@@ -141,9 +141,9 @@ aigc/
 │   │   └── AIGC_HIGH_LEVEL_DESIGN.md  High-level architecture design
 │   ├── decisions/
 │   │   └── ADR-0001-phase1-failure-audit-emission.md  Phase 1 audit decision
-│   ├── GOLDEN_TRACES_CI_GUIDE.md      CI integration for golden traces
-│   ├── GOLDEN_TRACES_README.md        Golden trace authoring guide
-│   ├── GOLDEN_TRACE_CHECKLIST.md      Checklist for new golden traces
+│   ├── GOLDEN_REPLAYS_CI_GUIDE.md     CI integration for golden replays
+│   ├── GOLDEN_REPLAYS_README.md       Golden replay authoring guide
+│   ├── GOLDEN_REPLAYS_CHECKLIST.md    Checklist for new golden replays
 │   ├── INTEGRATION_GUIDE.md           Host system integration guide
 │   └── USAGE.md                       SDK usage guide with examples
 │
@@ -158,7 +158,7 @@ aigc/
 │   └── invocation_policy.schema.json  Legacy schema (fallback)
 │
 ├── scripts/
-│   └── generate_golden_traces.py      Auto-generate golden traces from logs
+│   └── generate_golden_replays.py      Auto-generate golden replays from logs
 │
 ├── aigc/
 │   ├── __init__.py                    Stable public API package
@@ -187,7 +187,7 @@ aigc/
 │   └── errors.py                      Custom exception hierarchy
 │
 ├── tests/
-│   ├── golden_traces/
+│   ├── golden_replays/
 │   │   ├── golden_policy_v1.yaml      Test policy (complete)
 │   │   ├── golden_policy_postcondition_only.yaml  Postcondition-only policy
 │   │   ├── golden_schema.json         Test output schema
@@ -204,16 +204,16 @@ aigc/
 │   │   ├── policy_with_retry.yaml     Policy with retry (Phase 2.4)
 │   │   ├── policy_with_tools.yaml     Policy with tools (Phase 2.3)
 │   │   ├── policy_child_extends_base.yaml  Policy composition child (Phase 2.6)
-│   │   ├── golden_invocation_guards_*.json  Guard golden traces
-│   │   ├── golden_invocation_tools_*.json   Tool golden traces
+│   │   ├── golden_invocation_guards_*.json  Guard golden replays
+│   │   ├── golden_invocation_tools_*.json   Tool golden replays
 │   │   └── policy_extends_nonexistent.yaml  Missing base test
-│   ├── test_golden_trace_success.py   Regression: valid invocation
-│   ├── test_golden_trace_failure.py   Regression: schema validation failure
-│   ├── test_golden_trace_failure_with_audit.py  Regression: role failure + audit
-│   ├── test_golden_trace_missing_fields.py  Regression: invocation validation
-│   ├── test_golden_trace_postcondition_failure.py  Regression: postcondition
-│   ├── test_golden_trace_guards.py    Regression: guard evaluation (Phase 2.1)
-│   ├── test_golden_trace_tools.py     Regression: tool constraints (Phase 2.3)
+│   ├── test_golden_replay_success.py   Regression: valid invocation
+│   ├── test_golden_replay_failure.py   Regression: schema validation failure
+│   ├── test_golden_replay_failure_with_audit.py  Regression: role failure + audit
+│   ├── test_golden_replay_missing_fields.py  Regression: invocation validation
+│   ├── test_golden_replay_postcondition_failure.py  Regression: postcondition
+│   ├── test_golden_replay_guards.py    Regression: guard evaluation (Phase 2.1)
+│   ├── test_golden_replay_tools.py     Regression: tool constraints (Phase 2.3)
 │   ├── test_audit_artifact_contract.py  Audit field presence contract
 │   ├── test_checksum_determinism.py   Canonical JSON checksum tests
 │   ├── test_conditions.py             Condition resolution unit tests (Phase 2.2)
@@ -295,7 +295,7 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 - **180 tests** (all passing)
 - **100% coverage** across all `src/` modules
-- All DSL features have golden trace regression fixtures
+- All DSL features have golden replay regression fixtures
 
 ### Architectural Impact
 
@@ -348,9 +348,9 @@ and are not part of this SDK.
 | [Architecture Decisions](docs/decisions/) | ADRs documenting significant architectural choices |
 | [Policy DSL Spec](policies/policy_dsl_spec.md) | Full specification of the policy YAML format |
 | [Usage Guide](docs/USAGE.md) | Code examples and best practices |
-| [Golden Traces Guide](docs/GOLDEN_TRACES_README.md) | How to author and maintain golden trace fixtures |
-| [Golden Traces CI](docs/GOLDEN_TRACES_CI_GUIDE.md) | CI integration for golden trace regression |
-| [Golden Trace Checklist](docs/GOLDEN_TRACE_CHECKLIST.md) | Checklist for adding new golden traces |
+| [Golden Replays Guide](docs/GOLDEN_REPLAYS_README.md) | How to author and maintain golden replay fixtures |
+| [Golden Replays CI](docs/GOLDEN_REPLAYS_CI_GUIDE.md) | CI integration for golden replay regression |
+| [Golden Replay Checklist](docs/GOLDEN_REPLAYS_CHECKLIST.md) | Checklist for adding new golden replays |
 
 ---
 

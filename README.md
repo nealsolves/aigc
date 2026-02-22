@@ -146,6 +146,7 @@ Audit artifacts follow `schemas/audit_artifact.schema.json` and include:
 
 | Document | Purpose |
 | -------- | ------- |
+| [Integration Contract](docs/PUBLIC_INTEGRATION_CONTRACT.md) | Runnable hello-world, end-to-end example, extension points, troubleshooting |
 | [PROJECT.md](PROJECT.md) | Authoritative structure and architecture |
 | [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | Enforcement pipeline and design principles |
 | [Integration Guide](docs/INTEGRATION_GUIDE.md) | Host system integration patterns and compliance checklist |

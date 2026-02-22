@@ -2,6 +2,9 @@
 
 How to integrate AIGC governance into any system that invokes AI models.
 
+For a copy-paste quickstart with runnable examples and troubleshooting, see the
+[Public Integration Contract](PUBLIC_INTEGRATION_CONTRACT.md).
+
 The SDK enforces policy validation, schema compliance, and audit artifact
 generation. This guide covers what the **integrator** is responsible for
 beyond what the SDK handles at runtime.

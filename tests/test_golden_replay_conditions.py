@@ -1,4 +1,4 @@
-"""Golden trace tests for named condition resolution."""
+"""Golden replay tests for named condition resolution."""
 
 import json
 import pytest
@@ -11,9 +11,9 @@ def load_json(path):
         return json.load(f)
 
 
-def test_golden_trace_conditions_success():
+def test_golden_replay_conditions_success():
     """All conditions resolved correctly (context + defaults)."""
-    invocation = load_json("tests/golden_traces/golden_invocation_conditions_success.json")
+    invocation = load_json("tests/golden_replays/golden_invocation_conditions_success.json")
 
     audit = enforce_invocation(invocation)
 
@@ -30,9 +30,9 @@ def test_golden_trace_conditions_success():
     assert audit["metadata"]["schema_validation"] == "passed"
 
 
-def test_golden_trace_conditions_missing_required():
+def test_golden_replay_conditions_missing_required():
     """Missing required condition raises ConditionResolutionError."""
-    invocation = load_json("tests/golden_traces/golden_invocation_conditions_missing_required.json")
+    invocation = load_json("tests/golden_replays/golden_invocation_conditions_missing_required.json")
 
     with pytest.raises(ConditionResolutionError) as exc_info:
         enforce_invocation(invocation)
@@ -42,9 +42,9 @@ def test_golden_trace_conditions_missing_required():
     assert "required" in str(exc_info.value).lower()
 
 
-def test_golden_trace_conditions_wrong_type():
+def test_golden_replay_conditions_wrong_type():
     """Condition value with wrong type raises ConditionResolutionError."""
-    invocation = load_json("tests/golden_traces/golden_invocation_conditions_wrong_type.json")
+    invocation = load_json("tests/golden_replays/golden_invocation_conditions_wrong_type.json")
 
     with pytest.raises(ConditionResolutionError) as exc_info:
         enforce_invocation(invocation)

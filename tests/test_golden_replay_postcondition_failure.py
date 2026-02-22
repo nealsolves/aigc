@@ -1,5 +1,5 @@
 """
-Test golden trace for postcondition validation failure with audit artifact emission.
+Test golden replay for postcondition validation failure with audit artifact emission.
 
 This test validates that postcondition failures emit FAIL audit artifacts
 with the expected stable fields.
@@ -13,14 +13,14 @@ from src.enforcement import enforce_invocation
 from src.errors import GovernanceViolationError
 
 
-def test_golden_trace_postcondition_failure():
+def test_golden_replay_postcondition_failure():
     """
     Verify that postcondition validation failures emit FAIL audit artifacts
-    matching the golden trace stable fields.
+    matching the golden replay stable fields.
     """
-    # Load golden trace
+    # Load golden replay
     with open(
-        "tests/golden_traces/golden_invocation_postcondition_failure.json"
+        "tests/golden_replays/golden_invocation_postcondition_failure.json"
     ) as f:
         golden = json.load(f)
 
@@ -41,7 +41,7 @@ def test_golden_trace_postcondition_failure():
     assert hasattr(exc_info.value, "audit_artifact")
     audit = exc_info.value.audit_artifact
 
-    # Verify stable fields match golden trace expectations
+    # Verify stable fields match golden replay expectations
     for field, expected_value in expected_stable_fields.items():
         assert (
             audit[field] == expected_value

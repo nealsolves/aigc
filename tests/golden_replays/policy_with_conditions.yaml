@@ -1,5 +1,5 @@
 policy_version: "1.0"
-description: "Test policy with named conditions for golden trace testing"
+description: "Test policy with named conditions for golden replay testing"
 
 roles:
   - "planner"

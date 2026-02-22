@@ -1,4 +1,4 @@
-"""Golden trace tests for policy composition via extends."""
+"""Golden replay tests for policy composition via extends."""
 
 import json
 import pytest
@@ -11,9 +11,9 @@ def load_json(path):
         return json.load(f)
 
 
-def test_golden_trace_composition_success():
+def test_golden_replay_composition_success():
     """Policy with extends chain loads and enforces correctly."""
-    invocation = load_json("tests/golden_traces/golden_invocation_composition_success.json")
+    invocation = load_json("tests/golden_replays/golden_invocation_composition_success.json")
 
     audit = enforce_invocation(invocation)
 
@@ -25,7 +25,7 @@ def test_golden_trace_composition_success():
     assert audit["metadata"]["schema_validation"] == "passed"
 
 
-def test_golden_trace_composition_cycle_failure():
+def test_golden_replay_composition_cycle_failure():
     """Circular extends raises PolicyLoadError with deterministic details."""
     # Create invocation with cycle policy
     invocation = {

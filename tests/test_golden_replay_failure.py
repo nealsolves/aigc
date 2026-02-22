@@ -1,5 +1,5 @@
 """
-Golden Trace Failure Test
+Golden Replay Failure Test
 
 Ensures that a canonical “bad” invocation fails governance enforcement.
 """
@@ -9,13 +9,13 @@ import pytest
 from src.enforcement import enforce_invocation
 from src.errors import SchemaValidationError
 
-GOLDEN_FAILURE = "tests/golden_traces/golden_invocation_failure.json"
+GOLDEN_FAILURE = "tests/golden_replays/golden_invocation_failure.json"
 
 def load_json(p):
     with open(p, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def test_golden_trace_failure():
+def test_golden_replay_failure():
     """
     Attempting to enforce governance on a known-bad invocation
     should raise a schema validation error.

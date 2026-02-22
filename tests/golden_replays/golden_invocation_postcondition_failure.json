@@ -1,7 +1,7 @@
 {
-  "description": "Golden trace for postcondition validation failure (postcondition required without schema)",
+  "description": "Golden replay for postcondition validation failure (postcondition required without schema)",
   "invocation": {
-    "policy_file": "tests/golden_traces/golden_policy_postcondition_only.yaml",
+    "policy_file": "tests/golden_replays/golden_policy_postcondition_only.yaml",
     "model_provider": "openai",
     "model_identifier": "gpt-test-model",
     "role": "planner",
@@ -17,10 +17,10 @@
     "model_provider": "openai",
     "model_identifier": "gpt-test-model",
     "role": "planner",
-    "policy_file": "tests/golden_traces/golden_policy_postcondition_only.yaml"
+    "policy_file": "tests/golden_replays/golden_policy_postcondition_only.yaml"
   },
   "notes": [
-    "This golden trace validates postcondition failures emit FAIL audit artifacts",
+    "This golden replay validates postcondition failures emit FAIL audit artifacts",
     "The policy requires 'output_schema_valid' postcondition but has no output_schema",
     "This causes postcondition validation to fail with POSTCONDITION_FAILED code"
   ]

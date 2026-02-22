@@ -17,7 +17,7 @@ from src.errors import (
     SchemaValidationError,
 )
 
-POLICY = "tests/golden_traces/golden_policy_v1.yaml"
+POLICY = "tests/golden_replays/golden_policy_v1.yaml"
 
 VALID_INVOCATION = {
     "policy_file": POLICY,

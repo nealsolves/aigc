@@ -6,7 +6,7 @@ from src.errors import InvocationValidationError
 
 def _valid_invocation():
     return {
-        "policy_file": "tests/golden_traces/golden_policy_v1.yaml",
+        "policy_file": "tests/golden_replays/golden_policy_v1.yaml",
         "model_provider": "openai",
         "model_identifier": "gpt-test-model",
         "role": "planner",

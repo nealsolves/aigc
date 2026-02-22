@@ -1,4 +1,4 @@
-"""Golden trace tests for guard evaluation."""
+"""Golden replay tests for guard evaluation."""
 
 import json
 from src.enforcement import enforce_invocation
@@ -9,9 +9,9 @@ def load_json(path):
         return json.load(f)
 
 
-def test_golden_trace_guards_both_match():
+def test_golden_replay_guards_both_match():
     """Both guards match, postconditions and preconditions accumulate."""
-    invocation = load_json("tests/golden_traces/golden_invocation_guards_match.json")
+    invocation = load_json("tests/golden_replays/golden_invocation_guards_match.json")
 
     audit = enforce_invocation(invocation)
 
@@ -43,9 +43,9 @@ def test_golden_trace_guards_both_match():
     assert audit["metadata"]["schema_validation"] == "passed"
 
 
-def test_golden_trace_guards_partial_match():
+def test_golden_replay_guards_partial_match():
     """One guard matches, only its effects applied."""
-    invocation = load_json("tests/golden_traces/golden_invocation_guards_partial.json")
+    invocation = load_json("tests/golden_replays/golden_invocation_guards_partial.json")
 
     audit = enforce_invocation(invocation)
 
@@ -69,9 +69,9 @@ def test_golden_trace_guards_partial_match():
     assert "enterprise_quota_available" in preconditions_satisfied
 
 
-def test_golden_trace_guards_none_match():
+def test_golden_replay_guards_none_match():
     """No guards match, policy unchanged."""
-    invocation = load_json("tests/golden_traces/golden_invocation_guards_none.json")
+    invocation = load_json("tests/golden_replays/golden_invocation_guards_none.json")
 
     audit = enforce_invocation(invocation)
 

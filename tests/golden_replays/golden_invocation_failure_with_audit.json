@@ -1,7 +1,7 @@
 {
-  "description": "Golden trace for enforcement failure with audit artifact emission (Phase 1.8)",
+  "description": "Golden replay for enforcement failure with audit artifact emission (Phase 1.8)",
   "invocation": {
-    "policy_file": "tests/golden_traces/golden_policy_v1.yaml",
+    "policy_file": "tests/golden_replays/golden_policy_v1.yaml",
     "model_provider": "openai",
     "model_identifier": "gpt-test-model",
     "role": "attacker",
@@ -17,10 +17,10 @@
     "model_provider": "openai",
     "model_identifier": "gpt-test-model",
     "role": "attacker",
-    "policy_file": "tests/golden_traces/golden_policy_v1.yaml"
+    "policy_file": "tests/golden_replays/golden_policy_v1.yaml"
   },
   "notes": [
-    "This golden trace validates that enforcement failures emit FAIL audit artifacts",
+    "This golden replay validates that enforcement failures emit FAIL audit artifacts",
     "The audit artifact is attached to the exception via exc.audit_artifact",
     "Volatile fields (checksums, timestamps, failure_reason) are not asserted",
     "Only stable fields are verified in the golden assertion"

@@ -1,4 +1,4 @@
-"""Golden trace tests for tool constraint validation."""
+"""Golden replay tests for tool constraint validation."""
 
 import json
 import pytest
@@ -11,9 +11,9 @@ def load_json(path):
         return json.load(f)
 
 
-def test_golden_trace_tools_success():
+def test_golden_replay_tools_success():
     """Tool calls within limits pass validation."""
-    invocation = load_json("tests/golden_traces/golden_invocation_tools_success.json")
+    invocation = load_json("tests/golden_replays/golden_invocation_tools_success.json")
 
     audit = enforce_invocation(invocation)
 
@@ -24,9 +24,9 @@ def test_golden_trace_tools_success():
     assert audit["metadata"]["tool_constraints"]["violations"] == []
 
 
-def test_golden_trace_tools_exceed_max():
+def test_golden_replay_tools_exceed_max():
     """Tool exceeding max_calls raises error and emits FAIL audit."""
-    golden = load_json("tests/golden_traces/golden_invocation_tools_exceed_max.json")
+    golden = load_json("tests/golden_replays/golden_invocation_tools_exceed_max.json")
     invocation = golden["invocation"]
 
     with pytest.raises(ToolConstraintViolationError) as exc_info:
@@ -44,9 +44,9 @@ def test_golden_trace_tools_exceed_max():
     assert audit["failure_gate"] == "tool_validation"
 
 
-def test_golden_trace_tools_not_allowed():
+def test_golden_replay_tools_not_allowed():
     """Unauthorized tool raises error and emits FAIL audit."""
-    golden = load_json("tests/golden_traces/golden_invocation_tools_not_allowed.json")
+    golden = load_json("tests/golden_replays/golden_invocation_tools_not_allowed.json")
     invocation = golden["invocation"]
 
     with pytest.raises(ToolConstraintViolationError) as exc_info:

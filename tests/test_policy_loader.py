@@ -19,27 +19,27 @@ from src.policy_loader import (
 
 
 def test_load_policy_success():
-    policy = load_policy("tests/golden_traces/golden_policy_v1.yaml")
+    policy = load_policy("tests/golden_replays/golden_policy_v1.yaml")
     assert policy["policy_version"] == "1.0"
     assert "roles" in policy
 
 
 def test_load_policy_invalid_yaml():
     with pytest.raises(PolicyLoadError) as exc_info:
-        load_policy("tests/golden_traces/invalid_policy.yaml")
+        load_policy("tests/golden_replays/invalid_policy.yaml")
     assert exc_info.value.code == "POLICY_LOAD_ERROR"
 
 
 def test_load_policy_schema_mismatch():
     with pytest.raises(PolicyValidationError) as exc_info:
-        load_policy("tests/golden_traces/policy_missing_roles.yaml")
+        load_policy("tests/golden_replays/policy_missing_roles.yaml")
     assert exc_info.value.code == "POLICY_SCHEMA_VALIDATION_ERROR"
     assert "roles" in str(exc_info.value)
 
 
 def test_load_policy_missing_file():
     with pytest.raises(PolicyLoadError) as exc_info:
-        load_policy("tests/golden_traces/does_not_exist.yaml")
+        load_policy("tests/golden_replays/does_not_exist.yaml")
     assert exc_info.value.code == "POLICY_LOAD_ERROR"
 
 
@@ -52,7 +52,7 @@ def test_load_policy_path_escape_is_blocked():
 def test_load_policy_non_yaml_extension():
     """Policy file with .txt extension is rejected (line 62)."""
     with pytest.raises(PolicyLoadError) as exc_info:
-        load_policy("tests/golden_traces/golden_policy_v1.txt")
+        load_policy("tests/golden_replays/golden_policy_v1.txt")
     assert exc_info.value.code == "POLICY_LOAD_ERROR"
     assert "YAML" in str(exc_info.value)
 
@@ -105,16 +105,16 @@ def test_merge_policies_key_only_in_overlay():
 def test_resolve_extends_no_extends_returns_policy():
     """_resolve_extends returns policy unchanged when extends is falsy (line 141)."""
     policy = {"policy_version": "1.0", "roles": ["planner"], "extends": None}
-    fake_path = Path("tests/golden_traces/golden_policy_v1.yaml").resolve()
+    fake_path = Path("tests/golden_replays/golden_policy_v1.yaml").resolve()
     result = _resolve_extends(policy, fake_path)
     assert result is policy
 
 
 def test_load_policy_async_returns_same_as_sync():
     """load_policy_async produces identical result to load_policy (line 255)."""
-    sync_policy = load_policy("tests/golden_traces/golden_policy_v1.yaml")
+    sync_policy = load_policy("tests/golden_replays/golden_policy_v1.yaml")
     async_policy = asyncio.run(
-        load_policy_async("tests/golden_traces/golden_policy_v1.yaml")
+        load_policy_async("tests/golden_replays/golden_policy_v1.yaml")
     )
     assert sync_policy == async_policy
 
@@ -157,7 +157,7 @@ def test_load_policy_schema_json_decode_error():
     with patch("builtins.open", mock_open(read_data="not valid json")):
         with patch("yaml.safe_load", return_value={"policy_version": "1.0", "roles": ["planner"]}):
             with pytest.raises((PolicyLoadError, Exception)):
-                load_policy("tests/golden_traces/golden_policy_v1.yaml")
+                load_policy("tests/golden_replays/golden_policy_v1.yaml")
 
 
 def test_load_policy_schema_wrong_draft(tmp_path):
@@ -168,5 +168,5 @@ def test_load_policy_schema_wrong_draft(tmp_path):
 
     with patch("src.policy_loader.POLICY_DSL_SCHEMA_PATH", bad_schema_file):
         with pytest.raises(PolicyLoadError) as exc_info:
-            load_policy("tests/golden_traces/golden_policy_v1.yaml")
+            load_policy("tests/golden_replays/golden_policy_v1.yaml")
     assert "Draft-07" in str(exc_info.value)

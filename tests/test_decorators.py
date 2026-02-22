@@ -12,7 +12,7 @@ import pytest
 from src.decorators import governed
 from src.errors import GovernanceViolationError, SchemaValidationError
 
-POLICY = "tests/golden_traces/golden_policy_v1.yaml"
+POLICY = "tests/golden_replays/golden_policy_v1.yaml"
 PROVIDER = "anthropic"
 MODEL = "claude-sonnet-4-5-20250929"
 ROLE = "planner"

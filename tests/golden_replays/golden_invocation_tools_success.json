@@ -2,7 +2,7 @@
   "model_provider": "anthropic",
   "model_identifier": "claude-sonnet-4",
   "role": "planner",
-  "policy_file": "tests/golden_traces/policy_with_tools.yaml",
+  "policy_file": "tests/golden_replays/policy_with_tools.yaml",
   "input": {"task": "research topic"},
   "output": {"result": "research complete", "confidence": 0.92},
   "context": {

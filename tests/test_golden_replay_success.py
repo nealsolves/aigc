@@ -1,5 +1,5 @@
 """
-Golden Trace Success Test
+Golden Replay Success Test
 
 This test ensures that a canonical “good” invocation succeeds
 and produces an audit artifact that matches expectations.
@@ -8,14 +8,14 @@ and produces an audit artifact that matches expectations.
 import json
 from src.enforcement import enforce_invocation
 
-GOLDEN_SUCCESS = "tests/golden_traces/golden_invocation_success.json"
-EXPECTED_AUDIT = "tests/golden_traces/golden_expected_audit.json"
+GOLDEN_SUCCESS = "tests/golden_replays/golden_invocation_success.json"
+EXPECTED_AUDIT = "tests/golden_replays/golden_expected_audit.json"
 
 def load_json(p):
     with open(p, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def test_golden_trace_success():
+def test_golden_replay_success():
     """
     Enforce governance on a known-good invocation and compare
     the audit artifact to the expected golden artifact.

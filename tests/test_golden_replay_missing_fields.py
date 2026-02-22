@@ -1,5 +1,5 @@
 """
-Test golden trace for invocation validation failure (missing required fields).
+Test golden replay for invocation validation failure (missing required fields).
 
 This test validates that invocations with missing required fields
 raise InvocationValidationError (subclass of GovernanceViolationError).
@@ -13,14 +13,14 @@ from src.enforcement import enforce_invocation
 from src.errors import InvocationValidationError
 
 
-def test_golden_trace_missing_fields():
+def test_golden_replay_missing_fields():
     """
     Verify that invocations with missing required fields raise
     InvocationValidationError with the correct error code.
     """
-    # Load golden trace
+    # Load golden replay
     with open(
-        "tests/golden_traces/golden_invocation_missing_fields.json"
+        "tests/golden_replays/golden_invocation_missing_fields.json"
     ) as f:
         golden = json.load(f)
 

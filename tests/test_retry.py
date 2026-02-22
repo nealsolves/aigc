@@ -11,7 +11,7 @@ def _base_invocation_with_retry():
         "model_provider": "anthropic",
         "model_identifier": "claude-sonnet-4",
         "role": "planner",
-        "policy_file": "tests/golden_traces/policy_with_retry.yaml",
+        "policy_file": "tests/golden_replays/policy_with_retry.yaml",
         "input": {"task": "test"},
         "output": {"result": "done", "confidence": 0.9},
         "context": {"role_declared": True}
@@ -80,7 +80,7 @@ def test_no_retry_policy_single_attempt():
         "model_provider": "anthropic",
         "model_identifier": "claude-sonnet-4",
         "role": "planner",
-        "policy_file": "tests/golden_traces/golden_policy_v1.yaml",  # No retry policy
+        "policy_file": "tests/golden_replays/golden_policy_v1.yaml",  # No retry policy
         "input": {"task": "test"},
         "output": {"result": "done", "confidence": 0.9},
         "context": {"role_declared": True, "schema_exists": True}

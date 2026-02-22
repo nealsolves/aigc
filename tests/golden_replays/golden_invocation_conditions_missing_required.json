@@ -1,5 +1,5 @@
 {
-  "policy_file": "tests/golden_traces/policy_with_conditions.yaml",
+  "policy_file": "tests/golden_replays/policy_with_conditions.yaml",
   "model_provider": "anthropic",
   "model_identifier": "claude-sonnet-4",
   "role": "planner",

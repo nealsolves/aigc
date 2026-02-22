@@ -63,15 +63,15 @@ jobs:
           PY
       - name: Lint
         run: flake8 src aigc
-      - name: Golden trace regression tests
+      - name: Golden replay regression tests
         run: |
           python -m pytest \
-            tests/test_golden_trace_success.py \
-            tests/test_golden_trace_failure.py \
-            tests/test_golden_trace_guards.py \
-            tests/test_golden_trace_tools.py \
-            tests/test_golden_trace_conditions.py \
-            tests/test_golden_trace_composition.py \
+            tests/test_golden_replay_success.py \
+            tests/test_golden_replay_failure.py \
+            tests/test_golden_replay_guards.py \
+            tests/test_golden_replay_tools.py \
+            tests/test_golden_replay_conditions.py \
+            tests/test_golden_replay_composition.py \
             tests/test_audit_artifact_contract.py
       - name: Markdown lint
         run: npx markdownlint-cli2 "**/*.md"

@@ -1,5 +1,5 @@
 {
-  "policy_file": "tests/golden_traces/policy_child_extends_base.yaml",
+  "policy_file": "tests/golden_replays/policy_child_extends_base.yaml",
   "model_provider": "anthropic",
   "model_identifier": "claude-sonnet-4",
   "role": "verifier",

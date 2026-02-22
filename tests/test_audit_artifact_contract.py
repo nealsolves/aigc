@@ -12,7 +12,7 @@ from jsonschema import validate
 
 from src.audit import generate_audit_artifact
 
-GOLDEN_SUCCESS = "tests/golden_traces/golden_invocation_success.json"
+GOLDEN_SUCCESS = "tests/golden_replays/golden_invocation_success.json"
 AUDIT_SCHEMA = "schemas/audit_artifact.schema.json"
 
 
@@ -79,7 +79,7 @@ def test_audit_includes_guards_evaluated():
     from src.enforcement import enforce_invocation
 
     # Use guards_multi policy which adds preconditions, not postconditions
-    invocation = load_json("tests/golden_traces/golden_invocation_guards_none.json")
+    invocation = load_json("tests/golden_replays/golden_invocation_guards_none.json")
 
     audit = enforce_invocation(invocation)
 
@@ -92,7 +92,7 @@ def test_audit_includes_tool_constraints():
     """Verify tool_constraints in audit metadata when policy has tools."""
     from src.enforcement import enforce_invocation
 
-    invocation = load_json("tests/golden_traces/golden_invocation_tools_success.json")
+    invocation = load_json("tests/golden_replays/golden_invocation_tools_success.json")
 
     audit = enforce_invocation(invocation)
 
@@ -106,7 +106,7 @@ def test_audit_includes_conditions_resolved():
     from src.enforcement import enforce_invocation
 
     # Use guards_multi policy
-    invocation = load_json("tests/golden_traces/golden_invocation_guards_partial.json")
+    invocation = load_json("tests/golden_replays/golden_invocation_guards_partial.json")
 
     audit = enforce_invocation(invocation)
 

@@ -18,7 +18,7 @@ from src.errors import (
 
 def _base_invocation():
     return {
-        "policy_file": "tests/golden_traces/golden_policy_v1.yaml",
+        "policy_file": "tests/golden_replays/golden_policy_v1.yaml",
         "model_provider": "openai",
         "model_identifier": "gpt-test-model",
         "role": "planner",
@@ -55,7 +55,7 @@ def test_invalid_output_schema_fails_closed():
 def test_postcondition_requires_schema_validation():
     invocation = _base_invocation()
     invocation["policy_file"] = (
-        "tests/golden_traces/policy_postcondition_without_schema.yaml"
+        "tests/golden_replays/policy_postcondition_without_schema.yaml"
     )
     with pytest.raises(GovernanceViolationError) as exc_info:
         enforce_invocation(invocation)
@@ -144,7 +144,7 @@ def test_postcondition_failure_emits_audit_artifact():
     """Verify that postcondition failures emit FAIL audit artifacts."""
     invocation = _base_invocation()
     invocation["policy_file"] = (
-        "tests/golden_traces/policy_postcondition_without_schema.yaml"
+        "tests/golden_replays/policy_postcondition_without_schema.yaml"
     )
 
     with pytest.raises(GovernanceViolationError) as exc_info:

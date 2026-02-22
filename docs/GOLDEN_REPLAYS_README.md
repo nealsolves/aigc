@@ -144,7 +144,7 @@ Example expected audit template:
 
 ```json
 {
-  "audit_schema_version": "1.0",
+  "audit_schema_version": "1.1",
   "model_provider": "openai",
   "model_identifier": "gpt-4.1",
   "policy_version": "1.0",

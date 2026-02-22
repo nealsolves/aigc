@@ -357,7 +357,7 @@ Exception
                                  other policy-level violation
 ```
 
-All exceptions are defined in `src/errors.py`. The host application catches
+Exceptions are implemented in `aigc/_internal/errors.py` and exposed via `aigc/errors.py`. The host application catches
 these to decide whether to retry, escalate, or block.
 
 ---
@@ -381,8 +381,8 @@ minimal deployment), it falls back to the legacy schema.
 
 ```text
 1. Static validation    — JSON Schema at load time (structure)
-2. Role resolution      — Allowlist check (identity)
-3. Guard evaluation     — Conditional expansion (context)
+2. Guard evaluation     — Conditional expansion (context)
+3. Role resolution      — Allowlist check (identity)
 4. Precondition check   — Context requirements (readiness)
 5. Schema validation    — Output structure (correctness)
 6. Postcondition check  — Semantic requirements (completeness)

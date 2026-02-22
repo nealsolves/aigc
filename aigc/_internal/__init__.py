@@ -1,5 +1,5 @@
 """
-Backward-compatible public API under `src`.
+Internal implementation details. No compatibility guarantees.
 """
 
 from aigc._internal.enforcement import enforce_invocation

@@ -212,8 +212,5 @@ Discovered during PR1 validation that FAIL audits were not emitted. This is a Ph
 
 ## References
 
-- Implementation Plan: `docs/plans/IMPLEMENTATION_PLAN.md` (updated)
-- Phase 1.8 deliverable: lines 258-340
-- Phase 1 Definition of Done: lines 342-355
 - Audit artifact schema: `schemas/audit_artifact.schema.json`
 - Golden trace: `tests/golden_traces/golden_invocation_failure_with_audit.json`

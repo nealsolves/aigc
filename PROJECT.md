@@ -125,9 +125,6 @@ Decorator Pattern:
 For the full architecture, see
 [docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md).
 
-For the implementation roadmap, see
-[docs/plans/IMPLEMENTATION_PLAN.md](docs/plans/IMPLEMENTATION_PLAN.md).
-
 ---
 
 ## Project Structure
@@ -142,15 +139,8 @@ aigc/
 ├── docs/
 │   ├── architecture/
 │   │   └── AIGC_HIGH_LEVEL_DESIGN.md  High-level architecture design
-│   ├── audits/
-│   │   ├── PHASE1_AUDIT_REPORT.md     Phase 1 audit findings and fixes
-│   │   └── PHASE3_AUDIT_REPORT.md     Phase 3 audit findings and resolution
 │   ├── decisions/
 │   │   └── ADR-0001-phase1-failure-audit-emission.md  Phase 1 audit decision
-│   ├── plans/
-│   │   └── IMPLEMENTATION_PLAN.md     3-phase implementation roadmap
-│   ├── prs/
-│   │   └── PR1_DETERMINISTIC_CHECKSUM_AUDIT_CONTRACT.md  PR documentation
 │   ├── GOLDEN_TRACES_CI_GUIDE.md      CI integration for golden traces
 │   ├── GOLDEN_TRACES_README.md        Golden trace authoring guide
 │   ├── GOLDEN_TRACE_CHECKLIST.md      Checklist for new golden traces
@@ -355,7 +345,6 @@ and are not part of this SDK.
 | -------- | ------- |
 | [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | High-level design, core abstractions, enforcement pipeline |
 | [Integration Guide](docs/INTEGRATION_GUIDE.md) | Host system integration patterns and compliance checklist |
-| [Implementation Plan](docs/plans/IMPLEMENTATION_PLAN.md) | 3-phase roadmap with deliverables and acceptance criteria |
 | [Architecture Decisions](docs/decisions/) | ADRs documenting significant architectural choices |
 | [Policy DSL Spec](policies/policy_dsl_spec.md) | Full specification of the policy YAML format |
 | [Usage Guide](docs/USAGE.md) | Code examples and best practices |

@@ -149,6 +149,5 @@ Audit artifacts follow `schemas/audit_artifact.schema.json` and include:
 | [PROJECT.md](PROJECT.md) | Authoritative structure and architecture |
 | [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | Enforcement pipeline and design principles |
 | [Integration Guide](docs/INTEGRATION_GUIDE.md) | Host system integration patterns and compliance checklist |
-| [Implementation Plan](docs/plans/IMPLEMENTATION_PLAN.md) | Three-phase roadmap with acceptance criteria |
 | [Policy DSL Spec](policies/policy_dsl_spec.md) | Full policy YAML specification |
 | [Usage Guide](docs/USAGE.md) | Code examples and best practices |

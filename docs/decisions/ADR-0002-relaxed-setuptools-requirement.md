@@ -119,7 +119,6 @@ Verified via:
 
 ## References
 
-- Phase 1 Audit Report: `docs/audits/PHASE1_AUDIT_REPORT.md`
 - PEP 517 (Build System Interface): <https://peps.python.org/pep-0517/>
 - PEP 518 (Build System Requirements): <https://peps.python.org/pep-0518/>
 - setuptools 40.0.0 Release (2018-05-17): First release with full PEP 517/518 support

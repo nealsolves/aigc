@@ -65,8 +65,6 @@ from aigc.errors import (
 )
 ```
 
-Legacy `src.*` imports remain available for compatibility.
-
 ## Enforced Controls
 
 ### Phase 1 (Core Pipeline)

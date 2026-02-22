@@ -244,14 +244,18 @@ enforcement. It serves as the chain of custody for the invocation.
   "policy_file": "policies/planner.yaml",
   "input_checksum": "a3f8c2...sha256",
   "output_checksum": "7b2e19...sha256",
-  "preconditions_satisfied": ["role_declared", "schema_exists"],
-  "postconditions_satisfied": ["output_schema_valid"],
-  "guards_evaluated": [
-    {"condition": "is_enterprise", "matched": false}
-  ],
-  "schema_validation": "passed",
   "enforcement_result": "PASS",
-  "timestamp": 1739750400
+  "timestamp": 1739750400,
+  "metadata": {
+    "preconditions_satisfied": ["role_declared", "schema_exists"],
+    "postconditions_satisfied": ["output_schema_valid"],
+    "guards_evaluated": [
+      {"condition": "is_enterprise", "matched": false}
+    ],
+    "conditions_resolved": {},
+    "schema_validation": "passed",
+    "tool_constraints": {}
+  }
 }
 ```
 
@@ -282,16 +286,16 @@ enforce_invocation(invocation)
 │     ├─ Validate against policy_dsl.schema.json
 │     └─ Return policy dict
 │
-├─ 2. VALIDATE ROLE                          [Phase 1 — new]
-│     Check invocation["role"] ∈ policy["roles"]
-│     └─ Raise GovernanceViolationError if unauthorized
-│
-├─ 3. RESOLVE GUARDS                         [Phase 2 — implemented]
+├─ 2. RESOLVE GUARDS                         [Phase 2 — implemented]
 │     If policy declares guards or conditions, evaluate_guards() is called.
 │     ├─ Resolve named conditions from context or defaults
 │     ├─ Evaluate guard expressions in declaration order
 │     ├─ Apply additive merge to produce effective_policy
 │     └─ Raise GuardEvaluationError or ConditionResolutionError on failure
+│
+├─ 3. VALIDATE ROLE                          [Phase 1]
+│     Check invocation["role"] ∈ effective_policy["roles"]
+│     └─ Raise GovernanceViolationError if unauthorized
 │
 ├─ 4. VALIDATE PRECONDITIONS
 │     For each key in effective_policy["pre_conditions"]["required"]:
@@ -303,10 +307,10 @@ enforce_invocation(invocation)
 │       ├─ Validate invocation["output"] against schema
 │       └─ Raise SchemaValidationError on mismatch
 │
-├─ 6. VALIDATE POSTCONDITIONS                [Phase 1 — new]
+├─ 6. VALIDATE POSTCONDITIONS                [Phase 1]
 │     For each key in effective_policy["post_conditions"]["required"]:
 │       ├─ Check key is satisfiable from invocation state
-│       └─ Raise PreconditionError if unsatisfied
+│       └─ Raise GovernanceViolationError if unsatisfied
 │
 ├─ 7. VALIDATE TOOL CONSTRAINTS              [Phase 2 — implemented]
 │     If policy declares tools, validate_tool_constraints() is called.
@@ -329,10 +333,11 @@ enforce_invocation(invocation)
 The gate order is intentional:
 
 1. **Load policy first** — everything depends on having a valid policy
-2. **Role check before preconditions** — reject unauthorized callers
-   immediately; don't leak precondition semantics to unauthorized roles
-3. **Guards before preconditions** — guards can inject additional
-   preconditions, so they must be resolved before precondition evaluation
+2. **Guards before role** — guards can expand the effective policy (e.g., add
+   additional preconditions or tool rules) based on runtime context, so they
+   must be resolved before role validation uses the effective policy's roles list
+3. **Role check before preconditions** — reject unauthorized callers before
+   revealing any precondition semantics to unauthorized roles
 4. **Preconditions before schema** — if the context is invalid, schema
    validation results are meaningless
 5. **Schema before postconditions** — output must be structurally valid
@@ -496,29 +501,17 @@ For integration patterns and compliance requirements, see the
 
 ### 10.1 Custom Validators
 
-Host applications can register custom validation functions that run as
-part of the enforcement pipeline:
-
-```python
-from aigc.enforcement import register_validator
-
-@register_validator("postcondition")
-def validate_citation_integrity(output, context):
-    """Custom postcondition: all citations must be verifiable."""
-    citations = extract_citations(output.get("result", ""))
-    for citation in citations:
-        if not context.get("knowledge_base").verify(citation):
-            raise GovernanceViolationError(
-                f"Unverifiable citation: {citation}"
-            )
-```
+> **Note:** Custom validation registration (`register_validator`) is planned but
+> not yet implemented in the current SDK. Do not attempt to import or call it.
+> Use policy guards and postconditions for runtime behavioral control in the
+> interim.
 
 ### 10.2 Audit Sinks
 
-The SDK provides a pluggable audit sink interface:
+The SDK provides a pluggable audit sink interface. Import from `aigc.sinks`:
 
 ```python
-from aigc.audit import AuditSink
+from aigc.sinks import AuditSink, set_audit_sink
 
 class SQLiteAuditSink(AuditSink):
     def emit(self, artifact: dict) -> None:
@@ -530,21 +523,20 @@ class SQLiteAuditSink(AuditSink):
 class CloudWatchAuditSink(AuditSink):
     def emit(self, artifact: dict) -> None:
         self.client.put_log_events(...)
+
+set_audit_sink(SQLiteAuditSink(conn))
 ```
+
+Built-in implementations: `JsonFileAuditSink` (JSONL append) and
+`CallbackAuditSink` (user-provided function). Register with `set_audit_sink()`,
+also importable from `aigc.sinks` or the root `aigc` package.
 
 ### 10.3 Policy Resolvers
 
-For systems with dynamic policy selection (multi-tenant, feature-flagged),
-the SDK supports custom policy resolvers:
-
-```python
-from aigc.policy_loader import register_resolver
-
-@register_resolver
-def tenant_policy_resolver(invocation):
-    tenant = invocation["context"].get("tenant_id", "default")
-    return f"policies/{tenant}/governance.yaml"
-```
+> **Note:** Dynamic policy resolution (`register_resolver`) is planned but not
+> yet implemented in the current SDK. Do not attempt to import or call it.
+> Use the `policy_file` field in each invocation for per-call policy selection
+> in the interim.
 
 ---
 

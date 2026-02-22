@@ -137,6 +137,7 @@ For the implementation roadmap, see
 aigc/
 ├── .github/
 │   └── workflows/
+│       ├── release.yml                Release pipeline (test gate + PyPI publish)
 │       └── sdk_ci.yml                 CI pipeline (tests, lint, policy validation)
 │
 ├── docs/
@@ -243,10 +244,13 @@ aigc/
 │
 ├── .flake8                            Flake8 linter configuration
 ├── .markdownlint-cli2.yaml            Markdown lint configuration
+├── CHANGELOG.md                       Release history
 ├── CLAUDE.md                          AI assistant governance contract
+├── CONTRIBUTING.md                    Contribution guidelines
 ├── LICENSE                            MIT License
 ├── PROJECT.md                         This file (authoritative structure)
 ├── README.md                          Quick-start documentation
+├── SECURITY.md                        Security vulnerability reporting
 ├── pyproject.toml                     Packaging metadata + build config
 └── requirements.txt                   Python dependencies
 ```

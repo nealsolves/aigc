@@ -1,4 +1,4 @@
-name: "AIGC Governance SDK CI"
+name: "AIGC CI"
 
 on:
   push:

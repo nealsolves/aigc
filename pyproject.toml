@@ -7,15 +7,44 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "aigc"
 version = "0.1.1"
-description = "Deterministic governance enforcement SDK for AI invocations."
+description = "Deterministic, fail-closed governance enforcement for AI model invocations."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "AIGC Contributors" }]
+authors = [{ name = "Neal Adams", email = "neal@nealsolves.com" }]
+keywords = [
+  "governance",
+  "audit",
+  "ai",
+  "enforcement",
+  "deterministic",
+  "policy",
+  "llm",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Security",
+  "Typing :: Typed",
+]
 dependencies = [
   "PyYAML>=6.0",
   "jsonschema>=4.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/nealsolves/aigc"
+Repository = "https://github.com/nealsolves/aigc"
+Documentation = "https://github.com/nealsolves/aigc/blob/main/docs/USAGE.md"
+"Issue Tracker" = "https://github.com/nealsolves/aigc/issues"
+Changelog = "https://github.com/nealsolves/aigc/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [

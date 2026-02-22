@@ -1,9 +1,39 @@
-# AIGC Governance SDK
+# AIGC — Auditable Intelligence Governance Contract
 
-Python SDK for deterministic, fail-closed governance enforcement over AI model
-invocations.
+Reference implementation of constitutional governance for AI-assisted systems.
+
+AIGC enforces deterministic, fail-closed policy evaluation over every model
+invocation — no silent fallbacks, no advisory-only checks, no prompt-based
+governance.
 
 **Status:** Feature-complete — 180 tests, 100% coverage, all three phases shipped.
+
+---
+
+## Governance Invariant
+
+> **No AI-influenced behavior is valid unless it is:**
+>
+> 1. Explicitly specified
+> 2. Deterministically enforceable
+> 3. Externally observable
+> 4. Replayable and auditable
+> 5. Governed independently of any specific model or provider
+
+This invariant is not aspirational. Every enforcement path in this SDK is
+designed to satisfy all five conditions or fail closed.
+
+## Five Governance Layers
+
+| Layer | Concern | Implementation |
+| ----- | ------- | -------------- |
+| Behavioral Specification | No implicit behavior | YAML policies validated against JSON Schema (Draft-07) |
+| Deterministic Enforcement | Machine-verifiable constraints | `enforce_invocation()` pipeline — fail-closed on any violation |
+| Observability | Structured, persistent artifacts | SHA-256 checksummed audit records per invocation |
+| Replay & Audit | Replayable execution paths | Golden traces + deterministic artifact generation |
+| Model-Independent Governance | Provider-agnostic control | Roles, schemas, and policies — not prompts |
+
+---
 
 ## Installation
 

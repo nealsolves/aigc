@@ -1,6 +1,7 @@
-# PROJECT.md — AIGC Governance SDK
+# PROJECT.md — AIGC
 
-Authoritative structural and implementation contract for the AIGC Governance SDK.
+Authoritative structural and implementation contract for AIGC
+(Auditable Intelligence Governance Contract).
 See [README.md](README.md) for quick-start, public API, and usage.
 
 ---
@@ -133,7 +134,7 @@ For the implementation roadmap, see
 ## Project Structure
 
 ```text
-aigc-governance-sdk/
+aigc/
 ├── .github/
 │   └── workflows/
 │       └── sdk_ci.yml                 CI pipeline (tests, lint, policy validation)

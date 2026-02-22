@@ -26,12 +26,29 @@ jobs:
       - name: Run tests with coverage
         run: |
           python -m pytest \
-            --cov=src \
+            --cov=aigc \
+            --cov-report=term-missing \
+            --cov-report=json \
+            --cov-report=xml \
             --cov-fail-under=90
       - name: Lint
-        run: flake8 src aigc
+        run: flake8 aigc
       - name: Markdown lint
         run: npx markdownlint-cli2 "**/*.md"
+      - name: Validate policies against schema
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import yaml
+          from jsonschema import Draft7Validator, validate
+          policy_schema = json.loads(Path("schemas/policy_dsl.schema.json").read_text(encoding="utf-8"))
+          Draft7Validator.check_schema(policy_schema)
+          for policy_path in Path("policies").glob("*.yaml"):
+              policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+              validate(policy, policy_schema)
+              print(f"validated: {policy_path}")
+          PY
 
   publish:
     needs: test

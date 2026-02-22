@@ -99,7 +99,7 @@ post_conditions:
     - output_schema_valid
 guards:
   - when:
-      - condition: is_enterprise
+      condition: "is_enterprise"
     then:
       tools:
         allowed_tools:
@@ -148,13 +148,49 @@ The decorator:
 ### 2.4 Invoke
 
 ```python
-artifact = await analyze(
+output = await analyze(
     {"question": "Summarize Q4 results"},
     {"tenant_id": "acme-corp", "session_id": "sess-42", "is_enterprise": True},
 )
-print(artifact["enforcement_result"])   # PASS
-print(artifact["metadata"]["guards_evaluated"])  # guard match details
+print(output["analysis"])  # governed output on PASS
 ```
+
+### 2.5 Direct enforcement with tool_calls
+
+Use `enforce_invocation` directly when you need explicit control over the invocation dict,
+or when wrapping an existing call site that is not async:
+
+```python
+from aigc import enforce_invocation, set_audit_sink
+from aigc.sinks import JsonFileAuditSink
+
+set_audit_sink(JsonFileAuditSink("audit/governance.jsonl"))
+
+invocation = {
+    "policy_file": "policies/analyst_policy.yaml",
+    "model_provider": "anthropic",
+    "model_identifier": "claude-sonnet-4-6",
+    "role": "analyst",
+    "input": {"question": "Summarize Q4 results"},
+    "output": {"analysis": "Revenue increased 12% QoQ."},
+    "context": {
+        "tenant_id": "acme",
+        "session_id": "sess-42",
+        "role_declared": True,
+        "schema_exists": True,
+    },
+    "tool_calls": [
+        {"name": "internal_search", "call_id": "tc-1"},
+    ],
+}
+
+artifact = enforce_invocation(invocation)
+print(artifact["enforcement_result"])  # PASS or raises on violation
+```
+
+`enforce_invocation` returns the audit artifact dict on PASS and raises a typed exception
+(`GovernanceViolationError`, `PreconditionError`, or `SchemaValidationError`) on any gate
+failure. The artifact is also emitted to the registered sink automatically.
 
 ---
 
@@ -190,7 +226,7 @@ Policies can inherit from a base policy using `extends`. Child fields are merged
 
 ```yaml
 # policies/child_policy.yaml
-extends: "policies/base_policy.yaml"
+extends: "base_policy.yaml"
 policy_version: "2.0"
 roles:
   - analyst
@@ -214,13 +250,34 @@ Wrap invocations with `with_retry` for bounded retries on `SchemaValidationError
 ```python
 from aigc import with_retry
 
-artifact = with_retry({
-    **invocation,
-    "retry_policy": {"max_retries": 3, "backoff_ms": 200},
-})
+# retry_policy belongs in the policy YAML, not the invocation payload
+artifact = with_retry(invocation)
 ```
 
-### 3.4 Planned extension points (not yet available)
+### 3.4 Host tool adapter wrapper
+
+AIGC does not provide a built-in tool execution adapter. The recommended pattern for governing
+tool calls on the host side is to build a thin wrapper that constructs the invocation dict,
+enforces governance, and then executes the tool:
+
+```python
+from aigc import enforce_invocation
+
+def run_tool_with_governance(tool_name: str, params: dict, base_invocation: dict) -> dict:
+    governed_invocation = {
+        **base_invocation,
+        "input": {"tool": tool_name, "params": params},
+        "output": {"status": "tool_call_planned"},
+        "tool_calls": [{"name": tool_name, "call_id": "generated-1"}],
+    }
+    enforce_invocation(governed_invocation)
+    return execute_tool(tool_name, params)
+```
+
+This pattern keeps governance at the SDK boundary and avoids coupling the tool implementation
+to the AIGC API.
+
+### 3.5 Planned extension points (not yet available)
 
 The following extension mechanisms appear in architecture documentation but are **not yet
 implemented** in the current SDK. Do not attempt to import them:

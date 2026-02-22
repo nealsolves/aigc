@@ -19,7 +19,7 @@ Implementation status note (2026-02-16):
   - Async enforcement (`enforce_invocation_async`), pluggable audit sinks
     (`AuditSink`, `JsonFileAuditSink`, `CallbackAuditSink`), structured logging
     (`aigc.*` namespace with NullHandler default), and `@governed` decorator.
-  - TRACE integration items (3.5-3.7) remain in the TRACE repository.
+  - Host integration items (3.5-3.7) remain in host-system repositories.
   - ADR-0004 documents Phase 3 architectural decisions.
 
 ---
@@ -28,22 +28,21 @@ Implementation status note (2026-02-16):
 
 This plan defines the implementation roadmap for the AIGC Governance SDK
 across three phases, progressing from a working prototype to a
-production-ready governance layer integrated with
-[TRACE](https://github.com/nealsolves/trace/tree/develop).
+production-ready governance layer for any AI-enabled host application.
 
 Each phase has explicit deliverables, acceptance criteria, and the golden
 trace test fixtures required to prove the work is complete.
 
 ```text
 Phase 1: Foundation          Phase 2: Full DSL          Phase 3: Production
-(Make it real)               (Deliver the promise)      (TRACE integration)
+(Make it real)               (Deliver the promise)      (Production readiness)
 ─────────────────           ─────────────────          ─────────────────
 Packaging                    Guard evaluation           Async enforcement
 Role enforcement             Tool constraints           Audit sinks
 Postconditions               Named conditions           Provider governance
 Input validation             Retry policy               Decorator pattern
 Canonical checksums          Extended audit             Compliance extension
-Test coverage ≥80%           Test coverage ≥90%         TRACE integration tests
+Test coverage ≥80%           Test coverage ≥90%         Host integration tests
 ```
 
 ### Current State (Post-Phase 1 Hardening)
@@ -653,18 +652,18 @@ a single policy file governs all invocations.
 
 ---
 
-## Phase 3: Production Readiness and TRACE Integration
+## Phase 3: Production Readiness
 
-**Goal:** Make the SDK production-ready and integrate it with TRACE's
-execution pipeline.
+**Goal:** Make the SDK production-ready for integration with async host
+applications.
 
 **Dependency:** Phase 2 complete.
 
 ### 3.1 Async Enforcement
 
-**Problem:** TRACE uses async Python throughout (FastAPI, async tool
-execution). The SDK's synchronous `enforce_invocation()` blocks the
-event loop during policy file I/O.
+**Problem:** Async host applications (FastAPI, agentic frameworks) need
+non-blocking enforcement. The SDK's synchronous `enforce_invocation()`
+blocks the event loop during policy file I/O.
 
 **Deliverables:**
 
@@ -700,9 +699,9 @@ Host applications must write their own storage code.
 - Built-in sinks:
   - `JsonFileAuditSink` — append to JSONL file
   - `CallbackAuditSink` — call a user-provided function
-- TRACE-specific sinks (in TRACE repo, not in SDK):
-  - `SQLiteAuditSink` — write to TRACE's audit_log table
-  - `DynamoDBSink` — write to AWS DynamoDB (Phase 3 of TRACE)
+- Host-specific sinks (in host repos, not in SDK):
+  - `SQLiteAuditSink` — write to a host application's audit_log table
+  - `DynamoDBSink` — write to AWS DynamoDB
 - Sink registration on the enforcement engine:
 
   ```python
@@ -756,7 +755,7 @@ raised exceptions.
 ### 3.4 Decorator / Middleware Pattern
 
 **Problem:** Wrapping every LLM call in `enforce_invocation()` is
-verbose. TRACE has dozens of model invocations.
+verbose. A typical host application has dozens of model invocations.
 
 **Deliverables:**
 
@@ -766,7 +765,7 @@ verbose. TRACE has dozens of model invocations.
   ```python
   from aigc.decorators import governed
 
-  @governed(policy_file="policies/trace_planner.yaml", role="planner")
+  @governed(policy_file="policies/planner.yaml", role="planner")
   def plan_investigation(input_data, context):
       response = llm.generate(input_data)
       return response  # automatically enforced
@@ -794,9 +793,8 @@ verbose. TRACE has dozens of model invocations.
 ### 3.5–3.7 Host System Integration
 
 Items 3.5 (tool invocation gate), 3.6 (provider governance gate), and 3.7
-(audit correlation) are host-system integration concerns. Full architecture,
-implementation plan, and acceptance criteria are documented in
-[docs/architecture/TRACE_INTEGRATION.md](../architecture/TRACE_INTEGRATION.md).
+(audit correlation) are host-system integration concerns. See the
+[Integration Guide](../INTEGRATION_GUIDE.md) for patterns and requirements.
 
 These items live in the host system's repository, not the SDK.
 
@@ -809,7 +807,7 @@ These items live in the host system's repository, not the SDK.
 - [x] SDK passes `pip install` from clean environment
 - [x] All golden traces pass
 - [x] 100% line coverage across all `src/` modules (180 tests)
-- [ ] Host system integration (tracked in host repository — see TRACE_INTEGRATION.md)
+- [ ] Host system integration (tracked in host repositories)
 
 ---
 
@@ -900,6 +898,6 @@ SDK success criteria (all met as of 2026-02-17):
 Host integration success criteria (tracked in host repository):
 
 1. ☐ **Host tool executor and provider layer are governed** — no ungoverned
-   model invocations (see [TRACE_INTEGRATION.md](../architecture/TRACE_INTEGRATION.md))
+   model invocations (see [Integration Guide](../INTEGRATION_GUIDE.md))
 2. ☐ **AIGC audit artifacts correlate with host audit logs** — unified
    governance reporting across the entire system

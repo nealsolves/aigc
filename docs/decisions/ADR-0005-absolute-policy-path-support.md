@@ -13,7 +13,7 @@ relative to `REPO_ROOT` (the AIGC SDK directory) and rejects any path — includ
 absolute paths — that does not reside within that directory.
 
 This was appropriate when AIGC was used exclusively within its own repository.
-However, AIGC is now installed as a library by consumer projects (e.g. TRACE) that
+However, AIGC is now installed as a library by consumer projects that
 maintain their own policy files in their own repository directories.  Passing an
 absolute path to a consumer-owned policy file raised `PolicyLoadError: Policy path
 escapes repository root`, making cross-repo integration impossible without copying
@@ -97,5 +97,5 @@ Cons:
 ## Validation
 
 - Existing AIGC test suite (`python -m pytest`) must pass unchanged.
-- TRACE integration tests (`pytest tests/integration/test_governed_tools.py`) pass
-  with TRACE-owned absolute policy paths.
+- Host application integration tests pass with consumer-owned absolute
+  policy paths.

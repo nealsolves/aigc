@@ -487,8 +487,8 @@ provider, and compliance pipeline layers. The recommended integration
 pattern uses the `@governed` decorator or direct `enforce_invocation`
 calls at each model invocation boundary.
 
-For a detailed integration architecture and implementation plan, see
-[TRACE_INTEGRATION.md](TRACE_INTEGRATION.md).
+For integration patterns and compliance requirements, see the
+[Integration Guide](../INTEGRATION_GUIDE.md).
 
 ---
 

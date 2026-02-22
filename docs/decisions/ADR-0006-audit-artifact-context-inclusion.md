@@ -12,7 +12,7 @@ Owners: Neal
 enforcement metadata (role, checksums, gate results, etc.) but omitted
 `invocation["context"]` — the caller-supplied session and tenant fields.
 
-When the TRACE integration implemented `SQLiteAuditSink`, it needed to populate
+When a host application implemented `SQLiteAuditSink`, it needed to populate
 a `session_id` column in the `aigc_audit_log` table.  Because `emit(artifact)`
 receives only the artifact (not the raw invocation), and because `session_id`
 was not in the artifact, every audit row had `session_id = NULL`.  Session-level
@@ -73,7 +73,7 @@ Cons:
 
 Cons:
 - Audit rows have `NULL` session_id — correlation across sessions impossible
-- Violates the intent of the `aigc_audit_log` table schema in TRACE
+- Violates the intent of the `aigc_audit_log` table schema in host applications
 
 ---
 
@@ -112,5 +112,5 @@ Cons:
   which validates the artifact against the schema).
 - `test_golden_trace_success` passes because it asserts named fields only and
   the `audit_schema_version` comparison now uses `"1.1"`.
-- TRACE integration tests (`tests/integration/test_governed_tools.py`) pass
-  with `session_id` correctly populated in every `aigc_audit_log` row.
+- Host application integration tests pass with `session_id` correctly
+  populated in every `aigc_audit_log` row.

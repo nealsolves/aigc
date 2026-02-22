@@ -35,3 +35,6 @@ htmlcov/
 
 # Audit artifacts/reports generated during local audit runs
 docs/audits/
+
+# Private integration docs (host-specific, not public)
+docs/architecture/TRACE_INTEGRATION.md

@@ -9,18 +9,19 @@ Owners: AIGC Contributors
 ## Context
 
 Phase 2 delivered full DSL enforcement. Phase 3 makes the SDK production-ready
-for integration with async Python systems (like TRACE) and general use.
+for integration with async Python systems and general use.
 
 Four features are added:
 
-1. **Async enforcement** — TRACE uses async Python (FastAPI); synchronous
-   `enforce_invocation()` blocks the event loop during policy file I/O
+1. **Async enforcement** — async host applications (FastAPI, agentic frameworks)
+   need non-blocking enforcement; synchronous `enforce_invocation()` blocks the
+   event loop during policy file I/O
 2. **Pluggable audit sinks** — the SDK returns audit dicts in-memory; host
    applications need persistence without writing their own plumbing
 3. **Structured logging** — governance failures are silent except for
    exceptions; operators need observability
 4. **Decorator pattern** — wrapping every LLM call in `enforce_invocation()`
-   is verbose; TRACE has dozens of model invocations
+   is verbose; a typical host application has dozens of model invocations
 
 ---
 
@@ -129,7 +130,7 @@ parameter can be added later without breaking the module-level API.
 ### 3.4 Decorator: input/context extraction strategy
 
 **Option A (chosen): first positional arg = input, second positional or `context` kwarg = context**
-Pros: matches the TRACE usage pattern; no introspection needed
+Pros: matches the common host application usage pattern; no introspection needed
 Cons: implicit; breaks if function signature differs from convention
 
 **Option B: explicit `input_key`, `context_key` decorator params**
@@ -145,7 +146,7 @@ directly.
 ## Consequences
 
 - What becomes easier:
-  - TRACE can `await enforce_invocation_async(...)` without blocking FastAPI
+  - Async hosts can `await enforce_invocation_async(...)` without blocking the event loop
   - Audit artifacts are automatically persisted without per-call boilerplate
   - Failures are observable via standard Python logging
   - LLM call sites can use `@governed(...)` instead of inline enforcement

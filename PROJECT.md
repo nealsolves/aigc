@@ -71,8 +71,7 @@ See [README.md](README.md) for quick-start, public API, and usage.
 - **Policy resolvers** — dynamic policy selection (multi-tenant,
   feature-flagged)
 - **Host integration** — tool gate, provider gate, compliance extension,
-  audit correlator (see [TRACE_INTEGRATION.md](docs/architecture/TRACE_INTEGRATION.md)
-  for the reference integration design)
+  audit correlator (see [Integration Guide](docs/INTEGRATION_GUIDE.md))
 
 ---
 
@@ -142,8 +141,7 @@ aigc/
 │
 ├── docs/
 │   ├── architecture/
-│   │   ├── AIGC_HIGH_LEVEL_DESIGN.md  High-level architecture design
-│   │   └── TRACE_INTEGRATION.md       Integration design for agentic host systems
+│   │   └── AIGC_HIGH_LEVEL_DESIGN.md  High-level architecture design
 │   ├── audits/
 │   │   ├── PHASE1_AUDIT_REPORT.md     Phase 1 audit findings and fixes
 │   │   └── PHASE3_AUDIT_REPORT.md     Phase 3 audit findings and resolution
@@ -156,6 +154,7 @@ aigc/
 │   ├── GOLDEN_TRACES_CI_GUIDE.md      CI integration for golden traces
 │   ├── GOLDEN_TRACES_README.md        Golden trace authoring guide
 │   ├── GOLDEN_TRACE_CHECKLIST.md      Checklist for new golden traces
+│   ├── INTEGRATION_GUIDE.md           Host system integration guide
 │   └── USAGE.md                       SDK usage guide with examples
 │
 ├── policies/
@@ -331,7 +330,7 @@ Authoritative phase label mapping (plan definitions 3.1–3.4):
 | Phase 3.4 | `@governed` decorator | Sync and async LLM call-site wrapper; captures input/output/context automatically |
 
 Phases 3.5–3.7 (host integration: `GovernedToolExecutor`, `GovernedLLMProvider`,
-`SQLiteAuditSink`, trace correlator) are scoped to the TRACE host-system repository
+`SQLiteAuditSink`, audit correlator) are scoped to host-system repositories
 and are not part of this SDK.
 
 ### Phase 3 Test Coverage
@@ -343,7 +342,7 @@ and are not part of this SDK.
 
 ### Phase 3 Architectural Impact
 
-- **No TRACE runtime classes** in SDK packages (`src/`, `aigc/`) — boundary is clean
+- **No host-specific runtime classes** in SDK packages (`src/`, `aigc/`) — boundary is clean
 - **Async entry point** shares the sync enforcement pipeline; governance is identical
 - **Sink failures do not block enforcement** — logged at WARNING level, invocation continues
 - **Backward compatible** — all Phase 1 and Phase 2 behavior unchanged
@@ -355,7 +354,7 @@ and are not part of this SDK.
 | Document | Purpose |
 | -------- | ------- |
 | [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | High-level design, core abstractions, enforcement pipeline |
-| [TRACE Integration Design](docs/architecture/TRACE_INTEGRATION.md) | Integration architecture and implementation plan for host-system integration |
+| [Integration Guide](docs/INTEGRATION_GUIDE.md) | Host system integration patterns and compliance checklist |
 | [Implementation Plan](docs/plans/IMPLEMENTATION_PLAN.md) | 3-phase roadmap with deliverables and acceptance criteria |
 | [Architecture Decisions](docs/decisions/) | ADRs documenting significant architectural choices |
 | [Policy DSL Spec](policies/policy_dsl_spec.md) | Full specification of the policy YAML format |

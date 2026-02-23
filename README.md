@@ -38,6 +38,18 @@ designed to satisfy all five conditions or fail closed.
 ## Installation
 
 ```bash
+pip install aigc-sdk
+```
+
+The import name is `aigc`:
+
+```python
+from aigc import enforce_invocation
+```
+
+**From source** (editable install with dev dependencies):
+
+```bash
 python3 -m venv aigc-env
 source aigc-env/bin/activate
 python -m pip install --upgrade pip setuptools wheel

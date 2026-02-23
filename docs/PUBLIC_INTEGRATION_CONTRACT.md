@@ -13,7 +13,7 @@ Install and run governance enforcement in under five minutes.
 ### 1.1 Install
 
 ```bash
-pip install aigc
+pip install aigc-sdk
 ```
 
 Or from source (editable, with dev dependencies):

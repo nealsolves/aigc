@@ -26,6 +26,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **PyPI distribution name: `aigc` → `aigc-sdk`** (`pip install aigc-sdk`);
+  import name is unchanged (`import aigc`)
 - `docs/PUBLIC_INTEGRATION_CONTRACT.md`: LLM stub in decorator quickstart
   replaced with a self-contained `_StubLLM` class so the example is
   independently runnable without an external `llm` reference

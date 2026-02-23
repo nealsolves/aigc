@@ -33,12 +33,5 @@ htmlcov/
 # Editable install metadata
 *.egg-info/
 
-# Audit artifacts/reports generated during local audit runs
-docs/audits/
-
 # Private integration docs (host-specific, not public)
 docs/architecture/HOST_INTEGRATION.md
-
-# Internal development artifacts (not public)
-docs/prs/
-docs/plans/

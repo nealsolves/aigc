@@ -26,7 +26,8 @@ Usage (async)::
         return await llm.generate_async(input_data)
 
 Convention:
-  - First positional argument is treated as ``input`` (must be a dict)
+  - First positional argument is treated as ``input`` (must be a dict); keyword
+    argument ``input_data`` is checked first, then ``input``, then defaults to ``{}``
   - Second positional argument or ``context`` keyword argument is treated as
     ``context`` (must be a dict; defaults to ``{}`` if not provided)
   - Return value is treated as ``output`` (must be a dict)
@@ -66,7 +67,7 @@ def governed(
         if asyncio.iscoroutinefunction(fn):
             @functools.wraps(fn)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-                input_data = args[0] if args else kwargs.get("input", {})
+                input_data = args[0] if args else kwargs.get("input_data", kwargs.get("input", {}))
                 context = args[1] if len(args) > 1 else kwargs.get("context", {})
 
                 output = await fn(*args, **kwargs)
@@ -88,7 +89,7 @@ def governed(
         else:
             @functools.wraps(fn)
             def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-                input_data = args[0] if args else kwargs.get("input", {})
+                input_data = args[0] if args else kwargs.get("input_data", kwargs.get("input", {}))
                 context = args[1] if len(args) > 1 else kwargs.get("context", {})
 
                 output = fn(*args, **kwargs)

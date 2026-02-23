@@ -111,6 +111,12 @@ with open("audit.json", "w", encoding="utf-8") as file_obj:
     json.dump(audit_record, file_obj, indent=2)
 ```
 
+## API Stability
+
+> **Stability note:** Only symbols exported from the top-level `aigc` package are
+> public API. `aigc._internal.*` is private and may change without notice between
+> releases.
+
 ## Best Practices
 
 - Enforce before writing model outputs to downstream systems

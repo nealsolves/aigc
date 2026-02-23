@@ -135,3 +135,22 @@ def test_governed_sync_no_context_defaults_to_empty():
     # missing context means precondition fails — governance raises, not a crash
     with pytest.raises(Exception):
         no_context_function(VALID_INPUT)
+
+
+# --- Kwarg capture regression (audit provenance) ---
+
+def test_governed_sync_input_data_kwarg():
+    # Keyword-style call using the documented `input_data` parameter name must
+    # pass governance — not silently audit {} as the input.
+    result = passing_function(input_data=VALID_INPUT, context=VALID_CONTEXT)
+    assert result == VALID_OUTPUT
+
+
+@governed(policy_file=POLICY, role=ROLE, model_provider=PROVIDER, model_identifier=MODEL)
+async def async_kwarg_function(input_data, context):
+    return VALID_OUTPUT
+
+
+async def test_governed_async_input_data_kwarg():
+    result = await async_kwarg_function(input_data=VALID_INPUT, context=VALID_CONTEXT)
+    assert result == VALID_OUTPUT

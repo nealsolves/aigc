@@ -234,7 +234,6 @@ aigc/
 ├── .flake8                            Flake8 linter configuration
 ├── .markdownlint-cli2.yaml            Markdown lint configuration
 ├── CHANGELOG.md                       Release history
-├── CLAUDE.md                          AI assistant governance contract
 ├── CONTRIBUTING.md                    Contribution guidelines
 ├── LICENSE                            MIT License
 ├── PROJECT.md                         This file (authoritative structure)

@@ -5,7 +5,6 @@ ignores:
   - "aigc-env/**"
   - "node_modules/**"
   - ".git/**"
-  - "docs/audits/**"  # Audit reports are generated externally
 
 # Rule configuration
 config:
@@ -32,3 +31,8 @@ config:
 
   # Allow first line to not be heading (for metadata, etc.)
   MD041: false
+
+  # Allow duplicate headings across different parent sections (required for
+  # changelogs where ### Added / ### Fixed / ### Changed repeat per version)
+  MD024:
+    siblings_only: true

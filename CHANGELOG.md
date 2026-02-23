@@ -7,6 +7,34 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.1.2] - 2026-02-23
+
+### Fixed
+
+- `@governed` decorator now correctly captures the `input_data` keyword
+  argument for both sync and async call sites; previously only the `input`
+  keyword and positional arguments were checked, causing governance to audit
+  `{}` when callers used the documented `input_data` keyword name
+
+### Added
+
+- API stability note in `docs/USAGE.md`: only symbols exported from the
+  top-level `aigc` package are stable public API; `aigc._internal.*` is
+  private and may change between releases
+- PR template at `.github/pull_request_template.md` for contributor guidance
+- Public audit reports tracked in `docs/audits/` and included in markdown lint
+
+### Changed
+
+- `docs/PUBLIC_INTEGRATION_CONTRACT.md`: LLM stub in decorator quickstart
+  replaced with a self-contained `_StubLLM` class so the example is
+  independently runnable without an external `llm` reference
+- `.gitignore`: audit reports now tracked in-tree (public artifacts)
+- `.markdownlint-cli2.yaml`: `docs/audits/` no longer excluded from lint
+- `PROJECT.md`: `CLAUDE.md` removed from public file structure listing
+
+---
+
 ## [0.1.1] - 2026-02-17
 
 ### Added
@@ -51,5 +79,6 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+[0.1.2]: https://github.com/nealsolves/aigc/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/nealsolves/aigc/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/nealsolves/aigc/releases/tag/v0.1.0

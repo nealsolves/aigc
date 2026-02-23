@@ -136,9 +136,31 @@ Audit artifacts follow `schemas/audit_artifact.schema.json` and include:
 - build-tool bootstrap (`pip`, `setuptools`, `wheel`) and editable install with
   `--no-build-isolation` for restricted-environment parity
 - `python -m pytest` with coverage gate (`--cov-fail-under=90`)
-- `flake8` for `src` and `aigc`
+- `flake8` for `aigc`
 - markdown lint
 - policy YAML validation against the Draft-07 policy schema
+
+## Release Checklist
+
+Before tagging a release, confirm all gates pass locally:
+
+```bash
+python -m pytest --cov=aigc --cov-report=term-missing --cov-fail-under=90
+flake8 aigc
+npx markdownlint-cli2 "**/*.md"
+python - <<'PY'
+import json; from pathlib import Path; import yaml; from jsonschema import Draft7Validator, validate
+schema = json.loads(Path("schemas/policy_dsl.schema.json").read_text())
+[validate(yaml.safe_load(p.read_text()), schema) or print(f"ok: {p}") for p in Path("policies").glob("*.yaml")]
+PY
+```
+
+Then tag and push to trigger CI + PyPI publish:
+
+```bash
+git tag v<version>
+git push origin v<version>
+```
 
 ## Documentation
 

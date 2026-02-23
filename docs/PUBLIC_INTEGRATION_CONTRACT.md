@@ -133,9 +133,12 @@ from aigc.decorators import governed
     model_identifier="claude-opus-4-6",
 )
 async def analyze(input_data: dict, context: dict) -> dict:
-    # Your LLM call here. The decorator enforces governance
-    # on the return value before it reaches the caller.
-    result = await llm.generate(input_data, context)
+    # Replace this stub with your actual LLM provider call.
+    class _StubLLM:
+        async def generate(self, data: dict, ctx: dict) -> str:
+            return f"analysis for: {data.get('question', '')}"
+
+    result = await _StubLLM().generate(input_data, context)
     return {"analysis": result}
 ```
 

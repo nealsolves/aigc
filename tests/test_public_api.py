@@ -5,5 +5,5 @@ from aigc.errors import InvocationValidationError
 
 def test_public_api_imports():
     assert callable(enforce_invocation)
-    assert __version__ == "0.1.1"
+    assert __version__ == "0.1.2"
     assert InvocationValidationError.__name__ == "InvocationValidationError"

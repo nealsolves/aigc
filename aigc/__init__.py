@@ -29,7 +29,7 @@ from aigc.decorators import governed
 # Host applications configure log levels and handlers on their own loggers.
 logging.getLogger("aigc").addHandler(logging.NullHandler())
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 __all__ = [
     "AIGCError",

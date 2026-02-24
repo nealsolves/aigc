@@ -60,3 +60,6 @@ asyncio_mode = "auto"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["aigc", "aigc.*"]
+
+[tool.setuptools.package-data]
+aigc = ["schemas/*.json"]

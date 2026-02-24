@@ -21,7 +21,11 @@ from aigc._internal.errors import PolicyLoadError, PolicyValidationError
 
 logger = logging.getLogger("aigc.policy_loader")
 
-SCHEMAS_DIR = Path(__file__).parent.parent.parent / "schemas"
+# Schema resolution: prefer package-internal schemas (works in wheel installs),
+# fall back to repo-root schemas (works in editable/dev installs).
+_PKG_SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "schemas"
+_REPO_SCHEMAS_DIR = Path(__file__).resolve().parent.parent.parent / "schemas"
+SCHEMAS_DIR = _PKG_SCHEMAS_DIR if _PKG_SCHEMAS_DIR.is_dir() else _REPO_SCHEMAS_DIR
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 LEGACY_POLICY_SCHEMA_PATH = SCHEMAS_DIR / "invocation_policy.schema.json"
 POLICY_DSL_SCHEMA_PATH = SCHEMAS_DIR / "policy_dsl.schema.json"

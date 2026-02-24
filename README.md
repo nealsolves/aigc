@@ -12,11 +12,7 @@ Governance is not documentation. It is runtime enforcement.
 
 ---
 
-Reference implementation of constitutional governance for AI-assisted systems.
-
-AIGC enforces deterministic, fail-closed policy evaluation over every model
-invocation — no silent fallbacks, no advisory-only checks, no prompt-based
-governance.
+**SDK Implementation:** Reference implementation of constitutional governance for AI-assisted systems.
 
 **Status:** Feature-complete — 180 tests, 100% coverage, all three phases shipped.
 

@@ -35,3 +35,9 @@ htmlcov/
 
 # Private integration docs (host-specific, not public)
 docs/architecture/HOST_INTEGRATION.md
+
+# Build artifacts
+dist/
+
+# Research notes
+docs/research/

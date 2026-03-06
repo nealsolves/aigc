@@ -29,13 +29,14 @@ from aigc.sinks import (
     set_audit_sink,
     set_sink_failure_mode,
 )
+from aigc.builder import InvocationBuilder
 from aigc.decorators import governed
 
 # Register NullHandler so library users don't see "No handlers found" warnings.
 # Host applications configure log levels and handlers on their own loggers.
 logging.getLogger("aigc").addHandler(logging.NullHandler())
 
-__version__ = "0.1.3"
+__version__ = "0.2.0"
 
 __all__ = [
     "AIGC",
@@ -47,6 +48,7 @@ __all__ = [
     "FeatureNotImplementedError",
     "GovernanceViolationError",
     "GuardEvaluationError",
+    "InvocationBuilder",
     "InvocationValidationError",
     "JsonFileAuditSink",
     "PolicyLoadError",

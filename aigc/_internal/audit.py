@@ -22,7 +22,7 @@ from aigc._internal.utils import canonical_json_bytes
 
 
 POLICY_SCHEMA_VERSION = "http://json-schema.org/draft-07/schema#"
-AUDIT_SCHEMA_VERSION = "1.1"
+AUDIT_SCHEMA_VERSION = "1.2"
 
 MAX_FAILURES = 1000
 MAX_METADATA_KEYS = 100
@@ -163,4 +163,6 @@ def generate_audit_artifact(
         "context": context_dict,
         "timestamp": int(time.time()) if timestamp is None else int(timestamp),
         "metadata": metadata_dict,
+        "risk_score": None,
+        "signature": None,
     }

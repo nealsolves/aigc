@@ -14,7 +14,7 @@ Governance is not documentation. It is runtime enforcement.
 
 **SDK Implementation:** Reference implementation of constitutional governance for AI-assisted systems.
 
-**Status:** Feature-complete — 245 tests, 96% coverage, all three phases shipped plus redesign workstreams.
+**Status:** v0.2.0 — 304 tests, 94% coverage, strict mode, typed preconditions, AST-based guard expressions, Policy CLI, InvocationBuilder, audit schema v1.2.
 
 ---
 

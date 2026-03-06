@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aigc-sdk"
-version = "0.1.3"
+version = "0.2.0"
 description = "Deterministic, fail-closed governance enforcement for AI model invocations."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -38,6 +38,9 @@ dependencies = [
   "PyYAML>=6.0",
   "jsonschema>=4.0",
 ]
+
+[project.scripts]
+aigc = "aigc._internal.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/nealsolves/aigc"

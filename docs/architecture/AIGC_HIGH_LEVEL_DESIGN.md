@@ -424,17 +424,28 @@ all matched guard expansions. The base policy is never mutated.
 effective_policy = base_policy + Σ(matched_guard.then)
 ```
 
-### 7.4 Condition Expressions
+### 7.4 Guard Expression Language (AST-Based)
 
-Conditions are resolved from the invocation context:
+Guard conditions are compiled into an AST (abstract syntax tree) and
+evaluated deterministically. The expression language is intentionally
+limited — no Turing-completeness, no side effects, no function calls.
+Governance logic must be auditable by reading the YAML alone.
 
-- **Simple boolean**: `"is_enterprise"` → `context.get("is_enterprise",
-  default)`
+Supported expressions:
+
+- **Simple boolean**: `"is_enterprise"` → `context.get("is_enterprise", default)`
 - **Equality**: `"role == verifier"` → `invocation["role"] == "verifier"`
+- **Comparison**: `"count > 5"`, `"score <= 0.8"`
+- **Not equal**: `"role != admin"`
+- **Logical AND**: `"is_enterprise and audit_enabled"`
+- **Logical OR**: `"is_enterprise or is_government"`
+- **Logical NOT**: `"not is_internal"`
+- **Parentheses**: `"(is_enterprise or is_government) and audit_enabled"`
+- **Membership**: `'"search" in allowed_tools'`
 
-Conditions are evaluated as pure lookups. There is no expression language,
-no Turing-completeness, no side effects. This is intentional — governance
-logic must be auditable by reading the YAML alone.
+All expressions compile to a fixed set of AST node types (`_BoolLookup`,
+`_CompareExpr`, `_AndExpr`, `_OrExpr`, `_NotExpr`, `_InExpr`) and evaluate
+as pure functions over resolved conditions and invocation context.
 
 ---
 

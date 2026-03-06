@@ -1,0 +1,49 @@
+# doc_parity_manifest.yaml
+#
+# Single source of truth for values that must stay synchronized
+# across documentation. The parity checker (scripts/check_doc_parity.py)
+# validates that the canonical docs agree on these values.
+#
+# Update this file when any of these values change, then run:
+#   python scripts/check_doc_parity.py
+#
+# CI enforces this on every PR targeting develop.
+
+# --- Current-state values ---
+
+version: "0.2.0"
+test_count: 304
+coverage_threshold: 90
+audit_schema_version: "1.2"
+
+# --- Documentation parity set ---
+# These docs must stay synchronized with implementation.
+# The parity checker validates consistency across them.
+
+parity_docs:
+  - CLAUDE.md
+  - README.md
+  - PROJECT.md
+  - docs/AIGC_FRAMEWORK.md
+  - docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md
+
+# --- Docs excluded from public-API-boundary checks ---
+# These may reference aigc._internal without failing the check,
+# because they are internal engineering docs (not user-facing).
+
+internal_docs:
+  - CLAUDE.md
+  - CHANGELOG.md
+  - implementation_plan.md
+  - implementation_status.md
+  - CONTRIBUTING.md
+  - docs/decisions/*
+  - docs/research/*
+  - docs/audits/*
+  - docs/architecture/AIGC_Architecture_Redesign_and_Roadmap.md
+  - docs/architecture/ARCHITECTURAL_INVARIANTS.md
+  - docs/architecture/ENFORCEMENT_PIPELINE.md
+  - docs/GOLDEN_REPLAYS_README.md
+  - docs/GOLDEN_REPLAYS_CHECKLIST.md
+  - docs/GOLDEN_REPLAYS_CI_GUIDE.md
+  - docs/releases/*

@@ -12,11 +12,11 @@
 
 | Category | Done | Total | Percentage |
 |----------|------|-------|------------|
-| Workstreams | 12 | 12 | 100% |
-| Module changes | 11 | 11 | 100% |
-| Test files (new) | 0 | 0 | N/A |
-| Test files (updated) | 8 | 8 | 100% |
-| Documentation updates | 9 | 9 | 100% |
+| Workstreams | 20 | 20 | 100% |
+| Module changes | 18 | 18 | 100% |
+| Test files (new) | 6 | 6 | 100% |
+| Test files (updated) | 12 | 12 | 100% |
+| Documentation updates | 14 | 14 | 100% |
 
 ---
 
@@ -220,22 +220,161 @@ Tasks:
 
 ---
 
+### WS-13: Strict Mode Enforcement
+
+**Status:** complete
+**Completion:** 100%
+
+Tasks:
+
+- [x] Add `_validate_policy_strict()` in `enforcement.py`
+- [x] Wire into `AIGC.enforce()` and `AIGC.enforce_async()` between `load_policy()` and `_run_pipeline()`
+- [x] Strict mode rejects: no roles, no preconditions, bare-string preconditions
+- [x] Non-strict mode emits `UserWarning` for weak policies
+- [x] Standalone `enforce_invocation()` unaffected
+- [x] Create `tests/test_strict_mode.py` (11 tests)
+
+---
+
+### WS-14: Internal Import Deprecation Warnings
+
+**Status:** complete
+**Completion:** 100%
+
+Tasks:
+
+- [x] Replace eager imports in `aigc/_internal/__init__.py` with lazy `__getattr__`
+- [x] `from aigc._internal import X` emits `DeprecationWarning`
+- [x] Public imports (`from aigc import X`) unaffected
+- [x] Create `tests/test_deprecation_warnings.py` (4 tests)
+
+---
+
+### WS-15: Audit Schema v1.2 Bump
+
+**Status:** complete
+**Completion:** 100%
+
+Tasks:
+
+- [x] Bump `AUDIT_SCHEMA_VERSION` from `"1.1"` to `"1.2"` in `audit.py`
+- [x] Add `risk_score: None` and `signature: None` to audit artifacts
+- [x] Update `schemas/audit_artifact.schema.json` with nullable fields
+- [x] Sync `aigc/schemas/audit_artifact.schema.json` package copy
+- [x] Sync `aigc/schemas/policy_dsl.schema.json` package copy (typed preconditions drift fix)
+- [x] Update golden replay expected audit (`audit_schema_version: "1.2"`)
+- [x] Update test assertions in `test_audit_artifact_contract.py`
+
+---
+
+### WS-16: Invocation Builder Pattern
+
+**Status:** complete
+**Completion:** 100%
+
+Tasks:
+
+- [x] Create `aigc/_internal/builder.py` with `InvocationBuilder` class
+- [x] Create `aigc/builder.py` re-export shim
+- [x] Export `InvocationBuilder` from `aigc/__init__.py`
+- [x] Create `tests/test_builder.py` (5 tests)
+
+---
+
+### WS-17: Release Gate Verification
+
+**Status:** complete
+**Completion:** 100%
+
+Tasks:
+
+- [x] Scale thread safety test to 50 threads (was 10)
+- [x] Create `tests/test_adversarial_preconditions.py` (6 tests)
+- [x] Add sensitive data scan test in `test_audit_artifact_contract.py`
+- [x] All backward compat verified (304 tests pass)
+
+---
+
+### WS-18: Version Bump + Documentation Parity
+
+**Status:** complete
+**Completion:** 100%
+
+Tasks:
+
+- [x] Bump `__version__` to `"0.2.0"` in `aigc/__init__.py`
+- [x] Bump `version` to `"0.2.0"` in `pyproject.toml`
+- [x] Update `CLAUDE.md` (test count, version, audit schema, module layout)
+- [x] Update `README.md` (status line)
+- [x] Update `PROJECT.md` (test count, schema version, project structure)
+- [x] Update `implementation_status.md` (all workstreams, test counts, schema tracking)
+- [x] Update `test_public_api.py` version assertion
+
+---
+
+### WS-19: AST-Based Guard Expression Language (D-07)
+
+**Status:** complete
+**Completion:** 100%
+
+Tasks:
+
+- [x] Implement tokenizer (`_tokenize()`) in `guards.py`
+- [x] Implement recursive descent parser (`_Parser`) producing AST nodes
+- [x] Implement AST node types: `_BoolLookup`, `_AndExpr`, `_OrExpr`, `_NotExpr`, `_CompareExpr`, `_InExpr`
+- [x] Implement `compile_guard_expression()` (string -> AST)
+- [x] Implement `evaluate_ast()` (AST + context -> bool)
+- [x] Replace simple string-parsing in `_evaluate_condition_expression()` with AST engine
+- [x] Support operators: `and`, `or`, `not`, `==`, `!=`, `<`, `>`, `<=`, `>=`, `in`
+- [x] Support parenthesized expressions
+- [x] Support quoted string values (`role == "admin"`)
+- [x] All existing guard tests pass (backward compatible)
+- [x] Add 12 new AST expression tests (and, or, not, parentheses, comparisons, in, compound, empty)
+- [x] Add 3 end-to-end guard tests with compound conditions
+- [x] Update documentation (CLAUDE.md, PROJECT.md, HLD)
+
+---
+
+### WS-20: Policy CLI (D-07)
+
+**Status:** complete
+**Completion:** 100%
+
+Tasks:
+
+- [x] Create `aigc/_internal/cli.py` with `main()`, `build_parser()`, `_lint_policy()`, `_validate_policy()`
+- [x] Implement `aigc policy lint` (YAML syntax + JSON Schema validation)
+- [x] Implement `aigc policy validate` (lint + semantic checks including extends resolution)
+- [x] Create `aigc/cli.py` re-export shim
+- [x] Create `aigc/__main__.py` for `python -m aigc`
+- [x] Add `[project.scripts]` entry point in `pyproject.toml`
+- [x] Create `tests/test_cli.py` (15 tests: lint unit, validate unit, CLI integration)
+- [x] Update documentation (CLAUDE.md, PROJECT.md, HLD, implementation_plan.md)
+
+---
+
 ## Module Status
 
 | Module | Status | Changes Made |
 |--------|--------|-------------|
-| `aigc/_internal/enforcement.py` | complete | AIGC class, JSON serializability check, sanitization in FAIL path |
+| `aigc/_internal/enforcement.py` | complete | AIGC class, strict mode, JSON serializability, sanitization |
 | `aigc/_internal/validator.py` | complete | Typed preconditions, deprecation warning |
-| `aigc/_internal/audit.py` | complete | Sanitization, bounds enforcement, constants |
+| `aigc/_internal/audit.py` | complete | Schema v1.2, risk_score/signature, sanitization, bounds |
 | `aigc/_internal/sinks.py` | complete | Failure modes (raise/log), AuditSinkError integration |
+| `aigc/_internal/builder.py` | complete | InvocationBuilder fluent API |
 | `aigc/_internal/decorators.py` | complete | `inspect.signature()` binding via `_extract_args()` |
-| `aigc/_internal/guards.py` | complete | Single-copy optimization |
+| `aigc/_internal/guards.py` | complete | Single-copy optimization, AST-based expression language |
+| `aigc/_internal/cli.py` | complete | Policy CLI (lint, validate) |
 | `aigc/_internal/conditions.py` | complete | INFO logging, available_conditions in errors |
 | `aigc/_internal/errors.py` | complete | AuditSinkError class |
 | `aigc/_internal/policy_loader.py` | complete | PolicyCache with LRU, threading.Lock |
-| `aigc/__init__.py` | complete | Full error taxonomy + sink API exports |
+| `aigc/_internal/__init__.py` | complete | Lazy `__getattr__` with deprecation warnings |
+| `aigc/__init__.py` | complete | v0.2.0, full error taxonomy + sink API + builder exports |
+| `aigc/builder.py` | complete | InvocationBuilder re-export shim |
 | `aigc/errors.py` | complete | All error types exported |
 | `aigc/sinks.py` | complete | Failure mode APIs exported |
+| `aigc/cli.py` | complete | CLI re-export shim |
+| `aigc/__main__.py` | complete | `python -m aigc` entry point |
 
 ---
 
@@ -243,22 +382,33 @@ Tasks:
 
 | Category | Count | Status |
 |----------|-------|--------|
-| Total tests | 245 | all passing |
-| Coverage | 95.83% | above 90% threshold |
+| Total tests | 304 | all passing |
+| Coverage | 93.99% | above 90% threshold |
 
-### Updated Test Files
+### New Test Files (WS-13 through WS-20)
+
+| File | Tests | Changes |
+|------|-------|---------|
+| `test_strict_mode.py` | 11 | Strict mode unit + integration tests |
+| `test_builder.py` | 5 | InvocationBuilder tests |
+| `test_deprecation_warnings.py` | 4 | Internal import deprecation tests |
+| `test_adversarial_preconditions.py` | 6 | Adversarial precondition bypass tests |
+| `test_cli.py` | 15 | Policy CLI lint + validate tests |
+
+### Updated Test Files (WS-1 through WS-19)
 
 | File | Changes |
 |------|---------|
-| `test_enforcement_pipeline.py` | AIGC instance tests (enforce, async, thread safety, config) |
-| `test_audit_artifact_contract.py` | Bounds tests, sanitization tests, enforcement integration |
+| `test_enforcement_pipeline.py` | AIGC instance tests (enforce, async, 50-thread safety, config) |
+| `test_audit_artifact_contract.py` | Bounds, sanitization, risk_score/signature null, sensitive data scan |
 | `test_decorators.py` | Reordered parameter tests (sync + async) |
 | `test_conditions.py` | Log output test, available_conditions test |
 | `test_validation.py` | 12 typed precondition tests |
-| `test_public_api.py` | Error type exports, sink API exports, top-level reexports |
+| `test_public_api.py` | Error type exports, sink API exports, top-level reexports, version bump |
 | `test_audit_sinks.py` | Sink failure mode tests (raise, log, invalid, default, error code) |
 | `test_policy_loader.py` | PolicyCache tests (hit, miss, eviction, thread safety, determinism) |
 | `test_invocation_validation.py` | JSON serializability tests (datetime, Decimal, set, nested) |
+| `test_guards.py` | AST expression tests (and, or, not, parens, comparisons, in, compound) |
 
 ---
 
@@ -273,6 +423,8 @@ Tasks:
 | `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md` | complete | 2026-03-06 |
 | `schemas/audit_artifact.schema.json` | complete | 2026-03-06 |
 | `schemas/policy_dsl.schema.json` | complete | 2026-03-06 |
+| `aigc/schemas/audit_artifact.schema.json` | synced | 2026-03-06 |
+| `aigc/schemas/policy_dsl.schema.json` | synced | 2026-03-06 |
 
 ---
 
@@ -280,7 +432,7 @@ Tasks:
 
 | Schema | Current | Status |
 |--------|---------|--------|
-| `audit_artifact.schema.json` | 1.1 (with bounds) | complete |
+| `audit_artifact.schema.json` | 1.2 (bounds + risk_score/signature placeholders) | complete |
 | `policy_dsl.schema.json` | updated (typed preconditions) | complete |
 
 ---
@@ -289,8 +441,10 @@ Tasks:
 
 | Risk | Mitigation | Status |
 |------|-----------|--------|
-| Thread safety of AIGC instance | Lock around cache, immutable config, thread-safety tests | mitigated |
+| Thread safety of AIGC instance | Lock around cache, immutable config, 50-thread safety test | mitigated |
 | Backward compat breakage | Global functions still work, deprecation warnings for bare-string preconditions | mitigated |
 | Golden replay drift | All golden replays pass, deprecation warnings are expected | mitigated |
 | Performance regression from typed preconditions | jsonschema validates only when typed format used | mitigated |
-| Schema version confusion (1.1 vs bounds) | Bounds added to existing 1.1 schema, no version bump needed | mitigated |
+| Schema version bump (1.1 → 1.2) | Golden replays updated, null placeholders are backward-compatible | mitigated |
+| Internal import deprecation | `__getattr__` only fires for `aigc._internal` package, not submodules | mitigated |
+| Strict mode false positives | Unit + integration tests for all strict checks; non-strict warns only | mitigated |

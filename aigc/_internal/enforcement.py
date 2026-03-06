@@ -17,6 +17,8 @@ import logging
 import re
 from typing import Any, Mapping
 
+import warnings
+
 from aigc._internal.audit import DEFAULT_REDACTION_PATTERNS
 
 from aigc._internal.policy_loader import load_policy
@@ -326,6 +328,39 @@ async def enforce_invocation_async(invocation: Mapping[str, Any]) -> dict[str, A
     return _run_pipeline(policy, invocation)
 
 
+def _validate_policy_strict(policy: dict, strict_mode: bool) -> None:
+    """Validate policy strictness.
+
+    In strict mode, raises PolicyValidationError for weak policies.
+    In non-strict mode, emits UserWarning for weak policies.
+    """
+    issues: list[str] = []
+
+    roles = policy.get("roles")
+    if not roles:
+        issues.append("Policy must define non-empty 'roles' list")
+
+    pre = policy.get("pre_conditions", {})
+    required = pre.get("required")
+    if not required:
+        issues.append("Policy must define 'pre_conditions.required'")
+    elif isinstance(required, list):
+        issues.append(
+            "Policy uses bare-string preconditions; "
+            "strict mode requires typed (dict) preconditions"
+        )
+
+    if strict_mode:
+        if issues:
+            raise PolicyValidationError(
+                "Strict mode policy validation failed",
+                details={"issues": issues},
+            )
+    else:
+        for issue in issues:
+            warnings.warn(issue, UserWarning, stacklevel=3)
+
+
 class AIGC:
     """Instance-scoped AIGC configuration and enforcement entry point.
 
@@ -396,6 +431,7 @@ class AIGC:
 
         _validate_invocation(invocation)
         policy = load_policy(invocation["policy_file"])
+        _validate_policy_strict(policy, self._strict_mode)
 
         # Use instance sink for emission
         from aigc._internal.sinks import set_audit_sink, get_audit_sink
@@ -424,6 +460,7 @@ class AIGC:
 
         _validate_invocation(invocation)
         policy = await asyncio.to_thread(load_policy, invocation["policy_file"])
+        _validate_policy_strict(policy, self._strict_mode)
 
         from aigc._internal.sinks import set_audit_sink, get_audit_sink
         previous_sink = get_audit_sink()

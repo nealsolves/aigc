@@ -42,6 +42,23 @@ from aigc._internal.errors import (
 
 logger = logging.getLogger("aigc.enforcement")
 
+# ── Canonical gate IDs (append-only; order matters) ──────────────
+GATE_GUARDS = "guard_evaluation"
+GATE_ROLE = "role_validation"
+GATE_PRECONDS = "precondition_validation"
+GATE_TOOLS = "tool_constraint_validation"
+GATE_SCHEMA = "schema_validation"
+GATE_POSTCONDS = "postcondition_validation"
+
+AUTHORIZATION_GATES = (GATE_GUARDS, GATE_ROLE, GATE_PRECONDS, GATE_TOOLS)
+OUTPUT_GATES = (GATE_SCHEMA, GATE_POSTCONDS)
+
+
+def _record_gate(gates: list[str], gate_id: str) -> None:
+    """Append gate_id to the running gates_evaluated list (append-only)."""
+    gates.append(gate_id)
+
+
 REQUIRED_INVOCATION_KEYS = (
     "policy_file",
     "model_provider",
@@ -118,6 +135,16 @@ def _run_pipeline(policy: dict[str, Any], invocation: Mapping[str, Any]) -> dict
     :return: PASS audit artifact
     :raises: AIGCError subclasses on governance violation (FAIL audit emitted first)
     """
+    # ── PIPELINE_CONTRACT ────────────────────────────────────────
+    # Do not reorder authorization gates after output gates.
+    # Authorization: guard_evaluation → role_validation →
+    #                precondition_validation → tool_constraint_validation
+    # Output:        schema_validation → postcondition_validation
+    # Enforced by:   tests/test_pre_action_boundary.py
+    # ─────────────────────────────────────────────────────────────
+
+    gates_evaluated: list[str] = []
+
     try:
         effective_policy = policy
         guards_evaluated = []
@@ -130,15 +157,24 @@ def _run_pipeline(policy: dict[str, Any], invocation: Mapping[str, Any]) -> dict
             effective_policy, guards_evaluated, conditions_resolved = evaluate_guards(
                 policy, invocation["context"], invocation
             )
+        _record_gate(gates_evaluated, GATE_GUARDS)
         logger.debug("Guards evaluated: %d results", len(guards_evaluated))
 
         validate_role(invocation["role"], effective_policy)
+        _record_gate(gates_evaluated, GATE_ROLE)
         logger.debug("Role validated: %s", invocation["role"])
 
         preconditions_satisfied = validate_preconditions(
             invocation["context"], effective_policy
         )
+        _record_gate(gates_evaluated, GATE_PRECONDS)
         logger.debug("Preconditions satisfied: %s", preconditions_satisfied)
+
+        tool_validation_result = validate_tool_constraints(
+            invocation, effective_policy
+        )
+        _record_gate(gates_evaluated, GATE_TOOLS)
+        logger.debug("Tool constraints validated")
 
         schema_validation = "skipped"
         schema_valid = False
@@ -147,17 +183,14 @@ def _run_pipeline(policy: dict[str, Any], invocation: Mapping[str, Any]) -> dict
             schema_validation = "passed"
             schema_valid = True
             logger.debug("Output schema validation passed")
+        _record_gate(gates_evaluated, GATE_SCHEMA)
 
         postconditions_satisfied = validate_postconditions(
             effective_policy,
             schema_valid=schema_valid,
         )
+        _record_gate(gates_evaluated, GATE_POSTCONDS)
         logger.debug("Postconditions satisfied: %s", postconditions_satisfied)
-
-        tool_validation_result = validate_tool_constraints(
-            invocation, effective_policy
-        )
-        logger.debug("Tool constraints validated")
 
         audit_record = generate_audit_artifact(
             invocation,
@@ -170,6 +203,7 @@ def _run_pipeline(policy: dict[str, Any], invocation: Mapping[str, Any]) -> dict
                 "guards_evaluated": guards_evaluated,
                 "conditions_resolved": conditions_resolved,
                 "tool_constraints": tool_validation_result,
+                "gates_evaluated": list(gates_evaluated),
             },
         )
 
@@ -202,7 +236,9 @@ def _run_pipeline(policy: dict[str, Any], invocation: Mapping[str, Any]) -> dict
             failures=failures,
             failure_gate=failure_gate,
             failure_reason=failure_reason,
-            metadata={},
+            metadata={
+                "gates_evaluated": list(gates_evaluated),
+            },
         )
 
         exc.audit_artifact = audit_record

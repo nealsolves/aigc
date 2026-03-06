@@ -302,26 +302,26 @@ enforce_invocation(invocation)
 │       ├─ Check key exists in context and is truthy
 │       └─ Raise PreconditionError if missing/falsy
 │
-├─ 5. VALIDATE OUTPUT SCHEMA
-│     If effective_policy has "output_schema":
-│       ├─ Validate invocation["output"] against schema
-│       └─ Raise SchemaValidationError on mismatch
-│
-├─ 6. VALIDATE POSTCONDITIONS                [Phase 1]
-│     For each key in effective_policy["post_conditions"]["required"]:
-│       ├─ Check key is satisfiable from invocation state
-│       └─ Raise GovernanceViolationError if unsatisfied
-│
-├─ 7. VALIDATE TOOL CONSTRAINTS              [Phase 2 — implemented]
+├─ 5. VALIDATE TOOL CONSTRAINTS              [Phase 2 — implemented]
 │     If policy declares tools, validate_tool_constraints() is called.
 │     ├─ Enforce tool allowlist
 │     ├─ Enforce max_calls limits per tool
 │     └─ Raise ToolConstraintViolationError on violation
 │
+├─ 6. VALIDATE OUTPUT SCHEMA
+│     If effective_policy has "output_schema":
+│       ├─ Validate invocation["output"] against schema
+│       └─ Raise SchemaValidationError on mismatch
+│
+├─ 7. VALIDATE POSTCONDITIONS                [Phase 1]
+│     For each key in effective_policy["post_conditions"]["required"]:
+│       ├─ Check key is satisfiable from invocation state
+│       └─ Raise GovernanceViolationError if unsatisfied
+│
 ├─ 8. GENERATE AUDIT ARTIFACT
 │     Collect all enforcement decisions into structured record
 │     ├─ Compute input/output checksums (SHA-256, canonical JSON)
-│     ├─ Record all gate results
+│     ├─ Record all gate results + gates_evaluated ordering proof
 │     ├─ Stamp timestamp
 │     └─ Return audit artifact
 │
@@ -338,12 +338,14 @@ The gate order is intentional:
    must be resolved before role validation uses the effective policy's roles list
 3. **Role check before preconditions** — reject unauthorized callers before
    revealing any precondition semantics to unauthorized roles
-4. **Preconditions before schema** — if the context is invalid, schema
+4. **Preconditions before tools** — if the context is invalid, downstream
    validation results are meaningless
-5. **Schema before postconditions** — output must be structurally valid
+5. **Tool constraints before schema** — authorization gates (guards, role,
+   preconditions, tools) must all run before output-processing gates (schema,
+   postconditions); prohibited tools must be caught before model output is
+   evaluated (see D-04 fix, enforced by `tests/test_pre_action_boundary.py`)
+6. **Schema before postconditions** — output must be structurally valid
    before semantic postconditions can be evaluated
-6. **Tool constraints last** — tools are the most granular check and
-   depend on all prior context being valid
 7. **Audit always** — only reached on full success; exceptions short-circuit
 
 ### 6.2 Exception Hierarchy
@@ -384,9 +386,9 @@ minimal deployment), it falls back to the legacy schema.
 2. Guard evaluation     — Conditional expansion (context)
 3. Role resolution      — Allowlist check (identity)
 4. Precondition check   — Context requirements (readiness)
-5. Schema validation    — Output structure (correctness)
-6. Postcondition check  — Semantic requirements (completeness)
-7. Tool constraints     — Usage limits (cost/risk)
+5. Tool constraints     — Usage limits (cost/risk, authorization)
+6. Schema validation    — Output structure (correctness)
+7. Postcondition check  — Semantic requirements (completeness)
 ```
 
 ### 7.3 Guard Resolution

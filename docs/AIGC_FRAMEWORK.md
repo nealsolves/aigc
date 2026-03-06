@@ -50,7 +50,7 @@ There is no "warn and continue." There is no "log and proceed." There is no degr
 
 Every AI invocation passes through an ordered sequence of validation gates:
 
-Policy loading and schema validation. Guard evaluation and conditional expansion. Role authorization. Precondition validation. Output schema validation. Postcondition enforcement. Tool constraint enforcement. Audit artifact generation.
+Policy loading and schema validation. Guard evaluation and conditional expansion. Role authorization. Precondition validation. Tool constraint enforcement. Output schema validation. Postcondition enforcement. Audit artifact generation.
 
 All gates run or none do. Exceptions short-circuit the pipeline. The policy is never mutated during enforcement.
 

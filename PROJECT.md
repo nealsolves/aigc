@@ -44,7 +44,7 @@ See [README.md](README.md) for quick-start, public API, and usage.
   with defaults and required enforcement (used by guards for dynamic policy
   expansion)
 - **Tool constraints** — per-tool call caps (`max_calls`) and tool
-  allowlists (validated after postconditions; violations emit FAIL audits)
+  allowlists (validated before output schema; violations emit FAIL audits)
 - **Retry policy** — bounded, auditable retry wrapper (`max_retries`,
   `backoff_ms`) for transient SchemaValidationError failures (opt-in via
   `with_retry()`)
@@ -93,17 +93,17 @@ enforce_invocation(invocation)
 ├── 4. Validate Preconditions   validator.py        [Phase 1]
 │     Check required context keys in effective policy
 │
-├── 5. Validate Output Schema   validator.py        [Phase 1]
-│     JSON Schema validation of model output
-│
-├── 6. Validate Postconditions  validator.py        [Phase 1]
-│     Semantic checks on enforcement state (output_schema_valid)
-│
-├── 7. Validate Tool Constraints tools.py           [Phase 2.3]
+├── 5. Validate Tool Constraints tools.py           [Phase 2.3]
 │     Check allowlists and max_calls, fail on violations
 │
+├── 6. Validate Output Schema   validator.py        [Phase 1]
+│     JSON Schema validation of model output
+│
+├── 7. Validate Postconditions  validator.py        [Phase 1]
+│     Semantic checks on enforcement state (output_schema_valid)
+│
 └── 8. Generate Audit Artifact  audit.py            [Phase 1 + 2.5]
-      SHA-256 checksums, Phase 2 metadata (guards, conditions, tools)
+      SHA-256 checksums, Phase 2 metadata (guards, conditions, tools, gates_evaluated)
 
 Optional Wrapper:
   with_retry(invocation)        retry.py            [Phase 2.4]
@@ -168,11 +168,12 @@ aigc/
 │   ├── validator.py                   Public validator imports
 │   ├── audit.py                       Public audit helpers
 │   ├── sinks.py                       Public audit sink imports (Phase 3.2)
-│   └── decorators.py                  Public decorator imports (Phase 3.4)
+│   ├── decorators.py                  Public decorator imports (Phase 3.4)
+│   └── retry.py                       Public retry helper import (Phase 2.4)
 │
 ├── aigc/_internal/
 │   ├── __init__.py                    Internal package initialization
-│   ├── enforcement.py                 Orchestrator — sync + async entry points (Phase 3.1)
+│   ├── enforcement.py                 Orchestrator — sync + async entry points, gate constants (Phase 3.1)
 │   ├── policy_loader.py               YAML loading + composition + JSON Schema validation
 │   │                                  load_policy_async added in Phase 3.1
 │   ├── validator.py                   Precondition + schema validation
@@ -229,7 +230,8 @@ aigc/
 │   ├── test_async_enforcement.py      Async enforcement tests (Phase 3.1)
 │   ├── test_audit_sinks.py            Audit sink tests (Phase 3.2)
 │   ├── test_decorators.py             @governed decorator tests (Phase 3.4)
-│   └── test_errors.py                 Error taxonomy unit tests
+│   ├── test_errors.py                 Error taxonomy unit tests
+│   └── test_pre_action_boundary.py    Sentinel gate ordering tests (D-04 tripwire)
 │
 ├── .flake8                            Flake8 linter configuration
 ├── .markdownlint-cli2.yaml            Markdown lint configuration
@@ -292,7 +294,7 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ### Test Coverage
 
-- **180 tests** (all passing)
+- **190 tests** (all passing)
 - **100% coverage** across all `aigc._internal` modules
 - All DSL features have golden replay regression fixtures
 
@@ -324,7 +326,7 @@ and are not part of this SDK.
 
 ### Phase 3 Test Coverage
 
-- **180 tests** (all passing)
+- **190 tests** (all passing)
 - **100% line coverage** across all `aigc._internal` modules
 - Phase 3 runtime features have dedicated test files:
   `test_async_enforcement.py`, `test_audit_sinks.py`, `test_decorators.py`

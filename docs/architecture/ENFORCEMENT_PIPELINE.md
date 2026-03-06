@@ -68,10 +68,13 @@ Conditional guards expand the effective policy.
 Example:
 
 ```yaml
-when: enterprise_customer
-then:
-  require:
-    pii_scan: true
+guards:
+  - when:
+      condition: "is_enterprise"
+    then:
+      pre_conditions:
+        required:
+          - enterprise_flag
 ```
 
 Guards only add constraints.
@@ -120,11 +123,12 @@ Example:
 
 ```yaml
 tools:
-  web_search:
-    max_calls: 2
+  allowed_tools:
+    - name: "web_search"
+      max_calls: 2
 ```
 
-Violations fail immediately.
+Violations raise `ToolConstraintViolationError` with a FAIL audit artifact.
 
 Tool validation occurs before schema validation.
 
@@ -197,12 +201,15 @@ This proves enforcement occurred before action.
 
 ---
 
-## Plugin Extension Points
+## Plugin Extension Points (Planned)
 
-Custom enforcement gates may run at two extension points:
+The following extension points are planned for a future release and are not
+yet implemented in the current SDK:
 
-* `PRE_SCHEMA`
-* `POST_SCHEMA`
+* `PRE_SCHEMA` — custom gate before output schema validation
+* `POST_SCHEMA` — custom gate after schema validation
+
+Planned semantics:
 
 Custom gates may:
 
@@ -216,13 +223,16 @@ Custom gates may not:
 
 ---
 
-## Workflow Governance (Future)
+## Workflow Governance (Planned)
 
-Future releases introduce workflow governance.
+Future releases will introduce workflow governance.
 
-A GovernanceSession will manage:
+A `GovernanceSession` will manage:
 
 * step sequencing
 * cross-invocation policy enforcement
 * tool budgets
 * workflow audit artifacts
+
+These features are tracked in the
+[Architecture Redesign Roadmap](AIGC_Architecture_Redesign_and_Roadmap.md).

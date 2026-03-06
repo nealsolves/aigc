@@ -21,7 +21,6 @@ audit_schema_version: "1.2"
 # The parity checker validates consistency across them.
 
 parity_docs:
-  - CLAUDE.md
   - README.md
   - PROJECT.md
   - docs/AIGC_FRAMEWORK.md

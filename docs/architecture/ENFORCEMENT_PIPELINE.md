@@ -234,5 +234,4 @@ A `GovernanceSession` will manage:
 * tool budgets
 * workflow audit artifacts
 
-These features are tracked in the
-[Architecture Redesign Roadmap](AIGC_Architecture_Redesign_and_Roadmap.md).
+These features are tracked in the Architecture Redesign Roadmap.

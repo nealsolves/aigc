@@ -5,6 +5,7 @@ ignores:
   - "aigc-env/**"
   - "node_modules/**"
   - ".git/**"
+  - "docs/research/**"
 
 # Rule configuration
 config:
@@ -36,3 +37,6 @@ config:
   # changelogs where ### Added / ### Fixed / ### Changed repeat per version)
   MD024:
     siblings_only: true
+
+  # Disable table column style enforcement (triggers on standard separator rows)
+  MD060: false

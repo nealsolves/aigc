@@ -56,7 +56,9 @@ All gates run or none do. Exceptions short-circuit the pipeline. The policy is n
 
 **Inbound and outbound enforcement:**
 
-Control operates in both directions. Before the AI model is invoked, preconditions validate that the request is authorized, properly structured, and contextually valid. After the model responds, postconditions and schema validation confirm the output meets the Contract before it reaches any user, system, or downstream process.
+Control operates in both directions. Before the AI model is invoked, preconditions validate that the request is authorized,
+properly structured, and contextually valid. After the model responds, postconditions and schema validation confirm the output
+meets the Contract before it reaches any user, system, or downstream process.
 
 The AI model never sees an unauthorized request. The user never sees a non-compliant response.
 
@@ -76,7 +78,12 @@ The Check function produces forensic evidence. Every enforcement, whether it pas
 
 **What the artifact contains:**
 
-Policy version. Which governance contract was active. Model provider and identifier. Which AI model was called. Role. Who or what initiated the invocation. Enforcement result. Pass or fail. Input checksum. SHA-256 hash of the request. Output checksum. SHA-256 hash of the response. Failure details. If enforcement failed, which gate failed and why. Timestamp. When enforcement occurred. Context. Session, tenant, and correlation identifiers for downstream tracing.
+Policy version. Which governance contract was active. Model provider and identifier. Which AI model was called.
+Role. Who or what initiated the invocation. Enforcement result. Pass or fail.
+Input checksum. SHA-256 hash of the request. Output checksum. SHA-256 hash of the response.
+Failure details. If enforcement failed, which gate failed and why.
+Timestamp. When enforcement occurred.
+Context. Session, tenant, and correlation identifiers for downstream tracing.
 
 **Tamper-evidence is structural, not procedural.**
 

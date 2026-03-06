@@ -76,6 +76,14 @@
     "metadata": {
       "type": "object",
       "maxProperties": 100
+    },
+    "risk_score": {
+      "type": ["number", "null"],
+      "description": "Computed risk score (reserved for future use)"
+    },
+    "signature": {
+      "type": ["string", "null"],
+      "description": "Cryptographic signature (reserved for future use)"
     }
   },
   "required": [

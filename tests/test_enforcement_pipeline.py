@@ -303,9 +303,9 @@ def test_aigc_instance_thread_safety():
         invocation = _base_invocation()
         return aigc.enforce(invocation)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        futures = [executor.submit(enforce_once) for _ in range(10)]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+        futures = [executor.submit(enforce_once) for _ in range(50)]
         results = [f.result() for f in futures]
 
     assert all(r["enforcement_result"] == "PASS" for r in results)
-    assert len(results) == 10
+    assert len(results) == 50

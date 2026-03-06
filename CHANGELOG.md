@@ -7,6 +7,55 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.2.0] - 2026-03-06
+
+### Added
+
+- **Instance-scoped enforcement** — `AIGC` class with per-instance sink,
+  failure mode, strict mode, and redaction patterns; thread-safe (WS-1)
+- **Typed preconditions** — `pre_conditions.required` accepts typed dict format
+  with value constraints (`type`, `pattern`, `enum`, `min/max`); bare-string
+  format deprecated with `DeprecationWarning` (WS-2, D-01)
+- **Exception message sanitization** — API keys, bearer tokens, emails, SSNs
+  redacted from FAIL audit artifact messages; custom patterns supported (WS-3, D-05)
+- **Policy caching** — `PolicyCache` with LRU eviction keyed by
+  `(canonical_path, mtime)`; thread-safe via `threading.Lock` (WS-4, D-03)
+- **Sink failure mode configuration** — `set_sink_failure_mode("raise")`
+  propagates sink errors as `AuditSinkError`; `"log"` (default) preserves
+  backward-compatible behavior (WS-5, D-02)
+- **JSON serializability validation** — `input`, `output`, `context` fields
+  validated for JSON serializability before enforcement (WS-6, D-14)
+- **Audit schema bounds** — `maxItems: 1000` on failures, `maxProperties: 100`
+  on metadata and context; truncation with logging (WS-7, D-13)
+- **Strict mode** — `AIGC(strict_mode=True)` rejects policies without roles,
+  preconditions, or typed preconditions (WS-13)
+- **Internal import deprecation** — `from aigc._internal import X` emits
+  `DeprecationWarning`; public imports unaffected (WS-14)
+- **Audit schema v1.2** — `risk_score` (null) and `signature` (null)
+  forward-compatibility placeholders (WS-15)
+- **InvocationBuilder** — fluent builder API for constructing invocation
+  dicts (WS-16)
+- **AST-based guard expressions** — guard conditions compiled to AST; supports
+  `and`, `or`, `not`, comparison operators, `in` operator, parenthesized
+  expressions (WS-19, D-07)
+- **Policy CLI** — `aigc policy lint` and `aigc policy validate` commands;
+  `python -m aigc` entry point (WS-20, D-07)
+
+### Changed
+
+- `@governed` decorator uses `inspect.signature()` for robust parameter
+  binding (WS-8, D-11)
+- Condition resolution logs `INFO` for skipped optional conditions; error
+  details include `available_conditions` (WS-9, D-12)
+- Guard evaluation uses single-copy optimization instead of per-guard
+  `deepcopy` (WS-10, D-15)
+
+### Fixed
+
+- `@governed` decorator handles reordered function parameters correctly
+
+---
+
 ## [0.1.3] - 2026-02-23
 
 ### Fixed
@@ -92,6 +141,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+[0.2.0]: https://github.com/nealsolves/aigc/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/nealsolves/aigc/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/nealsolves/aigc/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/nealsolves/aigc/compare/v0.1.0...v0.1.1

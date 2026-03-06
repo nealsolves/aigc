@@ -400,13 +400,256 @@ def test_merge_policy_blocks_recursive_dicts():
 
 
 def test_evaluate_condition_expression_unsupported_equality():
-    """Unsupported equality expression raises error."""
+    """Hyphenated identifier in equality raises parse error."""
     with pytest.raises(GuardEvaluationError) as exc_info:
         _evaluate_condition_expression(
-            "model == gpt-4",  # Unsupported left side
+            "model == gpt-4",  # gpt-4 is not a valid identifier
             {},
             {"role": "planner"}
         )
 
     assert exc_info.value.code == "GUARD_EVALUATION_ERROR"
-    assert "Unsupported equality expression" in str(exc_info.value)
+
+
+def test_evaluate_condition_expression_quoted_value():
+    """Equality with quoted value works for any left-hand side."""
+    result = _evaluate_condition_expression(
+        'model == "gpt-4"',
+        {},
+        {"role": "planner", "context": {"model": "gpt-4"}}
+    )
+    assert result is True
+
+
+def test_evaluate_condition_expression_and():
+    """AND expression evaluates both operands."""
+    result = _evaluate_condition_expression(
+        "is_enterprise and audit_enabled",
+        {"is_enterprise": True, "audit_enabled": True},
+        {"role": "planner"}
+    )
+    assert result is True
+
+    result = _evaluate_condition_expression(
+        "is_enterprise and audit_enabled",
+        {"is_enterprise": True, "audit_enabled": False},
+        {"role": "planner"}
+    )
+    assert result is False
+
+
+def test_evaluate_condition_expression_or():
+    """OR expression returns true if either operand is true."""
+    result = _evaluate_condition_expression(
+        "is_enterprise or is_government",
+        {"is_enterprise": False, "is_government": True},
+        {"role": "planner"}
+    )
+    assert result is True
+
+    result = _evaluate_condition_expression(
+        "is_enterprise or is_government",
+        {"is_enterprise": False, "is_government": False},
+        {"role": "planner"}
+    )
+    assert result is False
+
+
+def test_evaluate_condition_expression_not():
+    """NOT expression negates the operand."""
+    result = _evaluate_condition_expression(
+        "not is_internal",
+        {"is_internal": False},
+        {"role": "planner"}
+    )
+    assert result is True
+
+    result = _evaluate_condition_expression(
+        "not is_internal",
+        {"is_internal": True},
+        {"role": "planner"}
+    )
+    assert result is False
+
+
+def test_evaluate_condition_expression_parentheses():
+    """Parenthesized expressions control evaluation order."""
+    # (false or true) and true -> true
+    result = _evaluate_condition_expression(
+        "(is_enterprise or is_government) and audit_enabled",
+        {"is_enterprise": False, "is_government": True, "audit_enabled": True},
+        {"role": "planner"}
+    )
+    assert result is True
+
+    # false or (true and false) -> false
+    result = _evaluate_condition_expression(
+        "is_enterprise or (is_government and audit_enabled)",
+        {"is_enterprise": False, "is_government": True, "audit_enabled": False},
+        {"role": "planner"}
+    )
+    assert result is False
+
+
+def test_evaluate_condition_expression_not_equal():
+    """Not-equal comparison works."""
+    result = _evaluate_condition_expression(
+        'role != "admin"',
+        {},
+        {"role": "planner"}
+    )
+    assert result is True
+
+    result = _evaluate_condition_expression(
+        'role != "planner"',
+        {},
+        {"role": "planner"}
+    )
+    assert result is False
+
+
+def test_evaluate_condition_expression_numeric_comparison():
+    """Numeric comparison operators work."""
+    result = _evaluate_condition_expression(
+        "count > 5",
+        {},
+        {"role": "planner", "context": {"count": 10}}
+    )
+    assert result is True
+
+    result = _evaluate_condition_expression(
+        "count <= 5",
+        {},
+        {"role": "planner", "context": {"count": 3}}
+    )
+    assert result is True
+
+
+def test_evaluate_condition_expression_complex():
+    """Complex compound expression works."""
+    result = _evaluate_condition_expression(
+        'is_enterprise and (role == "verifier" or audit_enabled)',
+        {"is_enterprise": True, "audit_enabled": False},
+        {"role": "verifier"}
+    )
+    assert result is True
+
+
+def test_evaluate_condition_expression_in_operator_list():
+    """The 'in' operator checks membership in a list from context."""
+    result = _evaluate_condition_expression(
+        '"search" in allowed_tools',
+        {},
+        {"role": "planner", "context": {"allowed_tools": ["search", "browse"]}}
+    )
+    assert result is True
+
+    result = _evaluate_condition_expression(
+        '"delete" in allowed_tools',
+        {},
+        {"role": "planner", "context": {"allowed_tools": ["search", "browse"]}}
+    )
+    assert result is False
+
+
+def test_evaluate_condition_expression_in_operator_missing_field():
+    """The 'in' operator returns False when field is missing."""
+    result = _evaluate_condition_expression(
+        '"search" in allowed_tools',
+        {},
+        {"role": "planner", "context": {}}
+    )
+    assert result is False
+
+
+def test_evaluate_condition_expression_empty_raises():
+    """Empty expression raises error."""
+    with pytest.raises(GuardEvaluationError):
+        _evaluate_condition_expression("", {}, {"role": "planner"})
+
+    with pytest.raises(GuardEvaluationError):
+        _evaluate_condition_expression("   ", {}, {"role": "planner"})
+
+
+def test_evaluate_condition_expression_gt_lt():
+    """Greater-than and less-than work."""
+    result = _evaluate_condition_expression(
+        "score >= 80",
+        {},
+        {"role": "planner", "context": {"score": 80}}
+    )
+    assert result is True
+
+    result = _evaluate_condition_expression(
+        "score < 50",
+        {},
+        {"role": "planner", "context": {"score": 30}}
+    )
+    assert result is True
+
+
+def test_guard_with_compound_condition():
+    """End-to-end guard with AND expression."""
+    policy = {
+        "policy_version": "1.0",
+        "roles": ["planner"],
+        "conditions": {
+            "is_enterprise": {"type": "boolean", "default": False},
+            "audit_enabled": {"type": "boolean", "default": False},
+        },
+        "guards": [
+            {
+                "when": {"condition": "is_enterprise and audit_enabled"},
+                "then": {
+                    "post_conditions": {
+                        "required": ["full_audit"]
+                    }
+                }
+            }
+        ]
+    }
+    # Both true -> guard matches
+    context = {"is_enterprise": True, "audit_enabled": True}
+    invocation = {"role": "planner"}
+    effective, evaluated, _ = evaluate_guards(policy, context, invocation)
+    assert evaluated[0]["matched"] is True
+    assert "full_audit" in effective["post_conditions"]["required"]
+
+    # One false -> guard does not match
+    context2 = {"is_enterprise": True, "audit_enabled": False}
+    effective2, evaluated2, _ = evaluate_guards(policy, context2, invocation)
+    assert evaluated2[0]["matched"] is False
+    assert effective2.get("post_conditions") is None
+
+
+def test_guard_with_not_condition():
+    """End-to-end guard with NOT expression."""
+    policy = {
+        "policy_version": "1.0",
+        "roles": ["planner"],
+        "conditions": {
+            "is_internal": {"type": "boolean", "default": False},
+        },
+        "guards": [
+            {
+                "when": {"condition": "not is_internal"},
+                "then": {
+                    "pre_conditions": {
+                        "required": ["external_auth"]
+                    }
+                }
+            }
+        ]
+    }
+    context = {"is_internal": False}
+    invocation = {"role": "planner"}
+    effective, evaluated, _ = evaluate_guards(policy, context, invocation)
+    assert evaluated[0]["matched"] is True
+    assert "external_auth" in effective["pre_conditions"]["required"]
+
+
+def test_compile_guard_expression_import():
+    """compile_guard_expression is importable."""
+    from aigc._internal.guards import compile_guard_expression
+    ast = compile_guard_expression("is_enterprise and not is_internal")
+    assert ast is not None

@@ -35,6 +35,7 @@
     },
     "failures": {
       "type": "array",
+      "maxItems": 1000,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -69,10 +70,20 @@
     },
     "context": {
       "type": "object",
+      "maxProperties": 100,
       "description": "Invocation context fields (e.g. session_id, tenant_id) for sink consumers"
     },
     "metadata": {
-      "type": "object"
+      "type": "object",
+      "maxProperties": 100
+    },
+    "risk_score": {
+      "type": ["number", "null"],
+      "description": "Computed risk score (reserved for future use)"
+    },
+    "signature": {
+      "type": ["string", "null"],
+      "description": "Cryptographic signature (reserved for future use)"
     }
   },
   "required": [

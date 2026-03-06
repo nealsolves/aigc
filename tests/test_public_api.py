@@ -27,7 +27,7 @@ from aigc.sinks import (
 
 def test_public_api_imports():
     assert callable(enforce_invocation)
-    assert __version__ == "0.1.3"
+    assert __version__ == "0.2.0"
     assert InvocationValidationError.__name__ == "InvocationValidationError"
 
 

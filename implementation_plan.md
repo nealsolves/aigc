@@ -869,15 +869,19 @@ Each workstream must satisfy:
 
 ### In Scope for v0.2.0
 
-- D-01, D-02, D-03, D-05, D-11, D-12, D-13, D-14, D-15
+- D-01, D-02, D-03, D-05, D-07, D-11, D-12, D-13, D-14, D-15
 - AIGC instance-scoped configuration
 - Backward-compatible deprecation shims
 - Audit schema v1.2 (additive)
+- D-07: AST-based guard expression language (`and`, `or`, `not`, comparisons, `in`)
+- Policy CLI (`aigc policy lint`, `aigc policy validate`)
+- Strict mode for minimum viable policies
+- InvocationBuilder pattern
+- Internal import deprecation warnings
 
 ### Out of Scope for v0.2.0 (Deferred to v0.3.0+)
 
 - D-06: Policy composition restriction semantics
-- D-07: AST-based guard expression language
 - D-08: Risk scoring and graduated enforcement
 - D-09: Workflow governance (GovernanceSession)
 - D-10: Async timeout configuration
@@ -886,7 +890,6 @@ Each workstream must satisfy:
 - Custom EnforcementGate plugin interface
 - ObservabilityProvider interface
 - PolicyLoader plugin interface
-- Policy CLI (`aigc policy lint/validate`)
 
 ### D-04 Status
 

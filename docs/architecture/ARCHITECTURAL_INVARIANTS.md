@@ -49,11 +49,14 @@ Examples:
 * unauthorized role
 * tool constraint violation
 * schema violation
-* sink failure
 
-The system must never degrade into permissive mode.
+Audit sink failures are configurable: `"raise"` mode propagates sink errors
+as `AuditSinkError`; `"log"` mode (default) logs a warning and allows
+enforcement to complete. The enforcement pipeline itself is always fail-closed.
 
-There is no "warn and continue".
+The system must never degrade into permissive mode for governance gates.
+
+There is no "warn and continue" for policy enforcement.
 
 ---
 
@@ -122,13 +125,13 @@ Each artifact includes:
 * failure gate
 * metadata
 
-Artifacts may optionally include:
+Artifacts include forward-compatibility placeholders:
 
-* signature
-* signer_key_id
-* previous_audit_checksum
+* `risk_score` (null, reserved for future use)
+* `signature` (null, reserved for future use)
 
-This allows cryptographic chaining of audit artifacts.
+Cryptographic chaining fields (`signer_key_id`, `previous_audit_checksum`)
+are planned for a future release and not yet present in the audit schema.
 
 ---
 
@@ -149,37 +152,41 @@ Plugins cannot suppress governance violations.
 
 ## 8. Instance-Scoped Configuration
 
-Global mutable state is prohibited.
+Global mutable state is discouraged for new code.
 
-All configuration must exist within an AIGC instance.
+Configuration should exist within an `AIGC` instance.
 
 Example:
 
 ```python
 AIGC(
-    policy_loader=…,
-    audit_sink=…,
-    signer=…
+    sink=JsonFileAuditSink("audit.jsonl"),
+    on_sink_failure="log",
+    strict_mode=True,
+    redaction_patterns=None,
 )
 ```
 
-This guarantees thread safety and isolation.
+The global `enforce_invocation()` function and `set_audit_sink()` registry
+remain available for backward compatibility. New integrations should prefer
+instance-scoped `AIGC.enforce()`.
 
 ---
 
-## 9. Policy Restriction Guarantee
+## 9. Policy Composition Semantics
 
-Child policies may restrict parent permissions.
+Policies compose via `extends` inheritance with recursive merge.
 
-Child policies must never escalate privileges.
+Current merge rules:
 
-Policy composition must enforce:
+* arrays append
+* dicts recurse
+* scalars replace
 
-* union
-* intersect
-* replace
+Circular dependency chains are detected and rejected at load time.
 
-Escalation attempts must fail validation.
+Privilege escalation prevention via `union`/`intersect`/`replace` semantics
+is planned for a future release (see the Architecture Redesign Roadmap).
 
 ---
 

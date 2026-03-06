@@ -43,7 +43,7 @@ def test_audit_contract():
     )
     schema = load_json(AUDIT_SCHEMA)
     validate(instance=audit, schema=schema)
-    assert audit["audit_schema_version"] == "1.1"
+    assert audit["audit_schema_version"] == "1.2"
     assert audit["enforcement_result"] == "PASS"
     assert audit["policy_file"] == invocation["policy_file"]
     assert audit["failures"] == []
@@ -188,6 +188,30 @@ def test_within_bounds_not_truncated():
 
 # --- Sanitization tests ---
 
+def test_artifact_contains_risk_score_null():
+    """Verify artifact includes risk_score: None placeholder."""
+    invocation = load_json(GOLDEN_SUCCESS)
+    audit = generate_audit_artifact(
+        invocation,
+        {"policy_version": "1.0"},
+        timestamp=1700000000,
+    )
+    assert "risk_score" in audit
+    assert audit["risk_score"] is None
+
+
+def test_artifact_contains_signature_null():
+    """Verify artifact includes signature: None placeholder."""
+    invocation = load_json(GOLDEN_SUCCESS)
+    audit = generate_audit_artifact(
+        invocation,
+        {"policy_version": "1.0"},
+        timestamp=1700000000,
+    )
+    assert "signature" in audit
+    assert audit["signature"] is None
+
+
 def test_sanitize_api_key():
     msg = "Error: invalid key sk-abc1234567890123456"
     sanitized, redacted = sanitize_failure_message(msg)
@@ -256,3 +280,24 @@ def test_sanitization_applied_in_enforcement_fail_path():
         audit = exc.audit_artifact
         assert "redacted_fields" in audit["metadata"]
         assert isinstance(audit["metadata"]["redacted_fields"], list)
+
+
+def test_no_sensitive_data_in_fail_artifacts():
+    """Scan FAIL audit artifacts for leaked sensitive patterns."""
+    import json as json_mod
+    from aigc._internal.enforcement import enforce_invocation
+    from aigc._internal.errors import GovernanceViolationError
+    from aigc._internal.audit import DEFAULT_REDACTION_PATTERNS
+
+    invocation = load_json(GOLDEN_SUCCESS)
+    invocation["role"] = "attacker"
+
+    try:
+        enforce_invocation(invocation)
+        assert False, "Should have raised"
+    except GovernanceViolationError as exc:
+        artifact_str = json_mod.dumps(exc.audit_artifact)
+        for name, pattern in DEFAULT_REDACTION_PATTERNS:
+            assert not pattern.search(artifact_str), (
+                f"Sensitive data pattern '{name}' found in FAIL artifact"
+            )

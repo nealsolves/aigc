@@ -25,8 +25,9 @@ See [README.md](README.md) for quick-start, public API, and usage.
   validation
 - **Audit artifact generation** — SHA-256 checksummed records with model,
   role, policy, and invocation context metadata via
-  `schemas/audit_artifact.schema.json` (schema version 1.1; `context` field
-  carries caller-supplied session/tenant identifiers for sink correlation);
+  `schemas/audit_artifact.schema.json` (schema version 1.2; `context` field
+  carries caller-supplied session/tenant identifiers for sink correlation;
+  forward-compat placeholders `risk_score` and `signature`);
   bounded arrays (max 1000 failures, 100 metadata/context keys);
   exception sanitization redacts sensitive data (API keys, tokens, emails)
 - **Failure audit emission** — FAIL audit artifacts emitted and attached to
@@ -42,7 +43,8 @@ See [README.md](README.md) for quick-start, public API, and usage.
 
 - **Conditional guards** — `when/then` rules that expand the effective
   policy based on runtime context (guards evaluated before role validation;
-  effects are additive and merge into effective policy)
+  effects are additive and merge into effective policy); AST-based expression
+  language supports `and`, `or`, `not`, comparison operators, and `in` operator
 - **Named conditions** — boolean flags resolved from invocation context
   with defaults and required enforcement (used by guards for dynamic policy
   expansion)
@@ -176,8 +178,11 @@ aigc/
 │   ├── validator.py                   Public validator imports
 │   ├── audit.py                       Public audit helpers
 │   ├── sinks.py                       Public audit sink imports (Phase 3.2)
+│   ├── builder.py                     Public InvocationBuilder import (v0.2.0)
 │   ├── decorators.py                  Public decorator imports (Phase 3.4)
-│   └── retry.py                       Public retry helper import (Phase 2.4)
+│   ├── retry.py                       Public retry helper import (Phase 2.4)
+│   ├── cli.py                         Public CLI import (v0.2.0)
+│   └── __main__.py                    python -m aigc entry point (v0.2.0)
 │
 ├── aigc/_internal/
 │   ├── __init__.py                    Internal package initialization
@@ -186,11 +191,13 @@ aigc/
 │   │                                  load_policy_async added in Phase 3.1
 │   ├── validator.py                   Precondition + schema validation
 │   ├── audit.py                       Audit artifact generation
-│   ├── guards.py                      Guard evaluation engine (Phase 2.1)
+│   ├── guards.py                      AST-based guard evaluation engine (Phase 2.1 + v0.2.0)
+│   ├── cli.py                         Policy CLI (aigc policy lint/validate) (v0.2.0)
 │   ├── conditions.py                  Named condition resolution (Phase 2.2)
 │   ├── tools.py                       Tool constraint validation (Phase 2.3)
 │   ├── retry.py                       Retry policy wrapper (Phase 2.4)
 │   ├── sinks.py                       Audit sink registry + built-in sinks (Phase 3.2)
+│   ├── builder.py                     InvocationBuilder fluent API (v0.2.0)
 │   ├── decorators.py                  @governed decorator (Phase 3.4)
 │   ├── utils.py                       Canonical JSON serialization + checksums
 │   └── errors.py                      Custom exception hierarchy
@@ -226,7 +233,8 @@ aigc/
 │   ├── test_audit_artifact_contract.py  Audit field presence contract
 │   ├── test_checksum_determinism.py   Canonical JSON checksum tests
 │   ├── test_conditions.py             Condition resolution unit tests (Phase 2.2)
-│   ├── test_guards.py                 Guard evaluation unit tests (Phase 2.1)
+│   ├── test_guards.py                 Guard evaluation unit tests (Phase 2.1 + AST)
+│   ├── test_cli.py                    Policy CLI tests (v0.2.0)
 │   ├── test_tools.py                  Tool constraint unit tests (Phase 2.3)
 │   ├── test_retry.py                  Retry policy unit tests (Phase 2.4)
 │   ├── test_policy_composition.py     Policy composition unit tests (Phase 2.6)
@@ -302,8 +310,8 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ### Test Coverage
 
-- **245 tests** (all passing)
-- **96% coverage** across all `aigc` modules
+- **304 tests** (all passing)
+- **94% coverage** across all `aigc` modules
 - All DSL features have golden replay regression fixtures
 
 ### Architectural Impact
@@ -335,8 +343,8 @@ and are not part of this SDK.
 
 ### Phase 3 Test Coverage
 
-- **245 tests** (all passing)
-- **96% coverage** across all `aigc` modules
+- **304 tests** (all passing)
+- **94% coverage** across all `aigc` modules
 - Phase 3 runtime features have dedicated test files:
   `test_async_enforcement.py`, `test_audit_sinks.py`, `test_decorators.py`
 

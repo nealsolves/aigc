@@ -420,7 +420,7 @@ in tests):
 
 | Field | Description |
 | ----- | ----------- |
-| `audit_schema_version` | Schema version (e.g., `"1.1"`) |
+| `audit_schema_version` | Schema version (e.g., `"1.2"`) |
 | `policy_file` | Path to the policy file used |
 | `policy_version` | Value of `policy_version` from the policy YAML |
 | `policy_schema_version` | JSON Schema draft used to validate the policy |

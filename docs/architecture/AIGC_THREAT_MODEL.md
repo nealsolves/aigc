@@ -304,13 +304,17 @@ Artifacts include checksums.
 * `input_checksum`
 * `output_checksum`
 
-Optional cryptographic chaining fields:
+Forward-compatibility placeholders (currently null):
 
-* `signature`
+* `risk_score` — reserved for future risk scoring
+* `signature` — reserved for future cryptographic signing
+
+Planned cryptographic chaining fields (not yet in schema):
+
 * `signer_key_id`
 * `previous_audit_checksum`
 
-If any artifact is modified, verification fails.
+If any artifact is modified, checksum verification fails.
 
 ---
 

@@ -17,7 +17,8 @@ See [README.md](README.md) for quick-start, public API, and usage.
 - **Role allowlist enforcement** — invocation role must be declared in
   policy `roles`
 - **Precondition validation** — required context keys checked before model
-  output is evaluated
+  output is evaluated; supports typed preconditions (type, pattern, enum,
+  min/max constraints) alongside legacy bare-string format
 - **Output schema validation** — model outputs validated against JSON Schema
   defined in policy
 - **Postcondition validation** — `output_schema_valid` enforced after schema
@@ -25,7 +26,9 @@ See [README.md](README.md) for quick-start, public API, and usage.
 - **Audit artifact generation** — SHA-256 checksummed records with model,
   role, policy, and invocation context metadata via
   `schemas/audit_artifact.schema.json` (schema version 1.1; `context` field
-  carries caller-supplied session/tenant identifiers for sink correlation)
+  carries caller-supplied session/tenant identifiers for sink correlation);
+  bounded arrays (max 1000 failures, 100 metadata/context keys);
+  exception sanitization redacts sensitive data (API keys, tokens, emails)
 - **Failure audit emission** — FAIL audit artifacts emitted and attached to
   exceptions before propagation (Phase 1.8)
 - **Custom exception hierarchy** — typed exceptions with machine-readable
@@ -57,12 +60,17 @@ See [README.md](README.md) for quick-start, public API, and usage.
 - **Async enforcement** — `enforce_invocation_async()` via `asyncio.to_thread`
   for non-blocking policy I/O in async orchestrators (Phase 3.1)
 - **Pluggable audit sinks** — `AuditSink` ABC with `JsonFileAuditSink` and
-  `CallbackAuditSink`; registered via `set_audit_sink()`; sink failures log
-  a warning and do not block enforcement (Phase 3.2)
+  `CallbackAuditSink`; registered via `set_audit_sink()`; configurable failure
+  mode (`log`/`raise`) via `set_sink_failure_mode()` (Phase 3.2)
+- **Instance-scoped enforcement** — `AIGC` class with per-instance sink,
+  failure mode, strict mode, and redaction patterns; thread-safe (Phase 3.5)
+- **Policy caching** — `PolicyCache` with LRU eviction, keyed by
+  `(canonical_path, mtime)`; thread-safe via `threading.Lock` (D-03)
 - **Structured logging** — `aigc` logger namespace with `NullHandler` default;
   gate-level DEBUG, INFO on complete, WARNING on sink failure (Phase 3.3)
 - **Decorator/middleware pattern** — `@governed(policy_file, role,
-  model_provider, model_identifier)` for sync and async LLM call sites (Phase 3.4)
+  model_provider, model_identifier)` for sync and async LLM call sites;
+  robust parameter binding via `inspect.signature()` (Phase 3.4)
 
 ### Planned (Post-SDK)
 
@@ -294,8 +302,8 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ### Test Coverage
 
-- **190 tests** (all passing)
-- **100% coverage** across all `aigc._internal` modules
+- **245 tests** (all passing)
+- **96% coverage** across all `aigc` modules
 - All DSL features have golden replay regression fixtures
 
 ### Architectural Impact
@@ -303,7 +311,8 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 - **No fail-closed feature gates** — all schema-declared features are enforced
 - **Determinism preserved** — guards evaluated deterministically, retry is opt-in wrapper
 - **Backward compatible** — Phase 1 invocations unchanged, Phase 2 fields optional
-- **Typed error taxonomy** — 3 new exception types (ConditionResolutionError, GuardEvaluationError, ToolConstraintViolationError)
+- **Typed error taxonomy** — 4 new exception types (ConditionResolutionError,
+  GuardEvaluationError, ToolConstraintViolationError, AuditSinkError)
 
 ---
 
@@ -326,8 +335,8 @@ and are not part of this SDK.
 
 ### Phase 3 Test Coverage
 
-- **190 tests** (all passing)
-- **100% line coverage** across all `aigc._internal` modules
+- **245 tests** (all passing)
+- **96% coverage** across all `aigc` modules
 - Phase 3 runtime features have dedicated test files:
   `test_async_enforcement.py`, `test_audit_sinks.py`, `test_decorators.py`
 
@@ -335,8 +344,9 @@ and are not part of this SDK.
 
 - **No host-specific runtime classes** in SDK packages (`aigc._internal`, `aigc`) — boundary is clean
 - **Async entry point** shares the sync enforcement pipeline; governance is identical
-- **Sink failures do not block enforcement** — logged at WARNING level, invocation continues
-- **Backward compatible** — all Phase 1 and Phase 2 behavior unchanged
+- **Sink failure mode configurable** — `log` (default, backward-compatible) or `raise` (strict)
+- **Instance-scoped `AIGC` class** — eliminates global mutable state for new code
+- **Backward compatible** — all Phase 1 and Phase 2 behavior unchanged; global functions still work
 
 ---
 

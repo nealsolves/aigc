@@ -170,3 +170,70 @@ def test_load_policy_schema_wrong_draft(tmp_path):
         with pytest.raises(PolicyLoadError) as exc_info:
             load_policy("tests/golden_replays/golden_policy_v1.yaml")
     assert "Draft-07" in str(exc_info.value)
+
+
+# --- PolicyCache tests ---
+
+from aigc._internal.policy_loader import PolicyCache
+
+GOLDEN_POLICY = "tests/golden_replays/golden_policy_v1.yaml"
+
+
+def test_policy_cache_hit():
+    """Second load returns cached result without disk I/O."""
+    cache = PolicyCache(max_size=10)
+    p1 = cache.get_or_load(GOLDEN_POLICY)
+    p2 = cache.get_or_load(GOLDEN_POLICY)
+    assert p1 == p2
+    assert cache.size == 1
+
+
+def test_policy_cache_miss_after_clear():
+    """Clearing cache forces reload."""
+    cache = PolicyCache(max_size=10)
+    cache.get_or_load(GOLDEN_POLICY)
+    assert cache.size == 1
+    cache.clear()
+    assert cache.size == 0
+    cache.get_or_load(GOLDEN_POLICY)
+    assert cache.size == 1
+
+
+def test_policy_cache_eviction():
+    """Oldest entry evicted when max_size reached."""
+    cache = PolicyCache(max_size=1)
+    cache.get_or_load(GOLDEN_POLICY)
+    assert cache.size == 1
+    # Load a different policy to trigger eviction
+    cache.get_or_load("tests/golden_replays/golden_policy_postcondition_only.yaml")
+    assert cache.size == 1
+
+
+def test_policy_cache_invalid_max_size():
+    with pytest.raises(ValueError, match="max_size"):
+        PolicyCache(max_size=0)
+
+
+def test_policy_cache_thread_safety():
+    """Concurrent cache access from multiple threads."""
+    import concurrent.futures
+
+    cache = PolicyCache(max_size=10)
+
+    def load_once():
+        return cache.get_or_load(GOLDEN_POLICY)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(load_once) for _ in range(20)]
+        results = [f.result() for f in futures]
+
+    assert all(r == results[0] for r in results)
+    assert cache.size == 1
+
+
+def test_policy_cache_determinism():
+    """Cached and uncached loads produce identical policies."""
+    direct = load_policy(GOLDEN_POLICY)
+    cache = PolicyCache(max_size=10)
+    cached = cache.get_or_load(GOLDEN_POLICY)
+    assert direct == cached

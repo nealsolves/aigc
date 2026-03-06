@@ -7,9 +7,12 @@ from invocation context with defaults and required enforcement.
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Mapping
 
 from aigc._internal.errors import ConditionResolutionError
+
+logger = logging.getLogger("aigc.conditions")
 
 
 def resolve_conditions(
@@ -60,10 +63,21 @@ def resolve_conditions(
             resolved[name] = default
         elif spec.get("required", False):
             # Required condition missing
+            available = [k for k in context if isinstance(context.get(k), bool)]
             raise ConditionResolutionError(
-                f"Required condition '{name}' not found in context",
-                details={"condition": name, "required": True},
+                f"Required condition '{name}' not found in context"
+                + (f" (available boolean keys: {available})" if available else ""),
+                details={
+                    "condition": name,
+                    "required": True,
+                    "available_conditions": available,
+                },
             )
-        # else: optional condition without default - skip
+        else:
+            # Optional condition without default - skip with log
+            logger.info(
+                "Skipping optional condition '%s' (not in context, no default)",
+                name,
+            )
 
     return resolved

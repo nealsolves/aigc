@@ -14,7 +14,7 @@ Governance is not documentation. It is runtime enforcement.
 
 **SDK Implementation:** Reference implementation of constitutional governance for AI-assisted systems.
 
-**Status:** Feature-complete — 190 tests, 100% coverage, all three phases shipped.
+**Status:** Feature-complete — 245 tests, 96% coverage, all three phases shipped plus redesign workstreams.
 
 ---
 
@@ -76,13 +76,23 @@ If using an internal PyPI mirror or wheelhouse, ensure `pip`, `setuptools`, and
 Preferred imports:
 
 ```python
-from aigc.enforcement import enforce_invocation
+from aigc import enforce_invocation, AIGC
 from aigc.errors import (
     InvocationValidationError,
     PreconditionError,
     SchemaValidationError,
     GovernanceViolationError,
 )
+```
+
+Instance-scoped enforcement (recommended for new code):
+
+```python
+from aigc import AIGC
+from aigc.sinks import JsonFileAuditSink
+
+engine = AIGC(sink=JsonFileAuditSink("audit.jsonl"))
+audit = engine.enforce(invocation)
 ```
 
 ## Enforced Controls
@@ -115,13 +125,15 @@ from aigc.errors import (
 - **Async enforcement** — `enforce_invocation_async()` runs policy I/O off the
   event loop via `asyncio.to_thread`; identical governance behavior to sync
 - **Pluggable audit sinks** — register a sink once; every enforcement emits to
-  it automatically:
+  it automatically; configurable failure mode (`log` or `raise`):
 
   ```python
   from aigc.sinks import JsonFileAuditSink, set_audit_sink
   set_audit_sink(JsonFileAuditSink("audit.jsonl"))
   ```
 
+- **Instance-scoped enforcement** — `AIGC` class for thread-safe, isolated
+  configuration (sink, failure mode, strict mode, redaction patterns)
 - **Structured logging** — `aigc.*` logger namespace with `NullHandler` default;
   host applications configure log levels and handlers
 - **`@governed` decorator** — wraps sync and async LLM call sites:

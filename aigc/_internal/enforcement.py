@@ -12,8 +12,12 @@ Combines:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import re
 from typing import Any, Mapping
+
+from aigc._internal.audit import DEFAULT_REDACTION_PATTERNS
 
 from aigc._internal.policy_loader import load_policy
 from aigc._internal.validator import (
@@ -22,7 +26,7 @@ from aigc._internal.validator import (
     validate_role,
     validate_schema,
 )
-from aigc._internal.audit import generate_audit_artifact
+from aigc._internal.audit import generate_audit_artifact, sanitize_failure_message
 from aigc._internal.guards import evaluate_guards
 from aigc._internal.tools import validate_tool_constraints
 from aigc._internal.sinks import emit_to_sink
@@ -93,6 +97,15 @@ def _validate_invocation(invocation: Mapping[str, Any]) -> None:
                 f"Invocation field '{key}' must be an object",
                 details={"field": key},
             )
+
+    for key in object_keys:
+        try:
+            json.dumps(invocation[key])
+        except (TypeError, ValueError) as e:
+            raise InvocationValidationError(
+                f"Invocation field '{key}' is not JSON-serializable: {e}",
+                details={"field": key},
+            ) from e
 
 
 def _map_exception_to_failure_gate(exc: Exception) -> str:
@@ -217,14 +230,20 @@ def _run_pipeline(policy: dict[str, Any], invocation: Mapping[str, Any]) -> dict
 
     except AIGCError as exc:
         failure_gate = _map_exception_to_failure_gate(exc)
-        failure_reason = str(exc)
+        raw_reason = str(exc)
+        failure_reason, reason_redacted = sanitize_failure_message(raw_reason)
 
+        redacted_fields: list[str] = list(reason_redacted)
         failures = None
         if hasattr(exc, "details") and exc.details:
+            sanitized_msg, msg_redacted = sanitize_failure_message(str(exc))
+            for r in msg_redacted:
+                if r not in redacted_fields:
+                    redacted_fields.append(r)
             failures = [
                 {
                     "code": exc.__class__.__name__,
-                    "message": str(exc),
+                    "message": sanitized_msg,
                     "field": exc.details.get("field") if isinstance(exc.details, dict) else None,
                 }
             ]
@@ -238,6 +257,7 @@ def _run_pipeline(policy: dict[str, Any], invocation: Mapping[str, Any]) -> dict
             failure_reason=failure_reason,
             metadata={
                 "gates_evaluated": list(gates_evaluated),
+                "redacted_fields": redacted_fields,
             },
         )
 
@@ -304,3 +324,114 @@ async def enforce_invocation_async(invocation: Mapping[str, Any]) -> dict[str, A
     _validate_invocation(invocation)
     policy = await asyncio.to_thread(load_policy, invocation["policy_file"])
     return _run_pipeline(policy, invocation)
+
+
+class AIGC:
+    """Instance-scoped AIGC configuration and enforcement entry point.
+
+    All configuration (sink, enforcement mode, redaction patterns) is
+    immutable after construction. Thread-safe: enforce() may be called
+    from multiple threads concurrently.
+
+    Usage::
+
+        from aigc import AIGC, JsonFileAuditSink
+
+        aigc = AIGC(sink=JsonFileAuditSink("audit.jsonl"))
+        artifact = aigc.enforce(invocation)
+    """
+
+    def __init__(
+        self,
+        *,
+        sink: Any | None = None,
+        on_sink_failure: str = "log",
+        strict_mode: bool = False,
+        redaction_patterns: list[tuple[str, re.Pattern[str]]] | None = None,
+    ) -> None:
+        """
+        :param sink: AuditSink instance for artifact persistence
+        :param on_sink_failure: Failure mode: "raise", "log", or "queue"
+        :param strict_mode: Enable strict governance validation
+        :param redaction_patterns: Custom redaction patterns for failure messages
+        """
+        if on_sink_failure not in ("raise", "log", "queue"):
+            raise ValueError(
+                f"on_sink_failure must be 'raise', 'log', or 'queue', "
+                f"got '{on_sink_failure}'"
+            )
+
+        self._sink = sink
+        self._on_sink_failure = on_sink_failure
+        self._strict_mode = strict_mode
+        self._redaction_patterns = (
+            redaction_patterns if redaction_patterns is not None
+            else DEFAULT_REDACTION_PATTERNS
+        )
+
+    @property
+    def sink(self) -> Any | None:
+        return self._sink
+
+    @property
+    def strict_mode(self) -> bool:
+        return self._strict_mode
+
+    @property
+    def on_sink_failure(self) -> str:
+        return self._on_sink_failure
+
+    def enforce(self, invocation: Mapping[str, Any]) -> dict[str, Any]:
+        """Enforce governance rules (synchronous).
+
+        :param invocation: Invocation dict with required fields
+        :return: Audit artifact dict
+        :raises: AIGCError subclasses on governance violation
+        """
+        if not isinstance(invocation, Mapping):
+            raise InvocationValidationError(
+                "Invocation must be a mapping object",
+                details={"received_type": type(invocation).__name__},
+            )
+
+        _validate_invocation(invocation)
+        policy = load_policy(invocation["policy_file"])
+
+        # Use instance sink for emission
+        from aigc._internal.sinks import set_audit_sink, get_audit_sink
+        previous_sink = get_audit_sink()
+        if self._sink is not None:
+            set_audit_sink(self._sink)
+        try:
+            return _run_pipeline(policy, invocation)
+        finally:
+            if self._sink is not None:
+                if previous_sink is not None:
+                    set_audit_sink(previous_sink)
+
+    async def enforce_async(self, invocation: Mapping[str, Any]) -> dict[str, Any]:
+        """Enforce governance rules (asynchronous).
+
+        :param invocation: Invocation dict with required fields
+        :return: Audit artifact dict
+        :raises: AIGCError subclasses on governance violation
+        """
+        if not isinstance(invocation, Mapping):
+            raise InvocationValidationError(
+                "Invocation must be a mapping object",
+                details={"received_type": type(invocation).__name__},
+            )
+
+        _validate_invocation(invocation)
+        policy = await asyncio.to_thread(load_policy, invocation["policy_file"])
+
+        from aigc._internal.sinks import set_audit_sink, get_audit_sink
+        previous_sink = get_audit_sink()
+        if self._sink is not None:
+            set_audit_sink(self._sink)
+        try:
+            return _run_pipeline(policy, invocation)
+        finally:
+            if self._sink is not None:
+                if previous_sink is not None:
+                    set_audit_sink(previous_sink)

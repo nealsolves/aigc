@@ -127,3 +127,14 @@ class ToolConstraintViolationError(GovernanceViolationError):
             code="TOOL_CONSTRAINT_VIOLATION",
             details=details,
         )
+
+
+class AuditSinkError(AIGCError):
+    """Raised when audit sink emission fails (in 'raise' failure mode)."""
+
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(
+            message,
+            code="AUDIT_SINK_ERROR",
+            details=details,
+        )

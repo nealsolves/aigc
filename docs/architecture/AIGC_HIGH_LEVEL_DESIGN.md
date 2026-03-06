@@ -351,12 +351,20 @@ The gate order is intentional:
 ### 6.2 Exception Hierarchy
 
 ```text
-Exception
-├── PreconditionError          — required context key missing or falsy
-├── SchemaValidationError      — output does not match JSON Schema
-└── GovernanceViolationError   — role unauthorized, tool cap exceeded,
-                                 postcondition unsatisfied, or any
-                                 other policy-level violation
+AIGCError (base)
+├── PreconditionError              — required context key missing or falsy
+├── SchemaValidationError          — output does not match JSON Schema
+├── ConditionResolutionError       — condition resolution failure
+├── GuardEvaluationError           — guard expression evaluation failure
+├── AuditSinkError                 — audit sink emission failure (raise mode)
+└── GovernanceViolationError       — role unauthorized, tool cap exceeded,
+    │                                postcondition unsatisfied, or any
+    │                                other policy-level violation
+    ├── InvocationValidationError  — invocation payload contract violation
+    ├── PolicyLoadError            — policy loading/parsing failure
+    ├── PolicyValidationError      — policy schema validation failure
+    ├── ToolConstraintViolationError — tool constraint violation
+    └── FeatureNotImplementedError — schema-declared feature not implemented
 ```
 
 Exceptions are implemented in `aigc/_internal/errors.py` and exposed via `aigc/errors.py`. The host application catches

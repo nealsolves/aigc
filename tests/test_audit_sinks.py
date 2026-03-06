@@ -13,6 +13,7 @@ import pytest
 
 from aigc._internal.enforcement import enforce_invocation
 from aigc._internal.errors import GovernanceViolationError
+from aigc._internal.errors import AuditSinkError
 from aigc._internal.sinks import (
     AuditSink,
     CallbackAuditSink,
@@ -20,6 +21,8 @@ from aigc._internal.sinks import (
     emit_to_sink,
     get_audit_sink,
     set_audit_sink,
+    set_sink_failure_mode,
+    get_sink_failure_mode,
 )
 
 POLICY = "tests/golden_replays/golden_policy_v1.yaml"
@@ -39,8 +42,10 @@ VALID_INVOCATION = {
 def clear_sink():
     """Ensure no sink bleeds between tests."""
     set_audit_sink(None)
+    set_sink_failure_mode("log")
     yield
     set_audit_sink(None)
+    set_sink_failure_mode("log")
 
 
 # --- CallbackAuditSink ---
@@ -169,3 +174,40 @@ def test_set_then_clear_sink():
 
 def test_emit_to_sink_no_op_when_no_sink():
     emit_to_sink({"enforcement_result": "PASS"})  # must not raise
+
+
+# --- Sink failure modes (D-02 completion) ---
+
+def test_sink_failure_mode_raise_propagates():
+    """In 'raise' mode, sink failures propagate as AuditSinkError."""
+    set_audit_sink(_BrokenSink())
+    set_sink_failure_mode("raise")
+
+    with pytest.raises(AuditSinkError, match="sink exploded"):
+        enforce_invocation(VALID_INVOCATION)
+
+
+def test_sink_failure_mode_log_does_not_propagate():
+    """In 'log' mode, sink failures are logged but not propagated (default)."""
+    set_audit_sink(_BrokenSink())
+    set_sink_failure_mode("log")
+
+    audit = enforce_invocation(VALID_INVOCATION)
+    assert audit["enforcement_result"] == "PASS"
+
+
+def test_sink_failure_mode_invalid_raises_valueerror():
+    """Invalid failure mode raises ValueError."""
+    with pytest.raises(ValueError, match="Invalid sink failure mode"):
+        set_sink_failure_mode("invalid")
+
+
+def test_sink_failure_mode_default_is_log():
+    """Default failure mode is 'log'."""
+    assert get_sink_failure_mode() == "log"
+
+
+def test_audit_sink_error_has_correct_code():
+    """AuditSinkError has the correct error code."""
+    err = AuditSinkError("test")
+    assert err.code == "AUDIT_SINK_ERROR"

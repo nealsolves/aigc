@@ -35,6 +35,7 @@ htmlcov/
 
 # Private integration docs (host-specific, not public)
 docs/architecture/HOST_INTEGRATION.md
+docs/architecture/AIGC_Architecture_Redesign_and_Roadmap.md
 
 # Build artifacts
 dist/

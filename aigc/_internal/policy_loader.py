@@ -11,6 +11,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import threading
 import yaml
 from pathlib import Path
 from typing import Any
@@ -261,3 +263,75 @@ async def load_policy_async(
     :return: Python dict representing the policy
     """
     return await asyncio.to_thread(load_policy, policy_file, visited)
+
+
+class PolicyCache:
+    """LRU cache for loaded policies, keyed by (canonical_path, file_mtime).
+
+    Thread-safe via threading.Lock. Cache lives on an AIGC instance to
+    eliminate global mutable state.
+
+    Usage::
+
+        cache = PolicyCache(max_size=128)
+        policy = cache.get_or_load("policies/my_policy.yaml")
+    """
+
+    def __init__(self, max_size: int = 128) -> None:
+        if max_size < 1:
+            raise ValueError("max_size must be >= 1")
+        self._max_size = max_size
+        self._cache: dict[tuple[str, float], dict[str, Any]] = {}
+        self._access_order: list[tuple[str, float]] = []
+        self._lock = threading.Lock()
+
+    @property
+    def size(self) -> int:
+        with self._lock:
+            return len(self._cache)
+
+    def get_or_load(
+        self, policy_file: str, visited: set[Path] | None = None
+    ) -> dict[str, Any]:
+        """Load policy from cache or disk.
+
+        :param policy_file: Path to YAML policy file
+        :param visited: For cycle detection during extends resolution
+        :return: Loaded policy dict
+        """
+        canonical = str(_resolve_policy_path(policy_file))
+        mtime = os.path.getmtime(canonical)
+        key = (canonical, mtime)
+
+        with self._lock:
+            if key in self._cache:
+                logger.debug("Policy cache hit: %s", policy_file)
+                # Move to end for LRU
+                if key in self._access_order:
+                    self._access_order.remove(key)
+                self._access_order.append(key)
+                return self._cache[key]
+
+        # Load outside lock to avoid blocking other threads
+        policy = load_policy(policy_file, visited)
+
+        with self._lock:
+            if len(self._cache) >= self._max_size:
+                self._evict_oldest()
+            self._cache[key] = policy
+            self._access_order.append(key)
+            logger.debug("Policy cached: %s (cache size: %d)", policy_file, len(self._cache))
+
+        return policy
+
+    def _evict_oldest(self) -> None:
+        """Evict the least recently used cache entry. Must hold lock."""
+        if self._access_order:
+            oldest = self._access_order.pop(0)
+            self._cache.pop(oldest, None)
+
+    def clear(self) -> None:
+        """Clear the cache."""
+        with self._lock:
+            self._cache.clear()
+            self._access_order.clear()

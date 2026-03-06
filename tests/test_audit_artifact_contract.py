@@ -6,11 +6,16 @@ required fields in accordance with the AIGC spec.
 """
 
 import json
+import re
 from pathlib import Path
 
 from jsonschema import validate
 
-from aigc._internal.audit import generate_audit_artifact
+from aigc._internal.audit import (
+    generate_audit_artifact,
+    sanitize_failure_message,
+    DEFAULT_REDACTION_PATTERNS,
+)
 
 GOLDEN_SUCCESS = "tests/golden_replays/golden_invocation_success.json"
 AUDIT_SCHEMA = "schemas/audit_artifact.schema.json"
@@ -114,3 +119,140 @@ def test_audit_includes_conditions_resolved():
     assert isinstance(audit["metadata"]["conditions_resolved"], dict)
     assert "is_enterprise" in audit["metadata"]["conditions_resolved"]
     assert "audit_enabled" in audit["metadata"]["conditions_resolved"]
+
+
+def test_failures_truncated_at_1000():
+    """Verify failures array is bounded at MAX_FAILURES."""
+    from aigc._internal.audit import MAX_FAILURES
+
+    invocation = load_json(GOLDEN_SUCCESS)
+    failures = [
+        {"code": f"ERR_{i}", "message": f"error {i}", "field": None}
+        for i in range(1500)
+    ]
+    audit = generate_audit_artifact(
+        invocation,
+        {"policy_version": "1.0"},
+        enforcement_result="FAIL",
+        failures=failures,
+        timestamp=1700000000,
+    )
+    assert len(audit["failures"]) == MAX_FAILURES
+
+
+def test_metadata_truncated_at_100_keys():
+    """Verify metadata is bounded at MAX_METADATA_KEYS."""
+    from aigc._internal.audit import MAX_METADATA_KEYS
+
+    invocation = load_json(GOLDEN_SUCCESS)
+    metadata = {f"key_{i}": f"val_{i}" for i in range(150)}
+    audit = generate_audit_artifact(
+        invocation,
+        {"policy_version": "1.0"},
+        metadata=metadata,
+        timestamp=1700000000,
+    )
+    assert len(audit["metadata"]) == MAX_METADATA_KEYS
+
+
+def test_context_truncated_at_100_keys():
+    """Verify context is bounded at MAX_CONTEXT_KEYS."""
+    from aigc._internal.audit import MAX_CONTEXT_KEYS
+
+    invocation = load_json(GOLDEN_SUCCESS)
+    invocation["context"] = {f"ctx_{i}": f"val_{i}" for i in range(150)}
+    audit = generate_audit_artifact(
+        invocation,
+        {"policy_version": "1.0"},
+        timestamp=1700000000,
+    )
+    assert len(audit["context"]) == MAX_CONTEXT_KEYS
+
+
+def test_within_bounds_not_truncated():
+    """Verify data within bounds is not truncated."""
+    invocation = load_json(GOLDEN_SUCCESS)
+    failures = [
+        {"code": f"ERR_{i}", "message": f"error {i}", "field": None}
+        for i in range(50)
+    ]
+    audit = generate_audit_artifact(
+        invocation,
+        {"policy_version": "1.0"},
+        enforcement_result="FAIL",
+        failures=failures,
+        timestamp=1700000000,
+    )
+    assert len(audit["failures"]) == 50
+
+
+# --- Sanitization tests ---
+
+def test_sanitize_api_key():
+    msg = "Error: invalid key sk-abc1234567890123456"
+    sanitized, redacted = sanitize_failure_message(msg)
+    assert "sk-abc1234567890123456" not in sanitized
+    assert "[REDACTED:api_key]" in sanitized
+    assert "api_key" in redacted
+
+
+def test_sanitize_bearer_token():
+    msg = "Authorization failed: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig"
+    sanitized, redacted = sanitize_failure_message(msg)
+    assert "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" not in sanitized
+    assert "bearer_token" in redacted
+
+
+def test_sanitize_email():
+    msg = "User user@example.com is not authorized"
+    sanitized, redacted = sanitize_failure_message(msg)
+    assert "user@example.com" not in sanitized
+    assert "email" in redacted
+
+
+def test_sanitize_ssn():
+    msg = "PII detected: 123-45-6789"
+    sanitized, redacted = sanitize_failure_message(msg)
+    assert "123-45-6789" not in sanitized
+    assert "ssn" in redacted
+
+
+def test_sanitize_no_sensitive_data():
+    msg = "Role 'admin' not in allowed roles"
+    sanitized, redacted = sanitize_failure_message(msg)
+    assert sanitized == msg
+    assert redacted == []
+
+
+def test_sanitize_custom_patterns():
+    custom = [("custom_id", re.compile(r"ID-\d{6}"))]
+    msg = "Error with ID-123456"
+    sanitized, redacted = sanitize_failure_message(msg, patterns=custom)
+    assert "ID-123456" not in sanitized
+    assert "custom_id" in redacted
+
+
+def test_sanitize_multiple_patterns():
+    msg = "User user@example.com used key sk-abc1234567890123456"
+    sanitized, redacted = sanitize_failure_message(msg)
+    assert "user@example.com" not in sanitized
+    assert "sk-abc1234567890123456" not in sanitized
+    assert "email" in redacted
+    assert "api_key" in redacted
+
+
+def test_sanitization_applied_in_enforcement_fail_path():
+    """Verify sanitization is applied to failure messages in enforcement."""
+    from aigc._internal.enforcement import enforce_invocation
+    from aigc._internal.errors import GovernanceViolationError
+
+    invocation = load_json(GOLDEN_SUCCESS)
+    invocation["role"] = "attacker"
+
+    try:
+        enforce_invocation(invocation)
+        assert False, "Should have raised"
+    except GovernanceViolationError as exc:
+        audit = exc.audit_artifact
+        assert "redacted_fields" in audit["metadata"]
+        assert isinstance(audit["metadata"]["redacted_fields"], list)

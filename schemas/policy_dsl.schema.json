@@ -61,8 +61,29 @@
       "additionalProperties": false,
       "properties": {
         "required": {
-          "type": "array",
-          "items": { "type": "string" }
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Legacy bare-string preconditions (deprecated)"
+            },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string" },
+                  "pattern": { "type": "string" },
+                  "enum": { "type": "array" },
+                  "minLength": { "type": "integer", "minimum": 0 },
+                  "maxLength": { "type": "integer", "minimum": 0 },
+                  "minimum": { "type": "number" },
+                  "maximum": { "type": "number" }
+                }
+              },
+              "description": "Typed preconditions with value constraints"
+            }
+          ]
         },
         "optional": {
           "type": "array",

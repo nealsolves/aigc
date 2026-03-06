@@ -154,3 +154,31 @@ async def async_kwarg_function(input_data, context):
 async def test_governed_async_input_data_kwarg():
     result = await async_kwarg_function(input_data=VALID_INPUT, context=VALID_CONTEXT)
     assert result == VALID_OUTPUT
+
+
+# --- Reordered parameter tests (D-11 fix) ---
+
+@governed(policy_file=POLICY, role=ROLE, model_provider=PROVIDER, model_identifier=MODEL)
+def reordered_function(context, input_data):
+    """Function with context before input_data (reversed order)."""
+    return VALID_OUTPUT
+
+
+def test_governed_sync_reordered_params_positional():
+    result = reordered_function(VALID_CONTEXT, VALID_INPUT)
+    assert result == VALID_OUTPUT
+
+
+def test_governed_sync_reordered_params_kwargs():
+    result = reordered_function(context=VALID_CONTEXT, input_data=VALID_INPUT)
+    assert result == VALID_OUTPUT
+
+
+@governed(policy_file=POLICY, role=ROLE, model_provider=PROVIDER, model_identifier=MODEL)
+async def async_reordered_function(context, input_data):
+    return VALID_OUTPUT
+
+
+async def test_governed_async_reordered_params_kwargs():
+    result = await async_reordered_function(context=VALID_CONTEXT, input_data=VALID_INPUT)
+    assert result == VALID_OUTPUT

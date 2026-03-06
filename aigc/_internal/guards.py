@@ -111,22 +111,17 @@ def evaluate_guards(
     if not guards:
         return dict(policy), [], resolved_conditions
 
-    # Start with copy of original policy
-    effective_policy = copy.deepcopy(dict(policy))
+    # Evaluate all guard conditions first (no copies yet)
     guards_evaluated: list[dict[str, Any]] = []
+    matching_effects: list[Mapping[str, Any]] = []
 
-    # Process guards in declaration order
     for guard in guards:
         when_clause = guard.get("when", {})
         condition_expr = when_clause.get("condition", "")
 
-        try:
-            matched = _evaluate_condition_expression(
-                condition_expr, resolved_conditions, invocation
-            )
-        except GuardEvaluationError:
-            # Re-raise evaluation errors
-            raise
+        matched = _evaluate_condition_expression(
+            condition_expr, resolved_conditions, invocation
+        )
 
         guards_evaluated.append(
             {
@@ -137,6 +132,12 @@ def evaluate_guards(
 
         if matched:
             then_clause = guard.get("then", {})
-            _merge_policy_blocks(effective_policy, then_clause)
+            if then_clause:
+                matching_effects.append(then_clause)
+
+    # Single deep copy, then apply all matching effects in order
+    effective_policy = copy.deepcopy(dict(policy))
+    for effect in matching_effects:
+        _merge_policy_blocks(effective_policy, effect)
 
     return effective_policy, guards_evaluated, resolved_conditions

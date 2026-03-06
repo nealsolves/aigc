@@ -1,7 +1,7 @@
 # AIGC Extended Policy DSL Specification
 
-**Version:** `1.0.0`  
-**Status:** Draft
+**Version:** `1.0.0`
+**Status:** Authoritative
 
 This document defines the extended policy DSL used by the AIGC Governance SDK.
 It is written for humans, language models, and enforcement agents.
@@ -146,6 +146,35 @@ Intent: Define baseline validation gates before and after invocation.
 - `required`: must be satisfied
 - `optional`: may be used by downstream logic or guards
 
+Preconditions support two formats:
+
+**Typed preconditions** (recommended):
+
+```yaml
+pre_conditions:
+  required:
+    tenant_id:
+      type: string
+      pattern: "^[A-Z0-9]{8}$"
+    score:
+      type: number
+      minimum: 0
+      maximum: 1
+```
+
+**Legacy bare-string preconditions** (deprecated):
+
+```yaml
+pre_conditions:
+  required:
+    - role_declared
+    - schema_exists
+```
+
+Bare-string preconditions emit a `DeprecationWarning` at runtime. Typed
+preconditions enforce value constraints (type, pattern, enum, min/max) beyond
+key existence.
+
 ### `guards`
 
 Intent: Apply conditional policy expansions based on runtime context.
@@ -219,34 +248,43 @@ The DSL should be validated against:
 
 ## JSON Schema Reference
 
-Save as:
-`schemas/policy_dsl.schema.json`
+The canonical schema is `schemas/policy_dsl.schema.json`. The schema below is
+a copy for reference; always defer to the file in the `schemas/` directory.
 
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "AIGC Extended Policy DSL Schema",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
+    "extends": {
+      "type": "string",
+      "description": "Path to base policy file (relative to current policy)"
+    },
     "policy_version": { "type": "string" },
     "description": { "type": "string" },
     "roles": {
       "type": "array",
+      "minItems": 1,
       "items": { "type": "string" }
     },
     "conditions": {
       "type": "object",
       "additionalProperties": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
           "type": { "type": "string", "enum": ["boolean"] },
           "required": { "type": "boolean" },
-          "default": {}
-        }
+          "default": { "type": "boolean" }
+        },
+        "required": ["type"]
       }
     },
     "tools": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "allowed_tools": {
           "type": "array",
@@ -254,26 +292,52 @@ Save as:
             "type": "object",
             "properties": {
               "name": { "type": "string" },
-              "max_calls": { "type": "integer" }
+              "max_calls": { "type": "integer", "minimum": 1 }
             },
-            "required": ["name", "max_calls"]
+            "required": ["name", "max_calls"],
+            "additionalProperties": false
           }
         }
-      }
+      },
+      "required": ["allowed_tools"]
     },
     "retry_policy": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "max_retries": { "type": "integer" },
-        "backoff_ms": { "type": "integer" }
-      }
+        "max_retries": { "type": "integer", "minimum": 0 },
+        "backoff_ms": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["max_retries", "backoff_ms"]
     },
     "pre_conditions": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "required": {
-          "type": "array",
-          "items": { "type": "string" }
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Legacy bare-string preconditions (deprecated)"
+            },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string" },
+                  "pattern": { "type": "string" },
+                  "enum": { "type": "array" },
+                  "minLength": { "type": "integer", "minimum": 0 },
+                  "maxLength": { "type": "integer", "minimum": 0 },
+                  "minimum": { "type": "number" },
+                  "maximum": { "type": "number" }
+                }
+              },
+              "description": "Typed preconditions with value constraints"
+            }
+          ]
         },
         "optional": {
           "type": "array",
@@ -283,6 +347,7 @@ Save as:
     },
     "post_conditions": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "required": {
           "type": "array",
@@ -294,13 +359,19 @@ Save as:
         }
       }
     },
+    "output_schema": {
+      "type": "object",
+      "minProperties": 1
+    },
     "guards": {
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
           "when": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
               "condition": { "type": "string" }
             },
@@ -309,7 +380,8 @@ Save as:
           "then": {
             "type": "object"
           }
-        }
+        },
+        "required": ["when", "then"]
       }
     }
   },

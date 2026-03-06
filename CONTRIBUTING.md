@@ -20,13 +20,13 @@ python -m pytest
 CI enforces a 90% coverage gate:
 
 ```bash
-python -m pytest --cov=src --cov-fail-under=90
+python -m pytest --cov=aigc --cov-fail-under=90
 ```
 
 ## Linting
 
 ```bash
-flake8 src aigc
+flake8 aigc
 npx markdownlint-cli2 "**/*.md"
 ```
 
@@ -53,7 +53,7 @@ All PRs must follow `.github/pull_request_template.md`.
 Before submitting:
 
 1. All tests pass (`python -m pytest`)
-2. Linters pass (`flake8 src aigc` and `npx markdownlint-cli2 "**/*.md"`)
+2. Linters pass (`flake8 aigc` and `npx markdownlint-cli2 "**/*.md"`)
 3. Golden replays updated if governance behavior changed
 4. Documentation updated if architecture changed
 

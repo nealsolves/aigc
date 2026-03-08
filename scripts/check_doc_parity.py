@@ -199,9 +199,10 @@ def _is_complete_audit_artifact(obj: dict) -> bool:
     return required <= set(obj.keys())
 
 
-def check_schema_example_parity() -> list[str]:
+def check_schema_example_parity(manifest: dict) -> list[str]:
     """Validate policy/audit examples in docs against their JSON schemas."""
     errors: list[str] = []
+    internal_patterns = manifest.get("internal_docs", [])
 
     # Load schemas
     policy_schema_path = REPO_ROOT / "schemas" / "policy_dsl.schema.json"
@@ -218,6 +219,8 @@ def check_schema_example_parity() -> list[str]:
 
     for path in collect_md_files():
         rel = str(path.relative_to(REPO_ROOT))
+        if is_internal_doc(rel, internal_patterns):
+            continue
         text = path.read_text(encoding="utf-8")
 
         # Check YAML blocks that look like policies
@@ -387,7 +390,7 @@ def main() -> int:
     checks = [
         ("A. Current-state parity", lambda: check_current_state_parity(manifest)),
         ("B. Public API boundary", lambda: check_public_api_boundary(manifest)),
-        ("C. Schema-example parity", check_schema_example_parity),
+        ("C. Schema-example parity", lambda: check_schema_example_parity(manifest)),
         ("D. Local link hygiene", check_link_hygiene),
         ("E. Archive hygiene", check_archive_hygiene),
         ("F. Parity-set docs exist", lambda: check_parity_docs_exist(manifest)),

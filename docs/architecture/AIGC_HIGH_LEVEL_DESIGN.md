@@ -346,7 +346,12 @@ The gate order is intentional:
    evaluated (see D-04 fix, enforced by `tests/test_pre_action_boundary.py`)
 6. **Schema before postconditions** — output must be structurally valid
    before semantic postconditions can be evaluated
-7. **Audit always** — only reached on full success; exceptions short-circuit
+7. **Audit always** — every enforcement attempt produces an audit artifact.
+   On PASS, the artifact is returned directly. On FAIL or exception, a FAIL
+   artifact is generated *before* the exception propagates and is attached
+   via `exc.audit_artifact`. This ensures governance evidence exists for
+   every enforcement attempt regardless of outcome (see CLAUDE.md
+   §Audit Artifact Guarantee)
 
 ### 6.2 Exception Hierarchy
 
@@ -446,6 +451,25 @@ Supported expressions:
 All expressions compile to a fixed set of AST node types (`_BoolLookup`,
 `_CompareExpr`, `_AndExpr`, `_OrExpr`, `_NotExpr`, `_InExpr`) and evaluate
 as pure functions over resolved conditions and invocation context.
+
+#### 7.4.1 Planned M2 Expression Extensions
+
+The following extensions are required for M2 risk scoring rules and will be
+added to the guard expression evaluator. They do not affect v0.2.0 behavior.
+
+- **Dotted attribute access**: `"context.domain == 'medical'"` — resolves
+  nested keys in invocation context via chained dict lookups. Adds a
+  `_DotAccessExpr` AST node type.
+- **List literals**: `"context.domain in ['medical', 'financial', 'legal']"` —
+  allows membership tests against inline lists. Adds a `_ListLiteralExpr`
+  AST node type.
+- **Negated membership**: `"role not in ['intern', 'guest']"` — syntactic
+  sugar for `not (role in [...])`. Reuses `_NotExpr` wrapping `_InExpr`.
+
+These extensions maintain the same guarantees: no Turing-completeness, no
+side effects, no function calls, deterministic evaluation. Implementation
+must include tests in `test_guards.py` covering each new node type and
+golden replay updates if guard evaluation behavior changes.
 
 ---
 
@@ -589,10 +613,12 @@ Audit artifact checksums         Runtime tool call counts
 
 These properties must hold for every enforcement:
 
-1. **No silent pass** — every enforcement produces an audit artifact or
-   raises an exception
-2. **No partial enforcement** — all gates run or none do; exceptions
-   short-circuit
+1. **No silent pass** — every enforcement attempt produces an audit artifact.
+   On PASS the artifact is returned. On FAIL an exception is raised *and*
+   the FAIL artifact is attached to the exception via `exc.audit_artifact`.
+   No enforcement path may complete without producing governance evidence.
+2. **No partial enforcement** — gates run in strict sequence; the first
+   failure short-circuits the pipeline and no subsequent gates execute
 3. **Policy immutability** — the loaded policy dict is never mutated during
    enforcement
 4. **Checksum determinism** — same input/output always produces the same

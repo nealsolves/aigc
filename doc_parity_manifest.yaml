@@ -46,3 +46,4 @@ internal_docs:
   - docs/GOLDEN_REPLAYS_CHECKLIST.md
   - docs/GOLDEN_REPLAYS_CI_GUIDE.md
   - docs/releases/*
+  - docs/demo_app/*

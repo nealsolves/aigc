@@ -1,8 +1,8 @@
 # AIGC Milestone 2 — Streamlit Demo App Design Specification
 
-**Version:** 1.2
-**Date:** 2026-03-07
-**Status:** Ready for Implementation (second-pass review revision)
+**Version:** 1.3
+**Date:** 2026-03-08
+**Status:** Ready for Implementation (guide rail UX addition)
 **Target AIGC Version:** 0.3.0 (builds on top of 0.2.0)
 
 ---
@@ -62,6 +62,7 @@ streamlit_app/                     # NEW: Demo application
 │   ├── aigc_runner.py             # AIGC enforcement helper
 │   ├── artifact_display.py        # Reusable artifact viewer
 │   ├── policy_editor.py           # YAML editor + validator
+│   ├── guide_rail.py              # Lab guide rail (contextual help panel)
 │   └── state.py                   # Session state management
 ├── labs/
 │   ├── __init__.py
@@ -148,9 +149,19 @@ risk_scoring:
       rule: "not context.human_review_required"
 ```
 
-**Rule expression language:** Risk signal rules use the **same AST-based expression evaluator** as guards (defined in `aigc/_internal/guards.py`). The canonical operator set is defined in `AIGC_HIGH_LEVEL_DESIGN.md` §7.4 and consists of: simple boolean lookup, `==`, `!=`, `<`, `>`, `<=`, `>=`, `and`, `or`, `not`, parenthesised grouping, and membership (`in`). The `contains` keyword is **not** supported — use `'substring' in field` (Python `in` operator) instead.
+**Rule expression language:** Risk signal rules use the **same AST-based expression evaluator** as guards
+(defined in `aigc/_internal/guards.py`). The canonical operator set is defined in `AIGC_HIGH_LEVEL_DESIGN.md`
+§7.4 and consists of: simple boolean lookup, `==`, `!=`, `<`, `>`, `<=`, `>=`, `and`, `or`, `not`,
+parenthesised grouping, and membership (`in`). The `contains` keyword is **not** supported — use
+`'substring' in field` (Python `in` operator) instead.
 
-**M2 expression extensions required:** The sample risk rules above use two constructs not yet documented in the v0.2.0 guard evaluator: **dotted attribute access** (`context.domain`) and **list literals** (`['medical', 'financial', 'legal']`). These must be added to the guard expression evaluator in M2 and documented in `AIGC_HIGH_LEVEL_DESIGN.md` §7.4 before risk scoring is implemented. Until then, sample rules should be treated as target syntax, not current capability. If M2 elects not to extend the evaluator, the sample rules must be rewritten using only the v0.2.0 operator set (e.g., `"domain == 'medical' or domain == 'financial' or domain == 'legal'"`).
+**M2 expression extensions required:** The sample risk rules above use two constructs not yet documented in
+the v0.2.0 guard evaluator: **dotted attribute access** (`context.domain`) and **list literals**
+(`['medical', 'financial', 'legal']`). These must be added to the guard expression evaluator in M2 and
+documented in `AIGC_HIGH_LEVEL_DESIGN.md` §7.4 before risk scoring is implemented. Until then, sample rules
+should be treated as target syntax, not current capability. If M2 elects not to extend the evaluator, the
+sample rules must be rewritten using only the v0.2.0 operator set
+(e.g., `"domain == 'medical' or domain == 'financial' or domain == 'legal'"`).
 
 **Enforcement modes:**
 
@@ -824,9 +835,15 @@ def instrument_enforcement(
     ...
 ```
 
-**Integration:** The Streamlit app does **not** run a full OTel collector, so Lab 7 does **not** exercise real OTel instrumentation at runtime. Instead, Lab 7's compliance dashboard shows a **simulated** trace-style view reconstructed from audit artifact metadata (gates_evaluated, timestamps, risk_score). This demonstrates the UX of how OTel data would appear, not the actual instrumentation pipeline.
+**Integration:** The Streamlit app does **not** run a full OTel collector, so Lab 7 does **not** exercise
+real OTel instrumentation at runtime. Instead, Lab 7's compliance dashboard shows a **simulated** trace-style
+view reconstructed from audit artifact metadata (gates_evaluated, timestamps, risk_score). This demonstrates
+the UX of how OTel data would appear, not the actual instrumentation pipeline.
 
-The real OTel SDK feature (`instrument_enforcement()`) is validated exclusively through unit tests with a `MockTracer` in `tests/test_otel.py`. Those tests verify span creation, attribute propagation, and no-op behavior when `opentelemetry` is not installed. This is the true coverage for feature 4.8 — Lab 7's trace view is a UX mockup only.
+The real OTel SDK feature (`instrument_enforcement()`) is validated exclusively through unit tests with a
+`MockTracer` in `tests/test_otel.py`. Those tests verify span creation, attribute propagation, and no-op
+behavior when `opentelemetry` is not installed. This is the true coverage for feature 4.8 — Lab 7's trace
+view is a UX mockup only.
 
 **Dependency handling:** Guard all OTel imports behind try/except. If `opentelemetry` is not installed, `instrument_enforcement()` is a no-op that logs a warning.
 
@@ -1213,12 +1230,185 @@ with st.sidebar:
             "API Key", type="password",
         )
 
-# Main content: render selected lab
+# Main content: render selected lab with optional guide rail
+from shared.guide_rail import render_lab_guide
+
 current = st.session_state.current_lab
 module_path = LABS[current][1]
-module = __import__(module_path, fromlist=["render"])
-module.render()
+module = __import__(module_path, fromlist=["render", "get_guide"])
+
+# Lab 7 uses full-width (no guide rail); all others get 75/25 split
+if current == "lab7" or not hasattr(module, "get_guide"):
+    module.render()
+else:
+    lab_col, guide_col = st.columns([3, 1])
+    with lab_col:
+        module.render()
+    with guide_col:
+        render_lab_guide(module.get_guide())
 ```
+
+### 5.7 Lab Guide Rail (`streamlit_app/shared/guide_rail.py`)
+
+**Wireframe references:** Wireframe 9 (Layout Integration), 10 (Linear Stepper), 11 (Workflow Cards), 12 (Iterative + Milestone), 13 (Cookbook)
+
+An in-app contextual guide panel that tells users what to do, how to do it, and what to expect in each lab. Rendered in a right-side column alongside the lab content using `st.columns([3, 1])` (75% lab, 25% guide rail).
+
+#### 5.7.1 Data Model
+
+```python
+"""Lab guide rail — contextual help system for each lab."""
+
+import streamlit as st
+from dataclasses import dataclass, field
+from typing import Callable
+
+@dataclass
+class GuideStep:
+    """A single step in a lab guide."""
+    title: str                              # e.g. "Choose a policy"
+    instruction: str                        # What to do
+    what_to_expect: str                     # What happens after this step
+    completion_key: str | None = None       # session_state key that marks completion
+    show_me: Callable | None = None         # Pre-fill callback for "Show Me" button
+
+@dataclass
+class GuideWorkflow:
+    """A named workflow containing ordered steps (for branching labs)."""
+    name: str                               # e.g. "Sign an Artifact"
+    description: str                        # 1-line summary
+    steps: list[GuideStep] = field(default_factory=list)
+
+@dataclass
+class GuideRecipe:
+    """A code recipe for cookbook-mode labs."""
+    name: str                               # e.g. "PII Detection Gate"
+    description: str                        # What this recipe demonstrates
+    code: str                               # Pre-written code to load
+    what_it_demonstrates: str               # SDK concepts covered
+
+@dataclass
+class LabGuide:
+    """Complete guide configuration for one lab."""
+    lab_id: str                             # e.g. "lab1"
+    title: str                              # e.g. "Risk Scoring Engine"
+    overview: str                           # 1-line purpose summary
+    mode: str                               # "linear" | "workflows" | "iterative" | "cookbook"
+    steps: list[GuideStep] | None = None            # For "linear" mode
+    workflows: list[GuideWorkflow] | None = None    # For "workflows" mode
+    recipes: list[GuideRecipe] | None = None        # For "cookbook" mode
+    iteration_target: int | None = None             # For "iterative" mode milestone
+    glossary: dict[str, str] | None = None          # Term -> definition
+```
+
+#### 5.7.2 Display Modes
+
+Each lab's guide rail renders in one of four modes, selected by the `mode` field:
+
+**Linear Stepper** (`mode="linear"`) — Labs 1, 4:
+Vertical numbered steps with completion dots (green = done, blue = active, grey = upcoming). Each step shows
+title, instruction, and "what to expect." A "Show Me" button on the active step pre-fills the lab form with
+known-good values. Steps unlock sequentially based on `completion_key` presence in `st.session_state`.
+
+**Workflow Cards** (`mode="workflows"`) — Labs 2, 5:
+User selects from a list of workflow cards (e.g., "Sign an Artifact", "Tamper Detection", "Key Rotation"). Selecting a card expands its steps as a linear sub-stepper. Each workflow is independent — no cross-workflow ordering. Lab 5 variant: workflows map to the loader tabs (YAML, JSON, env-var, programmatic).
+
+**Iterative + Milestone** (`mode="iterative"`) — Lab 3:
+A repeating 3-step cycle (configure → enforce → inspect) with a milestone progress bar (e.g., "2 / 5 linked artifacts"). A chain history section shows completed links. The `previous_artifact_id` is auto-linked from the last chain entry. Milestone target is configurable via `iteration_target`.
+
+**Cookbook** (`mode="cookbook"`) — Lab 6:
+A list of named recipes, each with a description, pre-written code, and a "Load" button. Loading a recipe
+pre-fills the lab's code editor. No ordering constraint — user can explore recipes in any sequence. A "What
+it demonstrates" section ties each recipe back to SDK concepts (CustomGate.evaluate(), short-circuit
+semantics, etc.).
+
+#### 5.7.3 Shared Renderer
+
+```python
+def render_lab_guide(guide: LabGuide) -> None:
+    """Render the guide rail for a lab.
+
+    Call this inside the right column of st.columns([3, 1]).
+    Dispatches to the appropriate renderer based on guide.mode.
+
+    Layout:
+      - Toggle button: "Hide Guide" / "Show Guide"
+      - Overview: 1-line lab purpose
+      - Mode-specific content (stepper / cards / milestone / recipes)
+      - "Show Me" or "Load" buttons (with confirmation if user has input)
+      - Glossary expander (if guide.glossary is non-empty)
+    """
+    # Toggle visibility
+    visible_key = f"guide_visible_{guide.lab_id}"
+    if visible_key not in st.session_state:
+        st.session_state[visible_key] = True
+
+    if st.button(
+        "Hide Guide" if st.session_state[visible_key] else "Show Guide",
+        key=f"guide_toggle_{guide.lab_id}",
+    ):
+        st.session_state[visible_key] = not st.session_state[visible_key]
+
+    if not st.session_state[visible_key]:
+        return
+
+    st.caption(guide.overview)
+
+    if guide.mode == "linear":
+        _render_linear(guide)
+    elif guide.mode == "workflows":
+        _render_workflows(guide)
+    elif guide.mode == "iterative":
+        _render_iterative(guide)
+    elif guide.mode == "cookbook":
+        _render_cookbook(guide)
+
+    if guide.glossary:
+        with st.expander("Glossary"):
+            for term, definition in guide.glossary.items():
+                st.markdown(f"**{term}:** {definition}")
+```
+
+#### 5.7.4 Post-Action Inline Annotations
+
+After a user completes a step, the lab content area shows a brief contextual hint using `st.caption()`. These hints clear on the next Streamlit rerun. They are not part of the guide rail column — they appear inline in the lab content to provide immediate feedback tied to the user's action.
+
+Example: after a user adjusts a risk signal weight, the lab shows: *"Hint: Each signal's weight affects the final composite score. Try setting 'domain' to 0.8."*
+
+#### 5.7.5 "Show Me" Confirmation
+
+When a user clicks "Show Me" (linear/workflow modes) or "Load" (cookbook mode) and the lab form already has user-provided input, a confirmation dialog appears:
+
+```
+Pre-fill with sample values? You have unsaved input.
+[Yes, pre-fill]  [Keep mine]
+```
+
+This prevents accidental data loss. If the form is empty, "Show Me" pre-fills immediately.
+
+#### 5.7.6 Edge Cases
+
+**State persistence:** Guide rail state (which step is active, which workflow is selected, milestone progress) persists in `st.session_state` keyed by `guide_{lab_id}_*`. Switching labs preserves each lab's guide rail state.
+
+**Narrow screens:** If viewport width < 768px, the guide rail auto-collapses and shows only the toggle button. On expand, it renders below the lab content (full-width) instead of beside it.
+
+**First-time vs returning:** On first visit to a lab (no `completion_key` values set), the guide rail starts expanded. On return visits where at least one step is complete, it starts collapsed with a "Resume from step N" indicator.
+
+**Cross-lab dependencies:** Lab 3 depends on Lab 2 output (signing). If the user enters Lab 3 without having completed signing setup, the guide rail shows a callout: *"This lab uses signed artifacts from Lab 2. Set up signing first."* with a link to Lab 2.
+
+**Lab 7 (Compliance Dashboard):** No guide rail. Lab 7 is read-only and self-explanatory. The 25% column is not allocated; Lab 7 uses full-width layout.
+
+#### 5.7.7 Lab-to-Mode Mapping
+
+| Lab | Mode | Reason |
+|-----|------|--------|
+| Lab 1 — Risk Scoring | `linear` | Fixed step sequence: pick policy → configure signals → enforce → inspect |
+| Lab 2 — Signing | `workflows` | Three independent workflows: sign, tamper-detect, key-rotate |
+| Lab 3 — Audit Chain | `iterative` | Repeating cycle building a linked chain to milestone |
+| Lab 4 — Policy Composition | `linear` | Fixed sequence: load parent → load child → compose → enforce |
+| Lab 5 — Loaders | `workflows` | Each loader tab is an independent workflow |
+| Lab 6 — Custom Gates | `cookbook` | User explores recipe code, no ordering required |
+| Lab 7 — Compliance | *(none)* | Dashboard — full-width, no guide rail |
 
 ---
 
@@ -1387,7 +1577,10 @@ def render():
 
 Only `GateResult`, `GatePosition`, and `EnforcementGate` are injected into the execution namespace. The AST validation function is `validate_gate_ast()` in `streamlit_app/shared/gate_sandbox.py`.
 
-**Limitation acknowledged:** Even with AST filtering, Python sandboxing is not fully secure against determined attackers (e.g., attribute introspection chains). The app displays a prominent warning banner: "Custom gate code runs in a restricted sandbox. Do not paste untrusted code." This is a demo environment — production custom gates should use a process-level sandbox or WASM runtime.
+**Limitation acknowledged:** Even with AST filtering, Python sandboxing is not fully secure against
+determined attackers (e.g., attribute introspection chains). The app displays a prominent warning banner:
+"Custom gate code runs in a restricted sandbox. Do not paste untrusted code." This is a demo environment —
+production custom gates should use a process-level sandbox or WASM runtime.
 
 The `validate_gate_ast()` function itself must have its own test file (`tests/test_gate_sandbox.py`) covering bypass attempts: import smuggling, dunder traversal, `type()` tricks, and `getattr()` indirection.
 
@@ -1667,7 +1860,10 @@ These rules from CLAUDE.md apply throughout implementation:
 1. **All governance routes through `enforce_invocation()`** — no bypass paths
 2. **Fail closed on any violation** — never silently allow
 3. **Deterministic** — same inputs → same audit checksums
-4. **Every enforcement attempt produces an audit artifact** — on PASS the artifact is returned; on FAIL or exception the artifact is generated before the exception propagates and is attached via `exc.audit_artifact` (per CLAUDE.md §Audit Artifact Guarantee and `AIGC_HIGH_LEVEL_DESIGN.md` §6.1 item 7, §11.3 invariant 1)
+4. **Every enforcement attempt produces an audit artifact** — on PASS the artifact is returned; on FAIL or
+   exception the artifact is generated before the exception propagates and is attached via
+   `exc.audit_artifact` (per CLAUDE.md §Audit Artifact Guarantee and `AIGC_HIGH_LEVEL_DESIGN.md` §6.1
+   item 7, §11.3 invariant 1)
 5. **Public API boundary** — only `aigc.*` exports are public; `aigc._internal.*` is private
 6. **Policy-driven** — no hardcoded governance rules in business logic
 7. **Golden replay contract** — behavior changes require replay + ADR updates
@@ -1688,3 +1884,9 @@ These Excalidraw checkpoints correspond to each wireframe created during design:
 | 5. Signing & Verification | Lab 2 | `62ffa016cd2349ad97` |
 | 6. Custom Enforcement Gates | Lab 6 | `e4e7feae43d74553be` |
 | 7. Compliance Dashboard | Lab 7 | `e8b232264825461daa` |
+| 8. Policy Loaders & Versioning | Lab 5 | `32fd586c95fc42d1ac` |
+| 9. Guide Rail — Layout Integration | All | `94da3161e9bf46a29b` |
+| 10. Guide Rail — Linear Stepper Mode | Labs 1, 4 | `7d5bdf227a874326a9` |
+| 11. Guide Rail — Workflow Cards Mode | Labs 2, 5 | `1e9f5418573d4b4c93` |
+| 12. Guide Rail — Iterative + Milestone Mode | Lab 3 | `8dbfbdc702614ca884` |
+| 13. Guide Rail — Cookbook Mode | Lab 6 | `d4873b40a40a401db1` |

@@ -119,7 +119,7 @@ set_audit_sink(JsonFileAuditSink("audit/governance.jsonl"))
 ```
 
 Every enforcement call — PASS and FAIL — automatically emits a JSON line to this file.
-Sink failures log a `WARNING` and never block enforcement.
+Sink failure behavior is configurable: `"log"` mode (default) logs a `WARNING` and allows enforcement to complete; `"raise"` mode propagates sink errors as `AuditSinkError`. Sinks receive a deep copy of the artifact and cannot mutate the caller's copy.
 
 ### 2.3 Governed async call site
 
@@ -220,7 +220,7 @@ class SQLiteAuditSink(AuditSink):
 set_audit_sink(SQLiteAuditSink(db_connection))
 ```
 
-Any exception raised by `emit()` is caught and logged as a `WARNING`; enforcement continues.
+In `"log"` mode (default), any exception raised by `emit()` is caught and logged as a `WARNING`; enforcement continues. In `"raise"` mode, sink errors propagate as `AuditSinkError`. Sinks receive a deep copy; they cannot mutate the returned artifact.
 
 ### 3.2 Policy composition via `extends`
 

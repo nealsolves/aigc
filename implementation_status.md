@@ -437,6 +437,33 @@ Tasks:
 
 ---
 
+## Milestone 2 Audit Remediation (2026-03-08)
+
+| Finding | Severity | Status | Validation | Tests | Docs | Notes |
+|---------|----------|--------|-----------|-------|------|-------|
+| M2-CR-02 Sink isolation | Critical | Verified | Per-call sink injection, no global mutation | 5 new tests | Updated | Architecture fix: `AIGC.enforce()` passes sink/mode to `emit_to_sink()` directly |
+| M2-CR-03 Artifact immutability | Critical | Verified | `copy.deepcopy()` before sink handoff | 3 new tests | Updated | `emit_to_sink()` deep-copies artifact before calling `sink.emit()` |
+| M2-CR-04 Pre-pipeline FAIL artifacts | Critical | Verified | `_generate_pre_pipeline_fail_artifact()` wraps all pre-pipeline errors | 3 new tests | Updated | Both `enforce_invocation()` and `AIGC.enforce()` covered |
+| M2-CR-05 Schema-valid failure gate | High | Verified | `AuditSinkError` -> `"sink_emission"` gate; default fallback -> `"invocation_validation"` | 1 new test | Schema updated | `schemas/audit_artifact.schema.json` enum extended |
+| M2-CR-06 PolicyCache wiring | High | Verified | `AIGC.__init__()` creates per-instance `PolicyCache` | 2 new tests | Updated | `enforce()` and `enforce_async()` route through cache |
+| M2-CR-07 Redaction patterns wiring | High | Verified | `_run_pipeline()` accepts `redaction_patterns` param | Existing tests | Updated | Instance patterns threaded through sanitization calls |
+| M2-CR-10 Queue mode cleanup | Medium | Verified | `AIGC` only accepts `"raise"` or `"log"` | Existing tests | Updated | Global API unchanged for backward compat |
+| M2-CR-11 ADR-0007 status | Low | Verified | Status changed to Accepted | N/A | Updated | Implementation was already complete |
+| M2-CR-01 M2 features | Critical | Deferred | v0.3.0 aspirational scope; current release is v0.2.0 | N/A | Documented | Not release-blocking — see remediation plan |
+| M2-CR-08 v0.3 CI gates | High | Deferred | Depends on CR-01 | N/A | Documented | Not applicable until v0.3.0 features exist |
+| M2-CR-09 Doc drift | Medium | In Progress | Partial doc updates applied | N/A | In progress | CLAUDE.md, sink docs need reconciliation |
+
+### Post-Remediation Metrics
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Tests | 311 | 322 |
+| Coverage | 94.38% | 93.58% |
+| Flake8 | PASS | PASS |
+| Schema validation | PASS | PASS |
+
+---
+
 ## Risk Register
 
 | Risk | Mitigation | Status |

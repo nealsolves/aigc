@@ -138,3 +138,14 @@ class AuditSinkError(AIGCError):
             code="AUDIT_SINK_ERROR",
             details=details,
         )
+
+
+class RiskThresholdError(AIGCError):
+    """Raised when risk score exceeds threshold in strict mode."""
+
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(
+            message,
+            code="RISK_THRESHOLD_EXCEEDED",
+            details=details,
+        )

@@ -318,10 +318,21 @@ enforce_invocation(invocation)
 │       ├─ Check key is satisfiable from invocation state
 │       └─ Raise GovernanceViolationError if unsatisfied
 │
-├─ 8. GENERATE AUDIT ARTIFACT
+├─ 8. COMPUTE RISK SCORE                       [M2 — implemented]
+│     If policy declares risk config, compute_risk_score() is called.
+│     ├─ Evaluate risk factors (no_output_schema, broad_roles, etc.)
+│     ├─ In strict mode: raise RiskThresholdError if threshold exceeded
+│     └─ In risk_scored/warn_only: attach score to audit artifact
+│
+├─ 9. RUN CUSTOM GATES (post_output)            [M2 — implemented]
+│     If custom gates registered at post_output insertion point,
+│     run_gates() evaluates them after all core gates.
+│
+├─ 10. GENERATE AUDIT ARTIFACT
 │     Collect all enforcement decisions into structured record
 │     ├─ Compute input/output checksums (SHA-256, canonical JSON)
 │     ├─ Record all gate results + gates_evaluated ordering proof
+│     ├─ Include risk_score if computed
 │     ├─ Stamp timestamp
 │     └─ Return audit artifact
 │
@@ -362,6 +373,7 @@ AIGCError (base)
 ├── ConditionResolutionError       — condition resolution failure
 ├── GuardEvaluationError           — guard expression evaluation failure
 ├── AuditSinkError                 — audit sink emission failure (raise mode)
+├── RiskThresholdError             — risk score exceeds threshold (strict mode) [M2]
 └── GovernanceViolationError       — role unauthorized, tool cap exceeded,
     │                                postcondition unsatisfied, or any
     │                                other policy-level violation
@@ -455,7 +467,7 @@ as pure functions over resolved conditions and invocation context.
 #### 7.4.1 Planned M2 Expression Extensions
 
 The following extensions are required for M2 risk scoring rules and will be
-added to the guard expression evaluator. They do not affect v0.2.0 behavior.
+added to the guard expression evaluator. They do not affect v0.3.0 behavior.
 
 - **Dotted attribute access**: `"context.domain == 'medical'"` — resolves
   nested keys in invocation context via chained dict lookups. Adds a

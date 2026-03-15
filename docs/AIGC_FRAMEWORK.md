@@ -89,6 +89,8 @@ Context. Session, tenant, and correlation identifiers for downstream tracing.
 
 Checksums are computed from canonical JSON (deterministic key ordering, no whitespace variance, UTF-8 encoding). Any party can independently recompute the checksums and verify integrity. If any field in the artifact is altered after generation, the checksums will not match. The record is self-verifying.
 
+In v0.3.0 (Milestone 2), artifacts can be cryptographically signed via HMAC-SHA256 and hash-chained into a tamper-evident audit chain for sequential integrity verification.
+
 **Both PASS and FAIL produce artifacts.**
 
 This is a critical design decision. Failed enforcement attempts are as important to audit as successful ones. An unauthorized role attempting to invoke a restricted AI capability is exactly the kind of event regulators and security teams need to trace. AIGC records it before propagating the exception.

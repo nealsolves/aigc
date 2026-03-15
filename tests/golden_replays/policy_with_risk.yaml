@@ -1,0 +1,20 @@
+policy_version: "1.0"
+roles:
+  - planner
+  - reviewer
+risk:
+  mode: strict
+  threshold: 0.5
+  factors:
+    - name: no_output_schema
+      weight: 0.3
+      condition: no_output_schema
+    - name: broad_roles
+      weight: 0.2
+      condition: broad_roles
+    - name: missing_guards
+      weight: 0.3
+      condition: missing_guards
+    - name: external_model
+      weight: 0.2
+      condition: external_model

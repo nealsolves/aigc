@@ -1,7 +1,7 @@
 # ADR-0007: Pre-Action Enforcement Boundary Proof
 
 Date: 2026-03-05
-Status: Proposed
+Status: Accepted
 Owners: Neal
 
 ---

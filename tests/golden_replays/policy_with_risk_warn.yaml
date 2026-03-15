@@ -1,0 +1,13 @@
+policy_version: "1.0"
+roles:
+  - planner
+risk:
+  mode: warn_only
+  threshold: 0.3
+  factors:
+    - name: no_output_schema
+      weight: 0.4
+      condition: no_output_schema
+    - name: missing_guards
+      weight: 0.4
+      condition: missing_guards

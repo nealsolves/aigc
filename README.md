@@ -14,7 +14,7 @@ Governance is not documentation. It is runtime enforcement.
 
 **SDK Implementation:** Reference implementation of constitutional governance for AI-assisted systems.
 
-**Status:** v0.2.0 — 304 tests, 94% coverage, strict mode, typed preconditions, AST-based guard expressions, Policy CLI, InvocationBuilder, audit schema v1.2.
+**Status:** v0.3.0 — 464 tests, 93% coverage. M2 features: risk scoring, artifact signing (HMAC-SHA256), tamper-evident audit chain, composition semantics, pluggable PolicyLoader, policy dates, OTel integration, policy testing framework, compliance export CLI, custom gate plugins. Audit schema v1.2.
 
 ---
 
@@ -150,6 +150,31 @@ audit = engine.enforce(invocation)
   async def plan_investigation(input_data: dict, context: dict) -> dict:
       return await llm.generate(input_data)
   ```
+
+### Milestone 2 (Governance Hardening)
+
+- **Risk scoring engine** — factor-based risk computation with
+  `strict`, `risk_scored`, and `warn_only` modes; `RiskThresholdError`
+  raised in strict mode when threshold exceeded
+- **Artifact signing** — HMAC-SHA256 signing via pluggable
+  `ArtifactSigner` interface; constant-time signature verification
+- **Tamper-evident audit chain** — hash-chained artifacts with
+  `chain_id`, `chain_index`, `previous_audit_checksum` fields
+- **Composition restriction semantics** — `intersect`, `union`, and
+  `replace` strategies for policy inheritance via `composition_strategy`
+- **Pluggable PolicyLoader** — `PolicyLoaderBase` ABC for custom policy
+  sources (database, API, vault); `FilePolicyLoader` default
+- **Policy version dates** — `effective_date` / `expiration_date`
+  enforcement with injectable clock for testing
+- **OpenTelemetry integration** — optional spans and gate events; no-op
+  when OTel is not installed; governance unaffected by telemetry
+- **Policy testing framework** — `PolicyTestCase`, `PolicyTestSuite`,
+  `expect_pass()`, `expect_fail()` for policy validation
+- **Compliance export CLI** — `aigc compliance export` generates JSON
+  compliance reports from JSONL audit trails
+- **Custom EnforcementGate plugins** — `EnforcementGate` ABC with four
+  insertion points (`pre_authorization`, `post_authorization`,
+  `pre_output`, `post_output`) for host-specific gates
 
 ## Audit Artifact Contract
 

@@ -9,6 +9,7 @@ from aigc._internal.errors import (
     PolicyLoadError,
     PolicyValidationError,
     PreconditionError,
+    RiskThresholdError,
     SchemaValidationError,
     ToolConstraintViolationError,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "PolicyLoadError",
     "PolicyValidationError",
     "PreconditionError",
+    "RiskThresholdError",
     "SchemaValidationError",
     "ToolConstraintViolationError",
 ]

@@ -16,6 +16,7 @@ from aigc.errors import (
     PolicyLoadError,
     PolicyValidationError,
     PreconditionError,
+    RiskThresholdError,
     SchemaValidationError,
     ToolConstraintViolationError,
 )
@@ -31,30 +32,42 @@ from aigc.sinks import (
 )
 from aigc.builder import InvocationBuilder
 from aigc.decorators import governed
+from aigc.signing import ArtifactSigner, HMACSigner
+from aigc.gates import EnforcementGate, GateResult
+from aigc.audit_chain import AuditChain
+from aigc.policy_loader import PolicyLoaderBase, FilePolicyLoader
 
 # Register NullHandler so library users don't see "No handlers found" warnings.
 # Host applications configure log levels and handlers on their own loggers.
 logging.getLogger("aigc").addHandler(logging.NullHandler())
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "AIGC",
     "AIGCError",
+    "ArtifactSigner",
+    "AuditChain",
     "AuditSink",
     "AuditSinkError",
     "CallbackAuditSink",
     "ConditionResolutionError",
+    "EnforcementGate",
     "FeatureNotImplementedError",
+    "FilePolicyLoader",
+    "GateResult",
     "GovernanceViolationError",
     "GuardEvaluationError",
+    "HMACSigner",
     "InvocationBuilder",
     "InvocationValidationError",
     "JsonFileAuditSink",
     "PolicyLoadError",
+    "PolicyLoaderBase",
     "PolicyValidationError",
     "PreconditionError",
     "RetryExhaustedError",
+    "RiskThresholdError",
     "SchemaValidationError",
     "ToolConstraintViolationError",
     "enforce_invocation",

@@ -5,6 +5,8 @@ ignores:
   - "aigc-env/**"
   - "node_modules/**"
   - ".git/**"
+  - ".claude/**"
+  - "demo-app/**"
   - "docs/research/**"
 
 # Rule configuration

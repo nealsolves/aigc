@@ -69,12 +69,12 @@ This is **not** a deferral of committed scope — it is a correction of the audi
 
 ### In Progress
 
-9. CR-09 — Documentation drift (Medium) — doc updates in progress
+1. CR-09 — Documentation drift (Medium) — doc updates in progress
 
 ### Deferred (Not Release-Blocking)
 
-10. CR-01 — v0.3.0 feature set — future milestone work
-11. CR-08 — v0.3.0 CI gates — depends on CR-01
+1. CR-01 — v0.3.0 feature set — future milestone work
+2. CR-08 — v0.3.0 CI gates — depends on CR-01
 
 ---
 

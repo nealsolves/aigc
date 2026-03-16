@@ -550,14 +550,45 @@ class PolicyCache:
             return len(self._cache)
 
     def get_or_load(
-        self, policy_file: str, visited: set[Path] | None = None
+        self,
+        policy_file: str,
+        visited: set[Path] | None = None,
+        *,
+        loader: PolicyLoaderBase | None = None,
     ) -> dict[str, Any]:
-        """Load policy from cache or disk.
+        """Load policy from cache or the supplied loader.
 
-        :param policy_file: Path to YAML policy file
+        :param policy_file: Path or reference to policy
         :param visited: For cycle detection during extends resolution
+        :param loader: Optional custom policy loader (bypasses filesystem)
         :return: Loaded policy dict
         """
+        if loader is not None and not isinstance(loader, FilePolicyLoader):
+            # Custom loaders: use policy_file as opaque key (no filesystem
+            # resolution).  Mtime is not meaningful for non-file sources so
+            # we use a sentinel; callers who need cache-busting should call
+            # cache.clear().
+            key = (policy_file, 0.0)
+
+            with self._lock:
+                if key in self._cache:
+                    logger.debug("Policy cache hit (custom loader): %s",
+                                 policy_file)
+                    if key in self._access_order:
+                        self._access_order.remove(key)
+                    self._access_order.append(key)
+                    return self._cache[key]
+
+            policy = load_policy(policy_file, visited, loader=loader)
+
+            with self._lock:
+                if len(self._cache) >= self._max_size:
+                    self._evict_oldest()
+                self._cache[key] = policy
+                self._access_order.append(key)
+            return policy
+
+        # Default filesystem path
         canonical = str(_resolve_policy_path(policy_file))
         mtime = os.path.getmtime(canonical)
         key = (canonical, mtime)
@@ -572,7 +603,7 @@ class PolicyCache:
                 return self._cache[key]
 
         # Load outside lock to avoid blocking other threads
-        policy = load_policy(policy_file, visited)
+        policy = load_policy(policy_file, visited, loader=loader)
 
         with self._lock:
             if len(self._cache) >= self._max_size:

@@ -65,6 +65,7 @@ from aigc._internal.errors import (
     AIGCError,
     AuditSinkError,
     ConditionResolutionError,
+    CustomGateViolationError,
     FeatureNotImplementedError,
     GovernanceViolationError,
     GuardEvaluationError,
@@ -149,6 +150,7 @@ def _map_exception_to_failure_gate(exc: Exception) -> str:
     All returned values must be members of the failure_gate enum in
     schemas/audit_artifact.schema.json.
     """
+    # Check subclasses before parent classes to ensure correct mapping.
     if isinstance(exc, FeatureNotImplementedError):
         return "feature_not_implemented"
     if isinstance(exc, InvocationValidationError):
@@ -169,6 +171,8 @@ def _map_exception_to_failure_gate(exc: Exception) -> str:
         return "precondition_validation"
     if isinstance(exc, SchemaValidationError):
         return "schema_validation"
+    if isinstance(exc, CustomGateViolationError):
+        return "custom_gate_violation"
     if isinstance(exc, GovernanceViolationError):
         if "role" in str(exc).lower():
             return "role_validation"
@@ -232,19 +236,40 @@ def _run_pipeline(
         },
     ) as span:
         try:
-            # ── Pre-authorization custom gates ──────────────
-            pre_auth_gates = grouped_gates.get(INSERTION_PRE_AUTHORIZATION, [])
-            if pre_auth_gates:
-                custom_failures, custom_meta = run_gates(
-                    pre_auth_gates, invocation, policy, {},
+            # Accumulated custom gate metadata (merged deterministically
+            # into the audit artifact under "custom_gate_metadata").
+            all_custom_metadata: dict[str, Any] = {}
+
+            def _run_custom_gates_at(
+                insertion_point: str,
+                policy_view: dict[str, Any],
+            ) -> None:
+                """Run custom gates at the given insertion point.
+
+                Raises CustomGateViolationError on failure so the failure
+                mapper can classify it correctly.
+                """
+                gates_at = grouped_gates.get(insertion_point, [])
+                if not gates_at:
+                    return
+                failures, meta = run_gates(
+                    gates_at, invocation, policy_view, {},
                     gates_evaluated, [],
                 )
-                if custom_failures:
-                    raise GovernanceViolationError(
-                        f"Custom pre-authorization gate failed: "
-                        f"{custom_failures[0].get('message', 'unknown')}",
-                        details={"custom_gate_failures": custom_failures},
+                if meta:
+                    all_custom_metadata.update(meta)
+                if failures:
+                    raise CustomGateViolationError(
+                        f"Custom gate failed at {insertion_point}: "
+                        f"{failures[0].get('message', 'unknown')}",
+                        details={
+                            "custom_gate_failures": failures,
+                            "insertion_point": insertion_point,
+                        },
                     )
+
+            # ── Pre-authorization custom gates ──────────────
+            _run_custom_gates_at(INSERTION_PRE_AUTHORIZATION, policy)
 
             effective_policy = policy
             guards_evaluated = []
@@ -281,34 +306,12 @@ def _run_pipeline(
             logger.debug("Tool constraints validated")
 
             # ── Post-authorization custom gates ─────────────
-            post_auth_gates = grouped_gates.get(
-                INSERTION_POST_AUTHORIZATION, []
+            _run_custom_gates_at(
+                INSERTION_POST_AUTHORIZATION, effective_policy,
             )
-            if post_auth_gates:
-                custom_failures, custom_meta = run_gates(
-                    post_auth_gates, invocation, effective_policy, {},
-                    gates_evaluated, [],
-                )
-                if custom_failures:
-                    raise GovernanceViolationError(
-                        f"Custom post-authorization gate failed: "
-                        f"{custom_failures[0].get('message', 'unknown')}",
-                        details={"custom_gate_failures": custom_failures},
-                    )
 
             # ── Pre-output custom gates ─────────────────────
-            pre_output_gates = grouped_gates.get(INSERTION_PRE_OUTPUT, [])
-            if pre_output_gates:
-                custom_failures, custom_meta = run_gates(
-                    pre_output_gates, invocation, effective_policy, {},
-                    gates_evaluated, [],
-                )
-                if custom_failures:
-                    raise GovernanceViolationError(
-                        f"Custom pre-output gate failed: "
-                        f"{custom_failures[0].get('message', 'unknown')}",
-                        details={"custom_gate_failures": custom_failures},
-                    )
+            _run_custom_gates_at(INSERTION_PRE_OUTPUT, effective_policy)
 
             schema_validation = "skipped"
             schema_valid = False
@@ -333,18 +336,7 @@ def _run_pipeline(
             )
 
             # ── Post-output custom gates ────────────────────
-            post_output_gates = grouped_gates.get(INSERTION_POST_OUTPUT, [])
-            if post_output_gates:
-                custom_failures, custom_meta = run_gates(
-                    post_output_gates, invocation, effective_policy, {},
-                    gates_evaluated, [],
-                )
-                if custom_failures:
-                    raise GovernanceViolationError(
-                        f"Custom post-output gate failed: "
-                        f"{custom_failures[0].get('message', 'unknown')}",
-                        details={"custom_gate_failures": custom_failures},
-                    )
+            _run_custom_gates_at(INSERTION_POST_OUTPUT, effective_policy)
 
             # ── Risk scoring ────────────────────────────────
             risk_result: RiskScore | None = None
@@ -385,6 +377,11 @@ def _run_pipeline(
                 "tool_constraints": tool_validation_result,
                 "gates_evaluated": list(gates_evaluated),
             }
+
+            if all_custom_metadata:
+                metadata["custom_gate_metadata"] = dict(
+                    sorted(all_custom_metadata.items())
+                )
 
             if risk_result is not None:
                 metadata["risk_scoring"] = risk_result.to_dict()
@@ -777,7 +774,8 @@ class AIGC:
         try:
             _validate_invocation(invocation)
             policy = self._policy_cache.get_or_load(
-                invocation["policy_file"]
+                invocation["policy_file"],
+                loader=self._policy_loader,
             )
             _validate_policy_strict(policy, self._strict_mode)
         except AIGCError as exc:
@@ -831,7 +829,10 @@ class AIGC:
         try:
             _validate_invocation(invocation)
             policy = await asyncio.to_thread(
-                self._policy_cache.get_or_load, invocation["policy_file"]
+                self._policy_cache.get_or_load,
+                invocation["policy_file"],
+                None,
+                loader=self._policy_loader,
             )
             _validate_policy_strict(policy, self._strict_mode)
         except AIGCError as exc:

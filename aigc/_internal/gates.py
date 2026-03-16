@@ -16,9 +16,76 @@ from __future__ import annotations
 
 import abc
 import logging
-from typing import Any, Mapping
+from typing import Any, Iterator, Mapping
 
 logger = logging.getLogger("aigc.gates")
+
+
+class _ImmutableView(Mapping[str, Any]):
+    """Read-only view of a dict that raises on mutation attempts.
+
+    Recursively wraps nested dicts as _ImmutableView and nested lists as
+    tuples so that custom gates cannot mutate policy or invocation data.
+    """
+
+    __slots__ = ("_data",)
+
+    def __init__(self, data: Mapping[str, Any]) -> None:
+        self._data = data
+
+    def __getitem__(self, key: str) -> Any:
+        value = self._data[key]
+        if isinstance(value, dict):
+            return _ImmutableView(value)
+        if isinstance(value, list):
+            return tuple(
+                _ImmutableView(v) if isinstance(v, dict) else v
+                for v in value
+            )
+        return value
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._data
+
+    def __repr__(self) -> str:
+        return f"_ImmutableView({self._data!r})"
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        raise TypeError(
+            "Custom gates receive read-only views; "
+            "mutation of policy/invocation is not permitted"
+        )
+
+    def __delitem__(self, key: str) -> None:
+        raise TypeError(
+            "Custom gates receive read-only views; "
+            "deletion from policy/invocation is not permitted"
+        )
+
+    def pop(self, *args: Any) -> Any:
+        raise TypeError(
+            "Custom gates receive read-only views; "
+            "mutation of policy/invocation is not permitted"
+        )
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        raise TypeError(
+            "Custom gates receive read-only views; "
+            "mutation of policy/invocation is not permitted"
+        )
+
+    def clear(self) -> None:
+        raise TypeError(
+            "Custom gates receive read-only views; "
+            "mutation of policy/invocation is not permitted"
+        )
+
 
 # Supported insertion points for custom gates
 INSERTION_PRE_AUTHORIZATION = "pre_authorization"
@@ -169,10 +236,38 @@ def run_gates(
     accumulated_failures = list(prior_failures)
     merged_metadata: dict[str, Any] = {}
 
+    # Wrap invocation and policy in immutable views so custom gates
+    # cannot mutate authorization-relevant data (stop-ship gate).
+    immutable_invocation = _ImmutableView(invocation)
+    immutable_policy = _ImmutableView(policy)
+
     for gate in gates:
         gate_id = f"custom:{gate.name}"
         try:
-            result = gate.evaluate(invocation, policy, pipeline_context)
+            result = gate.evaluate(
+                immutable_invocation, immutable_policy, pipeline_context,
+            )
+        except TypeError as exc:
+            if "read-only" in str(exc):
+                # Gate tried to mutate — convert to failure
+                logger.error(
+                    "Custom gate '%s' attempted mutation: %s",
+                    gate.name,
+                    exc,
+                )
+                result = GateResult(
+                    passed=False,
+                    failures=[{
+                        "code": "CUSTOM_GATE_MUTATION",
+                        "message": (
+                            f"Gate '{gate.name}' attempted to mutate "
+                            f"read-only data: {exc}"
+                        ),
+                        "field": None,
+                    }],
+                )
+            else:
+                raise
         except Exception as exc:  # noqa: BLE001
             logger.error("Custom gate '%s' raised: %s", gate.name, exc)
             result = GateResult(

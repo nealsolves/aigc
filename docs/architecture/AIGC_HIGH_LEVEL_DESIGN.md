@@ -381,6 +381,7 @@ AIGCError (base)
     ├── PolicyLoadError            — policy loading/parsing failure
     ├── PolicyValidationError      — policy schema validation failure
     ├── ToolConstraintViolationError — tool constraint violation
+    ├── CustomGateViolationError   — custom gate failure (failure_gate: custom_gate_violation)
     └── FeatureNotImplementedError — schema-declared feature not implemented
 ```
 

@@ -15,7 +15,7 @@ from aigc._internal.gates import (
     VALID_INSERTION_POINTS,
 )
 from aigc._internal.enforcement import AIGC, enforce_invocation, GATE_GUARDS
-from aigc._internal.errors import GovernanceViolationError
+from aigc._internal.errors import CustomGateViolationError, GovernanceViolationError
 
 
 # ── Test gate implementations ────────────────────────────────────
@@ -214,8 +214,12 @@ def test_aigc_with_passing_custom_gate():
 
 def test_aigc_with_failing_custom_gate():
     aigc = AIGC(custom_gates=[FailingGate()])
-    with pytest.raises(GovernanceViolationError):
+    with pytest.raises(CustomGateViolationError) as exc_info:
         aigc.enforce(VALID_INVOCATION)
+    # CustomGateViolationError is a subclass of GovernanceViolationError
+    assert isinstance(exc_info.value, GovernanceViolationError)
+    assert exc_info.value.audit_artifact is not None
+    assert exc_info.value.audit_artifact["failure_gate"] == "custom_gate_violation"
 
 
 def test_aigc_custom_gate_ordering_proof():

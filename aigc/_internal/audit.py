@@ -152,7 +152,7 @@ def generate_audit_artifact(
         "audit_schema_version": AUDIT_SCHEMA_VERSION,
         "policy_file": invocation["policy_file"],
         "policy_schema_version": POLICY_SCHEMA_VERSION,
-        "policy_version": policy.get("policy_version"),
+        "policy_version": policy.get("policy_version") or "unknown",
         "model_provider": invocation["model_provider"],
         "model_identifier": invocation["model_identifier"],
         "role": invocation["role"],

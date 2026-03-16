@@ -40,6 +40,9 @@ docs/architecture/AIGC_Architecture_Redesign_and_Roadmap.md
 # Build artifacts
 dist/
 
+# Demo app generated docs
+demo-app/docs/reference/
+
 # Research notes
 docs/research/
 

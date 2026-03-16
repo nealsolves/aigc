@@ -37,7 +37,7 @@ jobs:
         run: npx markdownlint-cli2 "**/*.md"
       - name: Documentation parity check
         run: python scripts/check_doc_parity.py
-      - name: Validate policies against schema
+      - name: Validate schemas and policies
         run: |
           python - <<'PY'
           import json
@@ -46,6 +46,10 @@ jobs:
           from jsonschema import Draft7Validator, validate
           policy_schema = json.loads(Path("schemas/policy_dsl.schema.json").read_text(encoding="utf-8"))
           Draft7Validator.check_schema(policy_schema)
+          print("checked schema: schemas/policy_dsl.schema.json")
+          audit_schema = json.loads(Path("schemas/audit_artifact.schema.json").read_text(encoding="utf-8"))
+          Draft7Validator.check_schema(audit_schema)
+          print("checked schema: schemas/audit_artifact.schema.json")
           for policy_path in Path("policies").glob("*.yaml"):
               policy = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
               validate(policy, policy_schema)

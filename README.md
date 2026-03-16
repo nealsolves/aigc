@@ -4,7 +4,7 @@
 
 AIGC makes AI invocation governance deterministic, enforceable, and auditable by design.
 
-AIGC enforces deterministic, fail-closed policy evaluation over every model invocation. No silent fallbacks. No advisory-only checks. No prompt-based governance.
+AIGC enforces deterministic, fail-closed policy evaluation over every model invocation. No silent fallbacks. No prompt-based governance. Core governance gates are unconditionally fail-closed; configured exceptions (risk scoring `warn_only`, sink failure `log` mode) are explicitly scoped and audited.
 
 Every model call is validated against a declared policy, checked for role authorization, schema compliance, and tool constraints, and produces a tamper-evident audit artifact.
 

@@ -34,7 +34,8 @@ def _base_policy():
 
 
 def test_invalid_risk_mode_raises():
-    with pytest.raises(ValueError, match="Invalid risk mode"):
+    from aigc._internal.errors import PolicyValidationError
+    with pytest.raises(PolicyValidationError, match="Invalid risk mode"):
         compute_risk_score(
             _base_invocation(), _base_policy(),
             risk_config={"mode": "invalid"},

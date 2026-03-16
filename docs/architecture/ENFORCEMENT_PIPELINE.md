@@ -124,9 +124,10 @@ Examples:
 * tenant id presence
 * authorization tokens
 
-Typed validation is required.
+Typed validation is preferred. Legacy bare-string preconditions are still
+supported but deprecated; a `DeprecationWarning` is emitted at runtime.
 
-Key existence alone is insufficient.
+Key existence alone is insufficient for typed preconditions.
 
 ---
 

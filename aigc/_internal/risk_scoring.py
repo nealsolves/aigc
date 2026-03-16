@@ -15,6 +15,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Mapping
 
+from aigc._internal.errors import PolicyValidationError
+
 logger = logging.getLogger("aigc.risk_scoring")
 
 # Supported risk modes
@@ -142,7 +144,10 @@ def compute_risk_score(
 
     mode = risk_config.get("mode", RISK_MODE_STRICT)
     if mode not in VALID_RISK_MODES:
-        raise ValueError(f"Invalid risk mode: {mode!r}; expected one of {VALID_RISK_MODES}")
+        raise PolicyValidationError(
+            f"Invalid risk mode: {mode!r}; expected one of {VALID_RISK_MODES}",
+            details={"invalid_mode": mode, "valid_modes": list(VALID_RISK_MODES)},
+        )
 
     threshold = float(risk_config.get("threshold", DEFAULT_RISK_THRESHOLD))
     factors = risk_config.get("factors", [])

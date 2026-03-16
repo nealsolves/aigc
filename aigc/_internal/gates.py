@@ -267,7 +267,23 @@ def run_gates(
                     }],
                 )
             else:
-                raise
+                # Non-mutation TypeError from gate code — convert to
+                # failure so FAIL artifact is always emitted (fail-closed).
+                logger.error(
+                    "Custom gate '%s' raised TypeError: %s",
+                    gate.name,
+                    exc,
+                )
+                result = GateResult(
+                    passed=False,
+                    failures=[{
+                        "code": "CUSTOM_GATE_ERROR",
+                        "message": (
+                            f"Gate '{gate.name}' raised TypeError: {exc}"
+                        ),
+                        "field": None,
+                    }],
+                )
         except Exception as exc:  # noqa: BLE001
             logger.error("Custom gate '%s' raised: %s", gate.name, exc)
             result = GateResult(

@@ -248,143 +248,24 @@ The DSL should be validated against:
 
 ## JSON Schema Reference
 
-The canonical schema is `schemas/policy_dsl.schema.json`. The schema below is
-a copy for reference; always defer to the file in the `schemas/` directory.
+The canonical schema is `schemas/policy_dsl.schema.json`. Always validate
+policies against that file. Do not rely on inline copies, which may lag
+behind the canonical schema.
 
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "AIGC Extended Policy DSL Schema",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "extends": {
-      "type": "string",
-      "description": "Path to base policy file (relative to current policy)"
-    },
-    "policy_version": { "type": "string" },
-    "description": { "type": "string" },
-    "roles": {
-      "type": "array",
-      "minItems": 1,
-      "items": { "type": "string" }
-    },
-    "conditions": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "type": { "type": "string", "enum": ["boolean"] },
-          "required": { "type": "boolean" },
-          "default": { "type": "boolean" }
-        },
-        "required": ["type"]
-      }
-    },
-    "tools": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "allowed_tools": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": { "type": "string" },
-              "max_calls": { "type": "integer", "minimum": 1 }
-            },
-            "required": ["name", "max_calls"],
-            "additionalProperties": false
-          }
-        }
-      },
-      "required": ["allowed_tools"]
-    },
-    "retry_policy": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "max_retries": { "type": "integer", "minimum": 0 },
-        "backoff_ms": { "type": "integer", "minimum": 0 }
-      },
-      "required": ["max_retries", "backoff_ms"]
-    },
-    "pre_conditions": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "required": {
-          "oneOf": [
-            {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "Legacy bare-string preconditions (deprecated)"
-            },
-            {
-              "type": "object",
-              "additionalProperties": {
-                "type": "object",
-                "properties": {
-                  "type": { "type": "string" },
-                  "pattern": { "type": "string" },
-                  "enum": { "type": "array" },
-                  "minLength": { "type": "integer", "minimum": 0 },
-                  "maxLength": { "type": "integer", "minimum": 0 },
-                  "minimum": { "type": "number" },
-                  "maximum": { "type": "number" }
-                }
-              },
-              "description": "Typed preconditions with value constraints"
-            }
-          ]
-        },
-        "optional": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      }
-    },
-    "post_conditions": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "required": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "optional": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      }
-    },
-    "output_schema": {
-      "type": "object",
-      "minProperties": 1
-    },
-    "guards": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "when": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "condition": { "type": "string" }
-            },
-            "required": ["condition"]
-          },
-          "then": {
-            "type": "object"
-          }
-        },
-        "required": ["when", "then"]
-      }
-    }
-  },
-  "required": ["policy_version", "roles"]
-}
-```
+Top-level properties defined in the canonical schema (v0.3.0):
+
+- `extends` — path to base policy for composition
+- `composition_strategy` — merge strategy: `intersect`, `union`, `replace`
+- `policy_version` — version string (required)
+- `description` — human-readable description
+- `effective_date` — activation date (`YYYY-MM-DD`)
+- `expiration_date` — expiration date (`YYYY-MM-DD`)
+- `roles` — allowed roles (required, non-empty array)
+- `conditions` — typed boolean conditions for guards
+- `tools` — tool constraints (`allowed_tools` with `name`/`max_calls`)
+- `retry_policy` — retry configuration (`max_retries`, `backoff_ms`)
+- `risk` — risk scoring configuration (`mode`, `threshold`, `factors`)
+- `pre_conditions` — preconditions (typed dict or legacy bare-string list)
+- `post_conditions` — postconditions
+- `output_schema` — JSON Schema for output validation
+- `guards` — conditional policy activation rules

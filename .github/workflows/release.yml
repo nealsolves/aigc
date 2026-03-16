@@ -35,6 +35,8 @@ jobs:
         run: flake8 aigc
       - name: Markdown lint
         run: npx markdownlint-cli2 "**/*.md"
+      - name: Documentation parity check
+        run: python scripts/check_doc_parity.py
       - name: Validate policies against schema
         run: |
           python - <<'PY'

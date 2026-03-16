@@ -270,7 +270,12 @@ tenant_id:
 
 **Risk:** audit artifact lost
 
-**Mitigation:** Audit failures cause enforcement failure. Fail-closed behavior required.
+**Mitigation:** Sink failure behavior is configurable via `on_sink_failure`:
+
+* `"raise"` (recommended for compliance-sensitive deployments): sink failure causes enforcement failure (fail-closed).
+* `"log"` (default): sink failure is logged as a warning; enforcement result is preserved.
+
+The `AIGC(sink=..., on_sink_failure="raise")` instance-scoped configuration is the preferred integration path. Global sink registration is a deprecated compatibility path.
 
 ---
 

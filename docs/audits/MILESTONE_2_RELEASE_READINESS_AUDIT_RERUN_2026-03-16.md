@@ -2,9 +2,14 @@
 
 **FAIL**
 
-The branch/worktree is not release-ready for a Milestone 2 / v0.3.0 merge gate in its current state. While core tests, coverage, linting, schema checks, and documented pipeline ordering all pass (`543/543` tests, `94.28%` coverage), two critical exception-path defects violate the audit artifact guarantee invariant: certain runtime errors can bypass FAIL artifact emission entirely. In addition, the worktree is dirty with an untracked fixture required by a new passing test, and parts of the authoritative-document set remain missing/incomplete for full source-of-truth validation.
+The branch/worktree is not release-ready for a Milestone 2 / v0.3.0 merge gate in its current state.
+While core tests, coverage, linting, schema checks, and documented pipeline ordering all pass
+(`543/543` tests, `94.28%` coverage), two critical exception-path defects violate the audit artifact
+guarantee invariant: certain runtime errors can bypass FAIL artifact emission entirely. In addition,
+the worktree is dirty with an untracked fixture required by a new passing test, and parts of the
+authoritative-document set remain missing/incomplete for full source-of-truth validation.
 
-# 2. Review Scope
+## 2. Review Scope
 
 - **Repository path reviewed:** `/Users/neal/Documents/_Shenanigans/_myProjects/aigc`
 - **Branch/git state reviewed:** `docs/milestone1-parity-fixes` with local unstaged changes and untracked files.
@@ -26,7 +31,7 @@ The branch/worktree is not release-ready for a Milestone 2 / v0.3.0 merge gate i
   - focused runtime repro snippets for critical exception-path behavior
 - **Commands failed/unavailable:** None (all requested checks executed locally).
 
-# 3. Architecture Compliance Matrix
+## 3. Architecture Compliance Matrix
 
 | Area | Expected | Observed | Status | Notes |
 |---|---|---|---|---|
@@ -40,7 +45,7 @@ The branch/worktree is not release-ready for a Milestone 2 / v0.3.0 merge gate i
 | Policy-driven governance | Rules from policy + pipeline, not scattered hardcode | Policy/schema loader + validators + tools/guards used centrally | Pass | Composition, guards, dates, tool caps enforced via policy. |
 | CI release gates | Tests/coverage/lint/docs/schema/golden checks aligned | CI workflows largely aligned; release workflow omits doc-parity step | Partial | Additional CI gate alignment recommended. |
 
-# 4. Findings by Severity
+## 4. Findings by Severity
 
 ## Critical
 
@@ -114,7 +119,7 @@ The branch/worktree is not release-ready for a Milestone 2 / v0.3.0 merge gate i
 - **Recommended fix:** Continue migration guidance toward instance-scoped `AIGC(sink=...)`; deprecate/remove globals in planned major release.
 - **Blocks merge:** No
 
-# 5. Invariant Compliance
+## 5. Invariant Compliance
 
 - **Invocation boundary:** **Pass**
 - **Fail-closed governance:** **Partial**
@@ -123,7 +128,7 @@ The branch/worktree is not release-ready for a Milestone 2 / v0.3.0 merge gate i
 - **Policy-driven governance:** **Pass**
 - **Golden replay contract/regression protection:** **Partial**
 
-# 6. Documentation Parity Findings
+## 6. Documentation Parity Findings
 
 - Implementation/docs drift: threat-model sink-failure semantics conflict with runtime configurable sink behavior.
 - Spec/schema drift: `policies/policy_dsl_spec.md` embedded schema copy lags canonical `schemas/policy_dsl.schema.json`.
@@ -132,7 +137,7 @@ The branch/worktree is not release-ready for a Milestone 2 / v0.3.0 merge gate i
 - Tests/worktree drift: `tests/test_golden_replay_risk_scoring.py` references untracked fixture `tests/golden_replays/policy_with_risk_scored.yaml`.
 - CI parity gap: `doc_parity` workflow runs parity checks, but release workflow does not include doc parity step.
 
-# 7. Test and CI Assessment
+## 7. Test and CI Assessment
 
 - **Test status:** PASS (`543 passed`, 0 failed).
 - **Coverage status:** PASS (`94.28%`, above `--cov-fail-under=90`).
@@ -142,11 +147,11 @@ The branch/worktree is not release-ready for a Milestone 2 / v0.3.0 merge gate i
   - No regression test proving FAIL artifact emission when custom gate raises non-read-only `TypeError`.
   - No regression test proving FAIL artifact emission when runtime risk config is invalid.
 
-# 8. Release Decision
+## 8. Release Decision
 
 **BLOCKED — MAJOR ISSUES**
 
-# 9. Required Fixes Before Merge
+## 9. Required Fixes Before Merge
 
 1. Fix exception-path artifact guarantees:
    - Ensure any gate exception path produces typed governance failure + FAIL artifact (including non-read-only `TypeError`).

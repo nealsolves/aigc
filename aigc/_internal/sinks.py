@@ -64,6 +64,13 @@ def set_audit_sink(sink: AuditSink | None) -> None:
     """
     Register the global audit sink.
 
+    .. deprecated::
+        Global sink registration is a compatibility path retained for
+        existing code. New integrations should use instance-scoped
+        ``AIGC(sink=...)`` instead, which is thread-safe and avoids
+        shared mutable state. Global registration will be removed in
+        a future major release.
+
     Pass ``None`` to clear the registered sink (default: no sink).
     Not thread-safe; register once at application startup.
     """

@@ -23,7 +23,7 @@ from aigc import (
     AIGCError,
     CallbackAuditSink,
 )
-from aigc._internal.signing import sign_artifact, verify_artifact
+from aigc.signing import sign_artifact, verify_artifact
 
 from shared.state import get_aigc, sample_policy_path, record_artifact
 from shared.ai_client import get_scenario

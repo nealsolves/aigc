@@ -27,7 +27,9 @@ See [README.md](README.md) for quick-start, public API, and usage.
   role, policy, and invocation context metadata via
   `schemas/audit_artifact.schema.json` (schema version 1.2; `context` field
   carries caller-supplied session/tenant identifiers for sink correlation;
-  forward-compat placeholders `risk_score` and `signature`);
+  `risk_score` populated by the risk scoring engine when policy declares
+  risk configuration; `signature` populated by `ArtifactSigner`
+  (HMAC-SHA256) when signing is enabled);
   bounded arrays (max 1000 failures, 100 metadata/context keys);
   exception sanitization redacts sensitive data (API keys, tokens, emails)
 - **Failure audit emission** — FAIL audit artifacts emitted and attached to
@@ -421,6 +423,16 @@ and are not part of this SDK.
 | [Golden Replays Guide](docs/GOLDEN_REPLAYS_README.md) | How to author and maintain golden replay fixtures |
 | [Golden Replays CI](docs/GOLDEN_REPLAYS_CI_GUIDE.md) | CI integration for golden replay regression |
 | [Golden Replay Checklist](docs/GOLDEN_REPLAYS_CHECKLIST.md) | Checklist for adding new golden replays |
+
+### Documents Not In This Repository
+
+The following documents were referenced in audit reviews but are not part
+of this SDK repository:
+
+| Document | Status |
+| -------- | ------ |
+| `TRACE_CLAUDE.md` | Not an AIGC artifact. This is a host-application traceability document maintained outside the SDK. See the host project's repository for the current version. |
+| `Agentic App Kit Design.txt` | Superseded by the AIGC architecture docs above. The original design brief pre-dates the SDK and is not maintained as a repo artifact. |
 
 ---
 

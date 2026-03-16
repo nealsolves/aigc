@@ -125,13 +125,11 @@ Each artifact includes:
 * failure gate
 * metadata
 
-Artifacts include forward-compatibility placeholders:
+Artifacts include governance-enrichment fields introduced in v0.3.0 (M2):
 
-* `risk_score` (null, reserved for future use)
-* `signature` (null, reserved for future use)
-
-Cryptographic chaining fields (`signer_key_id`, `previous_audit_checksum`)
-are planned for a future release and not yet present in the audit schema.
+* `risk_score` — populated by the risk scoring engine when the policy declares risk configuration
+* `signature` — populated by `ArtifactSigner` (HMAC-SHA256 via `HMACSigner`) when signing is enabled
+* `chain_id`, `chain_index`, `previous_audit_checksum` — populated by `AuditChain` for sequential integrity verification
 
 ---
 
@@ -186,7 +184,7 @@ Current merge rules:
 Circular dependency chains are detected and rejected at load time.
 
 Privilege escalation prevention via `union`/`intersect`/`replace` semantics
-is planned for a future release (see the Architecture Redesign Roadmap).
+is implemented in v0.3.0 (M2) through the `composition_strategy` policy field.
 
 ---
 

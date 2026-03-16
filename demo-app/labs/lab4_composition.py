@@ -16,9 +16,9 @@ import yaml
 import streamlit as st
 
 from aigc import PolicyValidationError
-from aigc._internal.policy_loader import (
+from aigc.policy_loader import (
     load_policy,
-    _merge_policies,
+    merge_policies,
     COMPOSITION_INTERSECT,
     COMPOSITION_UNION,
     COMPOSITION_REPLACE,
@@ -168,7 +168,7 @@ def _compose(
 
     try:
         # Use internal merge with the chosen strategy
-        composed = _merge_policies(base, child, composition_strategy=strategy)
+        composed = merge_policies(base, child, composition_strategy=strategy)
 
         # Remove internal keys
         composed.pop("extends", None)

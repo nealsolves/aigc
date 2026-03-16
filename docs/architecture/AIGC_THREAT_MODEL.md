@@ -304,15 +304,14 @@ Artifacts include checksums.
 * `input_checksum`
 * `output_checksum`
 
-Forward-compatibility placeholders (currently null):
+Governance-enrichment fields (v0.3.0):
 
-* `risk_score` — reserved for future risk scoring
-* `signature` — reserved for future cryptographic signing
+* `risk_score` — populated by the risk scoring engine when the governing policy declares risk configuration (v0.3.0)
+* `signature` — populated by `ArtifactSigner` (HMAC-SHA256) when signing is enabled on the AIGC instance (v0.3.0)
 
-Planned cryptographic chaining fields (not yet in schema):
+Cryptographic chaining fields (v0.3.0):
 
-* `signer_key_id`
-* `previous_audit_checksum`
+* `chain_id`, `chain_index`, `previous_audit_checksum` — populated by `AuditChain` for tamper-evident sequential integrity (v0.3.0)
 
 If any artifact is modified, checksum verification fails.
 

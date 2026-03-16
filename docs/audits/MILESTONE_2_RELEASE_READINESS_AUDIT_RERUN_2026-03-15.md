@@ -8,7 +8,17 @@ Repository: `/Users/neal/Documents/_Shenanigans/_myProjects/aigc`
 
 **PASS WITH FIXES**
 
-The branch is materially improved and now passes all core release gates locally (`542` tests passing, `94.28%` coverage, `flake8` pass, markdown lint pass, doc parity script pass), and previously identified critical runtime defects are fixed (custom gate immutability, pre-pipeline schema-valid FAIL artifacts, runtime `policy_loader` wiring, custom gate failure mapping, custom metadata preservation). Remaining issues are concentrated in documentation parity against authoritative architecture docs and minor boundary/maintainability debt, not in core governance enforcement correctness. Merge into `develop` is reasonable with follow-up fixes, but release documentation should be normalized before final 0.3.0 release sign-off.
+The branch is materially improved and now passes all core release gates
+locally (`542` tests passing, `94.28%` coverage, `flake8` pass, markdown
+lint pass, doc parity script pass), and previously identified critical
+runtime defects are fixed (custom gate immutability, pre-pipeline
+schema-valid FAIL artifacts, runtime `policy_loader` wiring, custom gate
+failure mapping, custom metadata preservation). Remaining issues are
+concentrated in documentation parity against authoritative architecture
+docs and minor boundary/maintainability debt, not in core governance
+enforcement correctness. Merge into `develop` is reasonable with
+follow-up fixes, but release documentation should be normalized before
+final 0.3.0 release sign-off.
 
 ## 2. Review Scope
 

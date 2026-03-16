@@ -2,7 +2,7 @@
 
 **Auditable Intelligence Governance Contract**
 
-Version: 1.0.0 | Status: Authoritative | Last Updated: 2026-02-16
+Version: 1.1.0 | Status: Authoritative | Last Updated: 2026-03-15
 
 ---
 
@@ -465,10 +465,10 @@ All expressions compile to a fixed set of AST node types (`_BoolLookup`,
 `_CompareExpr`, `_AndExpr`, `_OrExpr`, `_NotExpr`, `_InExpr`) and evaluate
 as pure functions over resolved conditions and invocation context.
 
-#### 7.4.1 Planned M2 Expression Extensions
+#### 7.4.1 Planned Expression Extensions (Post-v0.3.0)
 
-The following extensions are required for M2 risk scoring rules and will be
-added to the guard expression evaluator. They do not affect v0.3.0 behavior.
+The following extensions are planned for a future release. They are not
+implemented in v0.3.0 and do not affect current behavior.
 
 - **Dotted attribute access**: `"context.domain == 'medical'"` — resolves
   nested keys in invocation context via chained dict lookups. Adds a

@@ -124,13 +124,18 @@ audit = engine.enforce(invocation)
 
 - **Async enforcement** — `enforce_invocation_async()` runs policy I/O off the
   event loop via `asyncio.to_thread`; identical governance behavior to sync
-- **Pluggable audit sinks** — register a sink once; every enforcement emits to
-  it automatically; configurable failure mode (`log` or `raise`):
+- **Pluggable audit sinks** — every enforcement emits to the configured
+  sink automatically; configurable failure mode (`log` or `raise`).
+  Prefer instance-scoped configuration:
 
   ```python
-  from aigc.sinks import JsonFileAuditSink, set_audit_sink
-  set_audit_sink(JsonFileAuditSink("audit.jsonl"))
+  from aigc import AIGC
+  from aigc.sinks import JsonFileAuditSink
+  engine = AIGC(sink=JsonFileAuditSink("audit.jsonl"))
   ```
+
+  The global `set_audit_sink()` function is retained for backward
+  compatibility but is not recommended for new code.
 
 - **Instance-scoped enforcement** — `AIGC` class for thread-safe, isolated
   configuration (sink, failure mode, strict mode, redaction patterns)

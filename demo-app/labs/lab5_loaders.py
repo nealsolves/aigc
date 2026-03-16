@@ -21,8 +21,8 @@ from aigc import (
     PolicyValidationError,
     FilePolicyLoader,
 )
-from aigc._internal.policy_loader import load_policy, validate_policy_dates
-from aigc._internal.policy_testing import PolicyTestCase, PolicyTestSuite, expect_pass, expect_fail
+from aigc.policy_loader import load_policy, validate_policy_dates
+from aigc.policy_testing import PolicyTestCase, PolicyTestSuite, expect_pass, expect_fail
 
 from shared.state import get_aigc, sample_policy_path, SAMPLE_POLICIES_DIR
 from shared.policy_editor import render_policy_editor, render_policy_selector, load_policy_text

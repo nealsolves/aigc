@@ -1,9 +1,13 @@
 # AIGC Implementation Plan
 
+> **Status:** Milestone 1 (v0.2.0) is complete. Milestone 2 (v0.3.0)
+> implementation is tracked in `implementation_status.md`. This document
+> is retained as the architectural planning record for M1 workstreams.
+
 **Date:** 2026-03-06
 **Based on:** docs/architecture/AIGC_Architecture_Redesign_and_Roadmap.md
 **SDK Version:** 0.1.3 (baseline)
-**Target Version:** 0.2.0 (Milestone 1)
+**Target Version:** 0.2.0 (Milestone 1) — **Completed**
 
 ---
 

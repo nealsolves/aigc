@@ -201,22 +201,31 @@ This proves enforcement occurred before action.
 
 ---
 
-## Plugin Extension Points (Planned)
+## Custom Enforcement Gates
 
-The following extension points are planned for a future release and are not
-yet implemented in the current SDK:
+Custom enforcement gates allow plugins to inject additional governance checks
+at defined points in the pipeline. Available since v0.3.0.
 
-* `PRE_SCHEMA` — custom gate before output schema validation
-* `POST_SCHEMA` — custom gate after schema validation
+Gates implement the `EnforcementGate` ABC and return `GateResult` objects.
 
-Planned semantics:
+### Insertion Points
+
+* `pre_authorization` — runs before guard evaluation and role/precondition checks
+* `post_authorization` — runs after precondition validation, before output-processing stages
+* `pre_output` — runs before output schema validation and postcondition checks
+* `post_output` — runs after postcondition validation, before audit artifact generation
+
+### Gate Contract
+
+Gates receive immutable views of the policy and invocation. Any attempt to
+mutate these objects is converted into a gate failure.
 
 Custom gates may:
 
 * add failures
 * add metadata
 
-Custom gates may not:
+Custom gates may NOT:
 
 * remove failures
 * bypass enforcement stages

@@ -40,11 +40,26 @@ Governance-by-documentation. The common pattern where AI policies exist in Share
 
 The Control function determines what happens when something violates the Contract. The answer is always the same: the system stops.
 
-**Fail-closed is the default behavior.**
+**Fail-closed is the default behavior for all core governance gates.**
 
 Missing preconditions. The system stops. Invalid output schema. The system stops. Unauthorized role. The system stops. Tool call exceeding its budget. The system stops.
 
-There is no "warn and continue." There is no "log and proceed." There is no degradation into permissiveness. The default answer is no.
+Core governance gates (role validation, preconditions, schema validation, postconditions, tool constraints) are unconditionally fail-closed. There is no advisory mode for these gates. The default answer is no.
+
+v0.3.0 introduces two explicitly configured non-blocking behaviors in defined scenarios:
+
+- **Risk scoring `warn_only` mode.** When a policy declares
+  `risk.mode: "warn_only"`, risk threshold exceedances are logged and
+  recorded in the audit artifact without blocking enforcement. Core
+  governance gates remain fail-closed regardless of risk mode. The
+  `strict` and `risk_scored` modes retain blocking behavior for risk
+  thresholds.
+- **Sink failure `log` mode.** When `on_sink_failure` is set to `"log"`
+  (the default), audit sink emission failures are logged as warnings
+  without blocking the enforcement result. The `"raise"` mode propagates
+  sink errors as `AuditSinkError`. In either mode, the enforcement
+  decision itself is unaffected — sink failure handling governs
+  persistence, not policy evaluation.
 
 **The enforcement pipeline:**
 
@@ -89,6 +104,8 @@ Context. Session, tenant, and correlation identifiers for downstream tracing.
 
 Checksums are computed from canonical JSON (deterministic key ordering, no whitespace variance, UTF-8 encoding). Any party can independently recompute the checksums and verify integrity. If any field in the artifact is altered after generation, the checksums will not match. The record is self-verifying.
 
+In v0.3.0 (Milestone 2), artifacts can be cryptographically signed via HMAC-SHA256 and hash-chained into a tamper-evident audit chain for sequential integrity verification.
+
 **Both PASS and FAIL produce artifacts.**
 
 This is a critical design decision. Failed enforcement attempts are as important to audit as successful ones. An unauthorized role attempting to invoke a restricted AI capability is exactly the kind of event regulators and security teams need to trace. AIGC records it before propagating the exception.
@@ -108,7 +125,7 @@ Retroactive compliance. The pattern where organizations reconstruct what their A
 | Function | Governance Question | Enforcement Behavior |
 |----------|-------------------|---------------------|
 | **Contract** | What is allowed? | Declarative policy, schema-validated, versioned |
-| **Control** | What happens when rules are broken? | Fail-closed, deterministic, no advisory mode |
+| **Control** | What happens when rules are broken? | Fail-closed by default, deterministic, configured exceptions documented |
 | **Check** | What is the evidence? | Tamper-evident artifacts, mandatory, append-only |
 
 These are not optional features. They are not modules to be enabled selectively. They are the minimum governance architecture for production AI.

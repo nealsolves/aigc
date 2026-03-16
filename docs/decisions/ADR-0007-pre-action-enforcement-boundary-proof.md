@@ -1,7 +1,7 @@
 # ADR-0007: Pre-Action Enforcement Boundary Proof
 
 Date: 2026-03-05
-Status: Proposed
+Status: Accepted
 Owners: Neal
 
 ---
@@ -50,7 +50,7 @@ Example for a PASS artifact:
       "guard_evaluation",
       "role_validation",
       "precondition_validation",
-      "tool_validation",
+      "tool_constraint_validation",
       "schema_validation",
       "postcondition_validation"
     ]
@@ -67,7 +67,7 @@ Example for a FAIL artifact (tool constraint violation):
       "guard_evaluation",
       "role_validation",
       "precondition_validation",
-      "tool_validation"
+      "tool_constraint_validation"
     ],
     "failure_gate": "tool_validation"
   }

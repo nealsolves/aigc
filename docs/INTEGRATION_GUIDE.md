@@ -185,7 +185,7 @@ class MyDatabaseSink(AuditSink):
         self.db.insert("audit_log", artifact)
 ```
 
-Sink failures log a `WARNING` and never block enforcement.
+Sink failure behavior is configurable: `"log"` mode (default) logs a `WARNING`; `"raise"` mode propagates as `AuditSinkError`. Sinks receive a deep copy and cannot mutate the caller's artifact.
 
 ### Correlation
 

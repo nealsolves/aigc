@@ -16,9 +16,9 @@ import time
 import hashlib
 from typing import Any, Dict, Iterable, Mapping
 
-logger = logging.getLogger("aigc.audit")
-
 from aigc._internal.utils import canonical_json_bytes
+
+logger = logging.getLogger("aigc.audit")
 
 
 POLICY_SCHEMA_VERSION = "http://json-schema.org/draft-07/schema#"
@@ -105,6 +105,7 @@ def generate_audit_artifact(
     failure_reason: str | None = None,
     metadata: Mapping[str, Any] | None = None,
     timestamp: int | None = None,
+    risk_score: float | None = None,
 ) -> Dict[str, Any]:
     """
     Gather required audit fields and return structured object.
@@ -117,6 +118,7 @@ def generate_audit_artifact(
     :param failure_reason: human-readable failure reason (for FAIL results)
     :param metadata: additional enforcement metadata
     :param timestamp: optional explicit epoch timestamp for deterministic tests
+    :param risk_score: computed risk score (None if not scored)
     :return: audit artifact
     """
     failure_list = _normalize_failures(failures)
@@ -150,7 +152,7 @@ def generate_audit_artifact(
         "audit_schema_version": AUDIT_SCHEMA_VERSION,
         "policy_file": invocation["policy_file"],
         "policy_schema_version": POLICY_SCHEMA_VERSION,
-        "policy_version": policy.get("policy_version"),
+        "policy_version": policy.get("policy_version") or "unknown",
         "model_provider": invocation["model_provider"],
         "model_identifier": invocation["model_identifier"],
         "role": invocation["role"],
@@ -163,6 +165,6 @@ def generate_audit_artifact(
         "context": context_dict,
         "timestamp": int(time.time()) if timestamp is None else int(timestamp),
         "metadata": metadata_dict,
-        "risk_score": None,
+        "risk_score": risk_score,
         "signature": None,
     }

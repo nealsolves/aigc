@@ -182,3 +182,71 @@ async def async_reordered_function(context, input_data):
 async def test_governed_async_reordered_params_kwargs():
     result = await async_reordered_function(context=VALID_CONTEXT, input_data=VALID_INPUT)
     assert result == VALID_OUTPUT
+
+
+# --- Edge case: TypeError on bad argument binding ---
+
+def test_governed_sync_bind_failure_raises_type_error():
+    """@governed raises TypeError when called with wrong argument count."""
+    @governed(
+        policy_file=POLICY, role=ROLE,
+        model_provider=PROVIDER, model_identifier=MODEL,
+    )
+    def two_args_fn(input_data, context):
+        return VALID_OUTPUT
+
+    with pytest.raises(TypeError, match="could not bind arguments"):
+        two_args_fn()  # missing required args
+
+
+# --- Edge case: 'input' named parameter fallback ---
+
+@governed(policy_file=POLICY, role=ROLE, model_provider=PROVIDER, model_identifier=MODEL)
+def input_named_param_fn(input, context):  # noqa: A002
+    """Uses 'input' instead of 'input_data' as parameter name."""
+    return VALID_OUTPUT
+
+
+def test_governed_sync_input_param_name_fallback():
+    """Functions using 'input' parameter name are correctly handled."""
+    result = input_named_param_fn(VALID_INPUT, VALID_CONTEXT)
+    assert result == VALID_OUTPUT
+
+
+# --- Edge case: positional-only first arg as input ---
+
+@governed(policy_file=POLICY, role=ROLE, model_provider=PROVIDER, model_identifier=MODEL)
+def custom_named_fn(data, ctx):
+    """Uses neither 'input_data', 'input', nor 'context' as param names."""
+    return VALID_OUTPUT
+
+
+def test_governed_sync_positional_first_arg_as_input():
+    """First positional arg treated as input; second positional dict as context."""
+    # 'data' is first param (falls through to positional), 'ctx' is second param
+    # (not named 'input_data'/'input'/'context') but is a dict, so it becomes context
+    result = custom_named_fn(VALID_INPUT, VALID_CONTEXT)
+    assert result == VALID_OUTPUT
+
+
+# --- Edge case: non-dict input_data coerced to {} ---
+
+@governed(policy_file=POLICY, role=ROLE, model_provider=PROVIDER, model_identifier=MODEL)
+def string_input_fn(input_data, context):
+    return VALID_OUTPUT
+
+
+def test_governed_sync_non_dict_input_coerced():
+    """Non-dict input_data is silently coerced to {}."""
+    # Passing a string as input_data — coerced to {}, governance still runs
+    result = string_input_fn("not a dict", VALID_CONTEXT)
+    assert result == VALID_OUTPUT
+
+
+# --- Edge case: non-dict context coerced to {} ---
+
+def test_governed_sync_non_dict_context_coerced():
+    """Non-dict context is silently coerced to {}."""
+    # Passing a string as context — should coerce to {} and fail on preconditions
+    with pytest.raises(Exception):
+        passing_function(VALID_INPUT, "not a dict")

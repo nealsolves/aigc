@@ -7,7 +7,8 @@ Validates that documentation stays synchronized with implementation:
   C. Schema-example parity (policy YAML examples vs JSON Schema)
   D. Local link hygiene (broken markdown links)
   E. Archive hygiene (headers, no active->archive references)
-  F. Parity-set docs exist and are non-empty
+  F. Gate-ID consistency (canonical gate IDs in gates_evaluated examples)
+  G. Parity-set docs exist and are non-empty
 
 Usage:
     python scripts/check_doc_parity.py
@@ -199,9 +200,10 @@ def _is_complete_audit_artifact(obj: dict) -> bool:
     return required <= set(obj.keys())
 
 
-def check_schema_example_parity() -> list[str]:
+def check_schema_example_parity(manifest: dict) -> list[str]:
     """Validate policy/audit examples in docs against their JSON schemas."""
     errors: list[str] = []
+    internal_patterns = manifest.get("internal_docs", [])
 
     # Load schemas
     policy_schema_path = REPO_ROOT / "schemas" / "policy_dsl.schema.json"
@@ -218,6 +220,8 @@ def check_schema_example_parity() -> list[str]:
 
     for path in collect_md_files():
         rel = str(path.relative_to(REPO_ROOT))
+        if is_internal_doc(rel, internal_patterns):
+            continue
         text = path.read_text(encoding="utf-8")
 
         # Check YAML blocks that look like policies
@@ -356,7 +360,51 @@ def check_archive_hygiene() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Check F: Parity-set docs exist
+# Check F: Gate-ID consistency
+# ---------------------------------------------------------------------------
+
+_GATES_EVALUATED_RE = re.compile(
+    r'"gates_evaluated"',
+)
+
+
+def check_gate_id_consistency(manifest: dict) -> list[str]:
+    """Ensure parity docs use canonical gate IDs in gates_evaluated examples."""
+    errors: list[str] = []
+    canonical = set(manifest.get("canonical_gate_ids", []))
+    if not canonical:
+        return errors
+
+    # Known non-canonical aliases that indicate drift
+    non_canonical_map = {
+        "tool_validation": "tool_constraint_validation",
+    }
+
+    for rel in manifest["parity_docs"]:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+
+        # Check JSON code blocks that contain gates_evaluated
+        for m in _JSON_BLOCK_RE.finditer(text):
+            block = m.group(1)
+            if "gates_evaluated" not in block:
+                continue
+            line_offset = text[:m.start()].count("\n") + 1
+            for alias, correct in non_canonical_map.items():
+                if f'"{alias}"' in block:
+                    errors.append(
+                        f"[gate-id] {rel}:{line_offset}: "
+                        f"gates_evaluated uses non-canonical ID "
+                        f"'{alias}' (should be '{correct}')"
+                    )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check G: Parity-set docs exist
 # ---------------------------------------------------------------------------
 
 def check_parity_docs_exist(manifest: dict) -> list[str]:
@@ -387,10 +435,11 @@ def main() -> int:
     checks = [
         ("A. Current-state parity", lambda: check_current_state_parity(manifest)),
         ("B. Public API boundary", lambda: check_public_api_boundary(manifest)),
-        ("C. Schema-example parity", check_schema_example_parity),
+        ("C. Schema-example parity", lambda: check_schema_example_parity(manifest)),
         ("D. Local link hygiene", check_link_hygiene),
         ("E. Archive hygiene", check_archive_hygiene),
-        ("F. Parity-set docs exist", lambda: check_parity_docs_exist(manifest)),
+        ("F. Gate-ID consistency", lambda: check_gate_id_consistency(manifest)),
+        ("G. Parity-set docs exist", lambda: check_parity_docs_exist(manifest)),
     ]
 
     for name, check_fn in checks:

@@ -2,9 +2,9 @@ name: "AIGC CI"
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 jobs:
   build-test:
@@ -72,6 +72,8 @@ jobs:
             tests/test_golden_replay_tools.py \
             tests/test_golden_replay_conditions.py \
             tests/test_golden_replay_composition.py \
+            tests/test_golden_replay_risk_scoring.py \
+            tests/test_golden_replay_signing.py \
             tests/test_audit_artifact_contract.py
       - name: Markdown lint
         run: npx markdownlint-cli2 "**/*.md"

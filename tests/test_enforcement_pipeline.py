@@ -237,14 +237,14 @@ def test_map_governance_violation_postcondition():
 
 
 def test_map_unknown_aigc_error():
-    """An AIGCError subclass that does not match any known gate returns 'unknown'."""
+    """An AIGCError subclass that does not match any known gate falls back to invocation_validation."""
 
     class _UnknownAIGCError(AIGCError):
         def __init__(self):
             super().__init__("unknown failure", code="UNKNOWN")
 
     exc = _UnknownAIGCError()
-    assert _map_exception_to_failure_gate(exc) == "unknown"
+    assert _map_exception_to_failure_gate(exc) == "invocation_validation"
 
 
 # --- AIGC instance tests ---

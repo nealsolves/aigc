@@ -7,6 +7,64 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.3.0] - 2026-03-15
+
+### Added
+
+- **Custom gate isolation** — Custom gates receive immutable read-only views
+  of policy and invocation data; mutation attempts are caught and converted
+  to governance failures (`CUSTOM_GATE_MUTATION`)
+- **Custom gate metadata preservation** — Gate metadata from all insertion
+  points is merged deterministically into audit artifacts under
+  `metadata.custom_gate_metadata`
+- **`CustomGateViolationError`** — Explicit error type for custom gate
+  failures, replacing heuristic string-matching classification
+- **`custom_gate_violation` failure gate** — Audit artifact `failure_gate`
+  enum extended with `custom_gate_violation` for accurate forensic
+  classification
+- **Pluggable PolicyLoader runtime wiring** — `AIGC(policy_loader=...)`
+  now routes enforcement through the custom loader; non-filesystem policy
+  references supported
+- **Pre-pipeline FAIL artifact validity** — Pre-pipeline failure paths
+  produce schema-valid artifacts with deterministic placeholder
+  `policy_version: "unknown"`
+- **Risk scoring engine** — Configurable risk scoring with strict and
+  warn-only modes
+- **Artifact signing** — HMAC-SHA256 artifact signing via `ArtifactSigner`
+- **Tamper-evident audit chain** — `AuditChain` for chained artifact
+  verification
+- **OpenTelemetry integration** — Enforcement spans and gate events via
+  `aigc.telemetry`
+- **Policy testing framework** — Programmatic policy testing via
+  `aigc.policy_testing`
+- **Policy version dates** — `effective_date` / `expiration_date`
+  enforcement
+- **Composition strategies** — `intersect`, `union`, `replace` for policy
+  composition
+- **Compliance export CLI** — `aigc compliance export` command
+
+### Changed
+
+- Custom gate failures now raise `CustomGateViolationError` instead of
+  generic `GovernanceViolationError` (backward-compatible:
+  `CustomGateViolationError` is a subclass)
+- Markdown lint scope excludes `.claude/` and `demo-app/` directories
+
+### Fixed
+
+- Custom gates could mutate policy/invocation objects, bypassing governance
+  (Critical)
+- Pre-pipeline FAIL artifacts had `policy_version: null`, violating schema
+  contract (Critical)
+- `AIGC(policy_loader=...)` parameter was accepted but not used at runtime
+  (High)
+- Custom gate metadata was captured but not merged into audit artifacts
+  (High)
+- Custom gate failures were misclassified as `postcondition_validation`
+  (High)
+
+---
+
 ## [0.2.0] - 2026-03-06
 
 ### Added
@@ -141,6 +199,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+[0.3.0]: https://github.com/nealsolves/aigc/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nealsolves/aigc/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/nealsolves/aigc/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/nealsolves/aigc/compare/v0.1.1...v0.1.2

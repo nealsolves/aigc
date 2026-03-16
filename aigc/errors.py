@@ -2,6 +2,7 @@ from aigc._internal.errors import (
     AIGCError,
     AuditSinkError,
     ConditionResolutionError,
+    CustomGateViolationError,
     FeatureNotImplementedError,
     GovernanceViolationError,
     GuardEvaluationError,
@@ -9,6 +10,7 @@ from aigc._internal.errors import (
     PolicyLoadError,
     PolicyValidationError,
     PreconditionError,
+    RiskThresholdError,
     SchemaValidationError,
     ToolConstraintViolationError,
 )
@@ -17,6 +19,7 @@ __all__ = [
     "AIGCError",
     "AuditSinkError",
     "ConditionResolutionError",
+    "CustomGateViolationError",
     "FeatureNotImplementedError",
     "GovernanceViolationError",
     "GuardEvaluationError",
@@ -24,6 +27,7 @@ __all__ = [
     "PolicyLoadError",
     "PolicyValidationError",
     "PreconditionError",
+    "RiskThresholdError",
     "SchemaValidationError",
     "ToolConstraintViolationError",
 ]

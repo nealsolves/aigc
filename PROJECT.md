@@ -27,7 +27,9 @@ See [README.md](README.md) for quick-start, public API, and usage.
   role, policy, and invocation context metadata via
   `schemas/audit_artifact.schema.json` (schema version 1.2; `context` field
   carries caller-supplied session/tenant identifiers for sink correlation;
-  forward-compat placeholders `risk_score` and `signature`);
+  `risk_score` populated by the risk scoring engine when policy declares
+  risk configuration; `signature` populated by `ArtifactSigner`
+  (HMAC-SHA256) when signing is enabled);
   bounded arrays (max 1000 failures, 100 metadata/context keys);
   exception sanitization redacts sensitive data (API keys, tokens, emails)
 - **Failure audit emission** — FAIL audit artifacts emitted and attached to
@@ -74,6 +76,34 @@ See [README.md](README.md) for quick-start, public API, and usage.
   model_provider, model_identifier)` for sync and async LLM call sites;
   robust parameter binding via `inspect.signature()` (Phase 3.4)
 
+### Milestone 2 (Governance Hardening - v0.3.0)
+
+- **Risk scoring engine** — factor-based risk computation with
+  `strict`, `risk_scored`, and `warn_only` modes; new `risk_scoring`
+  gate and `RiskThresholdError` exception
+- **Artifact signing** — `ArtifactSigner` ABC with `HMACSigner`
+  (HMAC-SHA256); constant-time verification; deterministic signatures
+- **Tamper-evident audit chain** — opt-in `AuditChain` utility with
+  hash-chained artifacts (`chain_id`, `chain_index`,
+  `previous_audit_checksum`); host-managed, not automatic in
+  `AIGC.enforce()`
+- **Composition restriction semantics** — `composition_strategy`
+  field (`intersect`, `union`, `replace`) for policy inheritance
+- **Pluggable PolicyLoader** — `PolicyLoaderBase` ABC; AIGC class
+  accepts `policy_loader` parameter
+- **Policy version dates** — `effective_date` / `expiration_date`
+  enforcement with injectable clock
+- **OpenTelemetry integration** — optional spans and gate events;
+  no-op when OTel not installed
+- **Policy testing framework** — `PolicyTestCase`,
+  `PolicyTestSuite`, `expect_pass()`, `expect_fail()`
+- **Compliance export CLI** — `aigc compliance export` generates
+  JSON compliance reports from JSONL audit trails
+- **Custom EnforcementGate plugins** — `EnforcementGate` ABC with
+  four insertion points for host-specific gates
+- **Queue sink mode deprecation** — `"queue"` mode emits
+  `DeprecationWarning` and maps to `"log"`
+
 ### Planned (Post-SDK)
 
 - **Custom validators** — host applications register domain-specific
@@ -112,8 +142,14 @@ enforce_invocation(invocation)
 ├── 7. Validate Postconditions  validator.py        [Phase 1]
 │     Semantic checks on enforcement state (output_schema_valid)
 │
-└── 8. Generate Audit Artifact  audit.py            [Phase 1 + 2.5]
-      SHA-256 checksums, Phase 2 metadata (guards, conditions, tools, gates_evaluated)
+├── 8. Compute Risk Score       risk_scoring.py     [M2]
+│     Factor-based risk scoring (strict/risk_scored/warn_only modes)
+│
+├── 9. Custom Gates (post_output) gates.py          [M2]
+│     Host-registered custom gates at post_output insertion point
+│
+└── 10. Generate Audit Artifact audit.py            [Phase 1 + 2.5 + M2]
+      SHA-256 checksums, risk score, signing, chain fields
 
 Optional Wrapper:
   with_retry(invocation)        retry.py            [Phase 2.4]
@@ -200,7 +236,13 @@ aigc/
 │   ├── builder.py                     InvocationBuilder fluent API (v0.2.0)
 │   ├── decorators.py                  @governed decorator (Phase 3.4)
 │   ├── utils.py                       Canonical JSON serialization + checksums
-│   └── errors.py                      Custom exception hierarchy
+│   ├── errors.py                      Custom exception hierarchy
+│   ├── risk_scoring.py                Risk scoring engine (M2)
+│   ├── signing.py                     Artifact signing — HMAC-SHA256 (M2)
+│   ├── audit_chain.py                 Tamper-evident audit chain (M2)
+│   ├── gates.py                       Custom EnforcementGate plugin (M2)
+│   ├── telemetry.py                   OpenTelemetry integration (M2)
+│   └── policy_testing.py             Policy testing framework (M2)
 │
 ├── tests/
 │   ├── golden_replays/
@@ -247,7 +289,20 @@ aigc/
 │   ├── test_audit_sinks.py            Audit sink tests (Phase 3.2)
 │   ├── test_decorators.py             @governed decorator tests (Phase 3.4)
 │   ├── test_errors.py                 Error taxonomy unit tests
-│   └── test_pre_action_boundary.py    Sentinel gate ordering tests (D-04 tripwire)
+│   ├── test_pre_action_boundary.py    Sentinel gate ordering tests (D-04 tripwire)
+│   ├── test_risk_scoring.py           Risk scoring engine tests (M2)
+│   ├── test_signing.py                Artifact signing tests (M2)
+│   ├── test_audit_chain.py            Tamper-evident chain tests (M2)
+│   ├── test_custom_gates.py           Custom gate plugin tests (M2)
+│   ├── test_policy_dates.py           Policy version date tests (M2)
+│   ├── test_composition_semantics.py  Composition strategy tests (M2)
+│   ├── test_pluggable_loader.py       Pluggable loader tests (M2)
+│   ├── test_telemetry.py              OTel integration tests (M2)
+│   ├── test_policy_testing_framework.py  Policy testing framework tests (M2)
+│   ├── test_compliance_export.py      Compliance export CLI tests (M2)
+│   ├── test_queue_deprecation.py      Queue mode deprecation tests (M2)
+│   ├── test_golden_replay_risk_scoring.py  Risk scoring golden replays (M2)
+│   └── test_golden_replay_signing.py  Signing golden replays (M2)
 │
 ├── .flake8                            Flake8 linter configuration
 ├── .markdownlint-cli2.yaml            Markdown lint configuration
@@ -310,8 +365,8 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ### Test Coverage
 
-- **304 tests** (all passing)
-- **94% coverage** across all `aigc` modules
+- **582 tests** (all passing)
+- **95% coverage** across all `aigc` modules
 - All DSL features have golden replay regression fixtures
 
 ### Architectural Impact
@@ -343,8 +398,8 @@ and are not part of this SDK.
 
 ### Phase 3 Test Coverage
 
-- **304 tests** (all passing)
-- **94% coverage** across all `aigc` modules
+- **582 tests** (all passing)
+- **95% coverage** across all `aigc` modules
 - Phase 3 runtime features have dedicated test files:
   `test_async_enforcement.py`, `test_audit_sinks.py`, `test_decorators.py`
 
@@ -370,6 +425,16 @@ and are not part of this SDK.
 | [Golden Replays Guide](docs/GOLDEN_REPLAYS_README.md) | How to author and maintain golden replay fixtures |
 | [Golden Replays CI](docs/GOLDEN_REPLAYS_CI_GUIDE.md) | CI integration for golden replay regression |
 | [Golden Replay Checklist](docs/GOLDEN_REPLAYS_CHECKLIST.md) | Checklist for adding new golden replays |
+
+### Documents Not In This Repository
+
+The following documents were referenced in audit reviews but are not part
+of this SDK repository:
+
+| Document | Status |
+| -------- | ------ |
+| `TRACE_CLAUDE.md` | Not an AIGC artifact. This is a host-application traceability document maintained outside the SDK. See the host project's repository for the current version. |
+| `Agentic App Kit Design.txt` | Superseded by the AIGC architecture docs above. The original design brief pre-dates the SDK and is not maintained as a repo artifact. |
 
 ---
 

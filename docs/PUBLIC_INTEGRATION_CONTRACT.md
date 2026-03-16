@@ -371,16 +371,21 @@ tool call from the invocation.
 
 ### Q: The `@governed` decorator raises `TypeError` about my function signature
 
-**Cause**: The decorator expects the first positional argument to be `input` (a dict) and
-the second positional argument or `context` keyword argument to be `context` (a dict).
+**Cause**: The decorator binds arguments using `inspect.signature()`. It looks
+for `input_data` or `input` by name first, then falls back to the first
+positional parameter. Similarly, `context` is resolved by name or as the
+second positional parameter. Named arguments may appear in any order.
 
-**Fix**: Ensure your wrapped function signature matches the convention:
+**Fix**: Use named parameters that match the convention. The recommended
+signature is:
 
 ```python
 @governed(policy_file="...", role="...", model_provider="...", model_identifier="...")
 def my_function(input_data: dict, context: dict) -> dict:
     ...
 ```
+
+Reordered named arguments (e.g., `context` before `input_data`) are supported.
 
 ---
 

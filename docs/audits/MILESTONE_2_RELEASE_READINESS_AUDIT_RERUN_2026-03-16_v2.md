@@ -2,9 +2,16 @@
 
 **PASS WITH FIXES**
 
-This rerun shows the branch is materially improved and near release-ready: full validation gates passed locally (`559` tests, `94.34%` coverage, flake8/doc-parity/markdown/schema checks all green), and the two previously critical exception-path issues (missing FAIL artifacts on certain non-`AIGCError` paths) are now fixed and regression-tested. Remaining gaps are primarily documentation-governance completeness (missing user-specified authoritative artifacts) and minor classification/documentation cleanup, not core enforcement correctness regressions.
+This rerun shows the branch is materially improved and near release-ready:
+full validation gates passed locally (`559` tests, `94.34%` coverage,
+flake8/doc-parity/markdown/schema checks all green), and the two previously
+critical exception-path issues (missing FAIL artifacts on certain
+non-`AIGCError` paths) are now fixed and regression-tested. Remaining gaps
+are primarily documentation-governance completeness (missing user-specified
+authoritative artifacts) and minor classification/documentation cleanup,
+not core enforcement correctness regressions.
 
-# 2. Review Scope
+## 2. Review Scope
 
 - **Repository path reviewed:** `/Users/neal/Documents/_Shenanigans/_myProjects/aigc`
 - **Branch/git state reviewed:** `docs/milestone1-parity-fixes`
@@ -27,7 +34,7 @@ This rerun shows the branch is materially improved and near release-ready: full 
   - targeted runtime probes for custom-gate and risk-config exception artifact behavior
 - **Commands that failed/unavailable:** none
 
-# 3. Architecture Compliance Matrix
+## 3. Architecture Compliance Matrix
 
 | Area | Expected | Observed | Status | Notes |
 |---|---|---|---|---|
@@ -41,7 +48,7 @@ This rerun shows the branch is materially improved and near release-ready: full 
 | Policy-driven governance | Policy/schema-driven checks, limited hardcode | Loader/validators/guards/tools/risk all policy-driven | Pass | Composition, dates, guards, tools enforced through policy model. |
 | CI/release gates | Test, coverage, lint, docs parity, schema checks | Workflows align with local gate set | Pass | `release.yml` now includes doc parity check. |
 
-# 4. Findings by Severity
+## 4. Findings by Severity
 
 ## High
 
@@ -81,7 +88,7 @@ This rerun shows the branch is materially improved and near release-ready: full 
 - **Recommended fix:** Keep steering integrations to instance-scoped `AIGC(...)`; remove globals in a planned major release.
 - **Blocks merge:** No
 
-# 5. Invariant Compliance
+## 5. Invariant Compliance
 
 - **Invocation Boundary:** Pass
 - **Fail-Closed Governance:** Pass
@@ -90,14 +97,14 @@ This rerun shows the branch is materially improved and near release-ready: full 
 - **Policy-Driven Governance:** Pass
 - **Golden Replay Contract:** Pass
 
-# 6. Documentation Parity Findings
+## 6. Documentation Parity Findings
 
 - Previously identified gate-ID/order drift appears corrected in the active docs set (`tool_constraint_validation` usage aligned in key architecture docs).
 - Threat-model sink-failure language is now aligned with configurable `on_sink_failure` behavior.
 - `policies/policy_dsl_spec.md` now points readers to canonical schema instead of relying on stale inline copy.
 - Remaining parity gap is completeness of requested authoritative corpus (`TRACE_CLAUDE.md`, `Agentic App Kit Design.txt` absent).
 
-# 7. Test and CI Assessment
+## 7. Test and CI Assessment
 
 - **Test status:** PASS (`559 passed`, `0 failed`)
 - **Coverage status:** PASS (`94.34%`, threshold `>=90`)
@@ -110,11 +117,11 @@ This rerun shows the branch is materially improved and near release-ready: full 
 - **CI risk status:** Low-to-moderate (mainly documentation completeness and warning volume)
 - **Missing gates:** No critical missing release gates identified in workflows for current scope.
 
-# 8. Release Decision
+## 8. Release Decision
 
 **APPROVED WITH MINOR FIXES**
 
-# 9. Required Fixes Before Merge
+## 9. Required Fixes Before Merge
 
 1. Add or formally supersede missing authoritative artifacts (`TRACE_CLAUDE.md`, `Agentic App Kit Design.txt`) for full audit-trace completeness.
 2. Decide whether to refine failure-gate taxonomy for invalid risk runtime config (`invocation_validation` vs risk-specific classification).

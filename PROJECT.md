@@ -83,8 +83,10 @@ See [README.md](README.md) for quick-start, public API, and usage.
   gate and `RiskThresholdError` exception
 - **Artifact signing** — `ArtifactSigner` ABC with `HMACSigner`
   (HMAC-SHA256); constant-time verification; deterministic signatures
-- **Tamper-evident audit chain** — `AuditChain` with hash-chained
-  artifacts (`chain_id`, `chain_index`, `previous_audit_checksum`)
+- **Tamper-evident audit chain** — opt-in `AuditChain` utility with
+  hash-chained artifacts (`chain_id`, `chain_index`,
+  `previous_audit_checksum`); host-managed, not automatic in
+  `AIGC.enforce()`
 - **Composition restriction semantics** — `composition_strategy`
   field (`intersect`, `union`, `replace`) for policy inheritance
 - **Pluggable PolicyLoader** — `PolicyLoaderBase` ABC; AIGC class
@@ -363,8 +365,8 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ### Test Coverage
 
-- **559 tests** (all passing)
-- **93% coverage** across all `aigc` modules
+- **560 tests** (all passing)
+- **94% coverage** across all `aigc` modules
 - All DSL features have golden replay regression fixtures
 
 ### Architectural Impact
@@ -396,8 +398,8 @@ and are not part of this SDK.
 
 ### Phase 3 Test Coverage
 
-- **559 tests** (all passing)
-- **93% coverage** across all `aigc` modules
+- **560 tests** (all passing)
+- **94% coverage** across all `aigc` modules
 - Phase 3 runtime features have dedicated test files:
   `test_async_enforcement.py`, `test_audit_sinks.py`, `test_decorators.py`
 

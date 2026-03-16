@@ -14,7 +14,7 @@ Governance is not documentation. It is runtime enforcement.
 
 **SDK Implementation:** Reference implementation of constitutional governance for AI-assisted systems.
 
-**Status:** v0.3.0 — 559 tests, 93% coverage. M2 features: risk scoring, artifact signing (HMAC-SHA256), tamper-evident audit chain, composition semantics, pluggable PolicyLoader, policy dates, OTel integration, policy testing framework, compliance export CLI, custom gate plugins. Audit schema v1.2.
+**Status:** v0.3.0 — 560 tests, 94% coverage. M2: risk scoring, signing (HMAC-SHA256), audit chain (opt-in), composition semantics, pluggable PolicyLoader, policy dates, OTel, policy testing, compliance export CLI, custom gates. Audit schema v1.2.
 
 ---
 
@@ -163,8 +163,9 @@ audit = engine.enforce(invocation)
   raised in strict mode when threshold exceeded
 - **Artifact signing** — HMAC-SHA256 signing via pluggable
   `ArtifactSigner` interface; constant-time signature verification
-- **Tamper-evident audit chain** — hash-chained artifacts with
-  `chain_id`, `chain_index`, `previous_audit_checksum` fields
+- **Tamper-evident audit chain** — opt-in `AuditChain` utility for
+  hash-chaining artifacts with `chain_id`, `chain_index`,
+  `previous_audit_checksum` fields; manual integration by the host
 - **Composition restriction semantics** — `intersect`, `union`, and
   `replace` strategies for policy inheritance via `composition_strategy`
 - **Pluggable PolicyLoader** — `PolicyLoaderBase` ABC for custom policy

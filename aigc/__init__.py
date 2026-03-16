@@ -33,10 +33,40 @@ from aigc.sinks import (
 )
 from aigc.builder import InvocationBuilder
 from aigc.decorators import governed
-from aigc.signing import ArtifactSigner, HMACSigner
-from aigc.gates import EnforcementGate, GateResult
-from aigc.audit_chain import AuditChain
-from aigc.policy_loader import PolicyLoaderBase, FilePolicyLoader
+from aigc.signing import ArtifactSigner, HMACSigner, sign_artifact, verify_artifact
+from aigc.gates import (
+    EnforcementGate,
+    GateResult,
+    INSERTION_PRE_AUTHORIZATION,
+    INSERTION_POST_AUTHORIZATION,
+    INSERTION_PRE_OUTPUT,
+    INSERTION_POST_OUTPUT,
+)
+from aigc.audit_chain import AuditChain, verify_chain
+from aigc.policy_loader import (
+    PolicyLoaderBase,
+    FilePolicyLoader,
+    load_policy,
+    merge_policies,
+    validate_policy_dates,
+    COMPOSITION_INTERSECT,
+    COMPOSITION_UNION,
+    COMPOSITION_REPLACE,
+)
+from aigc.risk_scoring import (
+    compute_risk_score,
+    RiskScore,
+    RISK_MODE_STRICT,
+    RISK_MODE_RISK_SCORED,
+    RISK_MODE_WARN_ONLY,
+)
+from aigc.policy_testing import (
+    PolicyTestCase,
+    PolicyTestResult,
+    PolicyTestSuite,
+    expect_pass,
+    expect_fail,
+)
 
 # Register NullHandler so library users don't see "No handlers found" warnings.
 # Host applications configure log levels and handlers on their own loggers.
@@ -51,6 +81,9 @@ __all__ = [
     "AuditChain",
     "AuditSink",
     "AuditSinkError",
+    "COMPOSITION_INTERSECT",
+    "COMPOSITION_REPLACE",
+    "COMPOSITION_UNION",
     "CallbackAuditSink",
     "ConditionResolutionError",
     "CustomGateViolationError",
@@ -61,23 +94,43 @@ __all__ = [
     "GovernanceViolationError",
     "GuardEvaluationError",
     "HMACSigner",
+    "INSERTION_POST_AUTHORIZATION",
+    "INSERTION_POST_OUTPUT",
+    "INSERTION_PRE_AUTHORIZATION",
+    "INSERTION_PRE_OUTPUT",
     "InvocationBuilder",
     "InvocationValidationError",
     "JsonFileAuditSink",
     "PolicyLoadError",
     "PolicyLoaderBase",
+    "PolicyTestCase",
+    "PolicyTestResult",
+    "PolicyTestSuite",
     "PolicyValidationError",
     "PreconditionError",
+    "RISK_MODE_RISK_SCORED",
+    "RISK_MODE_STRICT",
+    "RISK_MODE_WARN_ONLY",
     "RetryExhaustedError",
+    "RiskScore",
     "RiskThresholdError",
     "SchemaValidationError",
     "ToolConstraintViolationError",
+    "compute_risk_score",
     "enforce_invocation",
     "enforce_invocation_async",
+    "expect_fail",
+    "expect_pass",
     "get_audit_sink",
     "get_sink_failure_mode",
     "governed",
+    "load_policy",
+    "merge_policies",
     "set_audit_sink",
     "set_sink_failure_mode",
+    "sign_artifact",
+    "validate_policy_dates",
+    "verify_artifact",
+    "verify_chain",
     "with_retry",
 ]

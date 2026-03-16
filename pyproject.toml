@@ -65,4 +65,4 @@ where = ["."]
 include = ["aigc", "aigc.*"]
 
 [tool.setuptools.package-data]
-aigc = ["schemas/*.json"]
+aigc = ["schemas/*.json", "py.typed"]

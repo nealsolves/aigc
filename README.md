@@ -14,7 +14,7 @@ Governance is not documentation. It is runtime enforcement.
 
 **SDK Implementation:** Reference implementation of constitutional governance for AI-assisted systems.
 
-**Status:** v0.3.0 — 560 tests, 94% coverage. M2: risk scoring, signing (HMAC-SHA256), audit chain (opt-in), composition semantics, pluggable PolicyLoader, policy dates, OTel, policy testing, compliance export CLI, custom gates. Audit schema v1.2.
+**Status:** v0.3.0 — 582 tests, 95% coverage. M2: risk scoring, signing (HMAC-SHA256), audit chain (opt-in), composition semantics, pluggable PolicyLoader, policy dates, OTel, policy testing, compliance export CLI, custom gates. Audit schema v1.2.
 
 ---
 

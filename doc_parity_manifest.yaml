@@ -46,12 +46,13 @@ canonical_gate_ids:
 internal_docs:
   - CLAUDE.md
   - CHANGELOG.md
-  - implementation_plan.md
-  - implementation_status.md
   - CONTRIBUTING.md
+  - implementation_status.md
+  - implementation_plan.md
   - docs/decisions/*
   - docs/research/*
   - docs/audits/*
+  - docs/dev/*
   - docs/architecture/AIGC_Architecture_Redesign_and_Roadmap.md
   - docs/architecture/ARCHITECTURAL_INVARIANTS.md
   - docs/architecture/ENFORCEMENT_PIPELINE.md
@@ -60,3 +61,4 @@ internal_docs:
   - docs/GOLDEN_REPLAYS_CI_GUIDE.md
   - docs/releases/*
   - docs/demo_app/*
+  - demo-app/docs/*

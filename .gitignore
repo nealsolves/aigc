@@ -47,5 +47,14 @@ demo-app/docs/audits/
 # Research notes
 docs/research/
 
+# Audit reports
+docs/audits/
+
 # Archive
 docs/_archive/
+
+# Internal dev artifacts
+implementation_plan.md
+implementation_status.md
+/ARCHITECTURAL_INVARIANTS.md
+docs/dev/

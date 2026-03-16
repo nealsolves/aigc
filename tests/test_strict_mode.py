@@ -10,6 +10,7 @@ from aigc._internal.errors import PolicyValidationError
 
 
 POLICY = "tests/golden_replays/golden_policy_v1.yaml"
+BARE_STRING_POLICY = "tests/fixtures/bare_string_preconditions_policy.yaml"
 TYPED_POLICY = "tests/fixtures/typed_preconditions_policy.yaml"
 NO_PRECONDITIONS_POLICY = "tests/fixtures/no_preconditions_policy.yaml"
 
@@ -72,9 +73,9 @@ def test_strict_collects_multiple_issues():
 
 
 def test_strict_rejects_bare_string_preconditions_e2e():
-    """AIGC(strict_mode=True) rejects golden policy with bare-string preconditions."""
+    """AIGC(strict_mode=True) rejects policy with bare-string preconditions."""
     aigc = AIGC(strict_mode=True)
-    inv = _make_invocation(POLICY)
+    inv = _make_invocation(BARE_STRING_POLICY)
     with pytest.raises(PolicyValidationError) as exc_info:
         aigc.enforce(inv)
     assert any("bare-string" in i for i in exc_info.value.details["issues"])
@@ -103,7 +104,7 @@ def test_strict_passes_typed_policy_e2e():
 def test_nonstrict_warns_bare_string():
     """Non-strict AIGC warns for bare-string preconditions but proceeds."""
     aigc = AIGC(strict_mode=False)
-    inv = _make_invocation(POLICY)
+    inv = _make_invocation(BARE_STRING_POLICY)
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         audit = aigc.enforce(inv)
@@ -129,6 +130,6 @@ def test_standalone_enforce_unaffected():
     """Standalone enforce_invocation() does not enforce strict mode."""
     from aigc import enforce_invocation
 
-    inv = _make_invocation(POLICY)
+    inv = _make_invocation(BARE_STRING_POLICY)
     audit = enforce_invocation(inv)
     assert audit["enforcement_result"] == "PASS"

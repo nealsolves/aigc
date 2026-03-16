@@ -6,8 +6,10 @@ roles:
 
 pre_conditions:
   required:
-    - role_declared
-    - schema_exists
+    role_declared:
+      type: boolean
+    schema_exists:
+      type: boolean
 
 post_conditions:
   required:

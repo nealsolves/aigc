@@ -1,18 +1,20 @@
 policy_version: "1.0"
 roles:
   - planner
-conditions:
-  is_enterprise:
-    type: boolean
-    default: false
+  - verifier
+
 pre_conditions:
   required:
-    role_declared:
-      type: boolean
+    - role_declared
+    - schema_exists
+
 post_conditions:
   required:
     - output_schema_valid
+
 output_schema:
+  $schema: "http://json-schema.org/draft-07/schema#"
+  title: "Bare-String Precondition Policy"
   type: object
   properties:
     result:
@@ -22,10 +24,3 @@ output_schema:
   required:
     - result
     - confidence
-guards:
-  - when:
-      condition: "is_enterprise"
-    then:
-      post_conditions:
-        required:
-          - audit_level_high

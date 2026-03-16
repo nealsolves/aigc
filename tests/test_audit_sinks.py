@@ -412,9 +412,13 @@ def test_pre_pipeline_aigc_strict_mode_has_artifact():
     from aigc import AIGC
     from aigc._internal.errors import PolicyValidationError
 
+    bare_string_inv = {
+        **VALID_INVOCATION,
+        "policy_file": "tests/fixtures/bare_string_preconditions_policy.yaml",
+    }
     aigc = AIGC(strict_mode=True)
     with pytest.raises(PolicyValidationError) as exc_info:
-        aigc.enforce(VALID_INVOCATION)
+        aigc.enforce(bare_string_inv)
 
     assert exc_info.value.audit_artifact is not None
     assert exc_info.value.audit_artifact["enforcement_result"] == "FAIL"

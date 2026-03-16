@@ -140,10 +140,17 @@ class TestInvalidRiskModeProducesFAILArtifact:
         assert len(emitted) == 1
         assert emitted[0]["enforcement_result"] == "FAIL"
 
-    def test_failure_gate_deterministic(self, base_invocation):
+    def test_failure_gate_is_risk_scoring(self, base_invocation):
+        """Invalid risk_config.mode must map to risk_scoring gate."""
         aigc = AIGC(risk_config={"mode": "bad", "factors": []})
         with pytest.raises(AIGCError) as exc_info:
             aigc.enforce(base_invocation)
 
         artifact = exc_info.value.audit_artifact
-        assert artifact["failure_gate"] == "invocation_validation"
+        assert artifact["failure_gate"] == "risk_scoring"
+
+    def test_non_risk_policy_validation_still_invocation_validation(self):
+        """PolicyValidationError without risk details stays invocation_validation."""
+        from aigc._internal.enforcement import _map_exception_to_failure_gate
+        exc = PolicyValidationError("generic issue", details={"issues": []})
+        assert _map_exception_to_failure_gate(exc) == "invocation_validation"

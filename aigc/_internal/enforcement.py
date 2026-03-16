@@ -155,7 +155,16 @@ def _map_exception_to_failure_gate(exc: Exception) -> str:
         return "feature_not_implemented"
     if isinstance(exc, InvocationValidationError):
         return "invocation_validation"
-    if isinstance(exc, (PolicyLoadError, PolicyValidationError)):
+    if isinstance(exc, PolicyValidationError):
+        # Risk-config validation errors carry "invalid_mode" in details;
+        # route them to the risk_scoring gate for triage fidelity.
+        if (
+            isinstance(getattr(exc, "details", None), dict)
+            and "invalid_mode" in exc.details
+        ):
+            return "risk_scoring"
+        return "invocation_validation"
+    if isinstance(exc, PolicyLoadError):
         return "invocation_validation"
     if isinstance(exc, GuardEvaluationError):
         return "guard_evaluation"

@@ -42,6 +42,7 @@ dist/
 
 # Demo app generated docs
 demo-app/docs/reference/
+demo-app/docs/audits/
 
 # Research notes
 docs/research/

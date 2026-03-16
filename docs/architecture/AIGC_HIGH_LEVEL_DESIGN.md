@@ -286,55 +286,67 @@ enforce_invocation(invocation)
 │     ├─ Validate against policy_dsl.schema.json
 │     └─ Return policy dict
 │
-├─ 2. RESOLVE GUARDS                         [Phase 2 — implemented]
+├─ 2. RUN CUSTOM GATES (pre_authorization)      [M2 — implemented]
+│     If custom gates registered at pre_authorization insertion point,
+│     run before guard evaluation and authorization checks.
+│
+├─ 3. RESOLVE GUARDS                            [Phase 2 — implemented]
 │     If policy declares guards or conditions, evaluate_guards() is called.
 │     ├─ Resolve named conditions from context or defaults
 │     ├─ Evaluate guard expressions in declaration order
 │     ├─ Apply additive merge to produce effective_policy
 │     └─ Raise GuardEvaluationError or ConditionResolutionError on failure
 │
-├─ 3. VALIDATE ROLE                          [Phase 1]
+├─ 4. VALIDATE ROLE                             [Phase 1]
 │     Check invocation["role"] ∈ effective_policy["roles"]
 │     └─ Raise GovernanceViolationError if unauthorized
 │
-├─ 4. VALIDATE PRECONDITIONS
+├─ 5. VALIDATE PRECONDITIONS
 │     For each key in effective_policy["pre_conditions"]["required"]:
 │       ├─ Check key exists in context and is truthy
 │       └─ Raise PreconditionError if missing/falsy
 │
-├─ 5. VALIDATE TOOL CONSTRAINTS              [Phase 2 — implemented]
+├─ 6. VALIDATE TOOL CONSTRAINTS                 [Phase 2 — implemented]
 │     If policy declares tools, validate_tool_constraints() is called.
 │     ├─ Enforce tool allowlist
 │     ├─ Enforce max_calls limits per tool
 │     └─ Raise ToolConstraintViolationError on violation
 │
-├─ 6. VALIDATE OUTPUT SCHEMA
+├─ 7. RUN CUSTOM GATES (post_authorization)     [M2 — implemented]
+│     If custom gates registered at post_authorization insertion point,
+│     run after all authorization gates, before output processing.
+│
+├─ 8. RUN CUSTOM GATES (pre_output)             [M2 — implemented]
+│     If custom gates registered at pre_output insertion point,
+│     run before output schema validation and postcondition checks.
+│
+├─ 9. VALIDATE OUTPUT SCHEMA
 │     If effective_policy has "output_schema":
 │       ├─ Validate invocation["output"] against schema
 │       └─ Raise SchemaValidationError on mismatch
 │
-├─ 7. VALIDATE POSTCONDITIONS                [Phase 1]
-│     For each key in effective_policy["post_conditions"]["required"]:
-│       ├─ Check key is satisfiable from invocation state
-│       └─ Raise GovernanceViolationError if unsatisfied
+├─ 10. VALIDATE POSTCONDITIONS                  [Phase 1]
+│      For each key in effective_policy["post_conditions"]["required"]:
+│        ├─ Check key is satisfiable from invocation state
+│        └─ Raise GovernanceViolationError if unsatisfied
 │
-├─ 8. COMPUTE RISK SCORE                       [M2 — implemented]
-│     If policy declares risk config, compute_risk_score() is called.
-│     ├─ Evaluate risk factors (no_output_schema, broad_roles, etc.)
-│     ├─ In strict mode: raise RiskThresholdError if threshold exceeded
-│     └─ In risk_scored/warn_only: attach score to audit artifact
+├─ 11. RUN CUSTOM GATES (post_output)           [M2 — implemented]
+│      If custom gates registered at post_output insertion point,
+│      run after postcondition validation, before risk scoring.
 │
-├─ 9. RUN CUSTOM GATES (post_output)            [M2 — implemented]
-│     If custom gates registered at post_output insertion point,
-│     run_gates() evaluates them after all core gates.
+├─ 12. COMPUTE RISK SCORE                       [M2 — implemented]
+│      If policy declares risk config, compute_risk_score() is called.
+│      ├─ Evaluate risk factors (no_output_schema, broad_roles, etc.)
+│      ├─ In strict mode: raise RiskThresholdError if threshold exceeded
+│      └─ In risk_scored mode: record score without blocking
 │
-├─ 10. GENERATE AUDIT ARTIFACT
-│     Collect all enforcement decisions into structured record
-│     ├─ Compute input/output checksums (SHA-256, canonical JSON)
-│     ├─ Record all gate results + gates_evaluated ordering proof
-│     ├─ Include risk_score if computed
-│     ├─ Stamp timestamp
-│     └─ Return audit artifact
+├─ 13. GENERATE AUDIT ARTIFACT
+│      Collect all enforcement decisions into structured record
+│      ├─ Compute input/output checksums (SHA-256, canonical JSON)
+│      ├─ Record all gate results + gates_evaluated ordering proof
+│      ├─ Include risk_score if computed
+│      ├─ Stamp timestamp
+│      └─ Return audit artifact
 │
 └─ RETURN audit_artifact
 ```

@@ -2,9 +2,9 @@
 Risk scoring engine for AIGC governance enforcement.
 
 Provides deterministic risk scoring with three modes:
-- strict: threshold breach fails closed
-- risk_scored: threshold recorded and enforced
-- warn_only: warning path recorded without blocking
+- strict: threshold breach fails closed (raises RiskThresholdError)
+- risk_scored: score recorded in audit artifact without blocking
+- warn_only: warning logged and recorded without blocking
 
 Risk scores are computed from policy-defined risk factors and
 recorded in audit artifact metadata for compliance evidence.

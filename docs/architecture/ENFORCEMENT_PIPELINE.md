@@ -18,6 +18,9 @@ AIGC Enforcement Engine
 Policy Load
 │
 ▼
+Custom Gates (pre_authorization)
+│
+▼
 Guard Evaluation
 │
 ▼
@@ -30,10 +33,22 @@ Precondition Validation
 Tool Constraint Validation
 │
 ▼
+Custom Gates (post_authorization)
+│
+▼
+Custom Gates (pre_output)
+│
+▼
 Output Schema Validation
 │
 ▼
 Postcondition Validation
+│
+▼
+Custom Gates (post_output)
+│
+▼
+Risk Scoring (if configured)
 │
 ▼
 Audit Artifact Generation
@@ -193,7 +208,7 @@ Example:
   "guard_evaluation",
   "role_validation",
   "precondition_validation",
-  "tool_validation"
+  "tool_constraint_validation"
 ]
 ```
 

@@ -12,7 +12,7 @@
 # --- Current-state values ---
 
 version: "0.3.0"
-test_count: 542
+test_count: 543
 coverage_threshold: 90
 audit_schema_version: "1.2"
 
@@ -25,6 +25,19 @@ parity_docs:
   - PROJECT.md
   - docs/AIGC_FRAMEWORK.md
   - docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md
+  - docs/architecture/ENFORCEMENT_PIPELINE.md
+
+# --- Canonical gate IDs (from aigc/_internal/enforcement.py) ---
+# Used by the parity checker to detect gate-ID naming drift in docs.
+
+canonical_gate_ids:
+  - guard_evaluation
+  - role_validation
+  - precondition_validation
+  - tool_constraint_validation
+  - schema_validation
+  - postcondition_validation
+  - risk_scoring
 
 # --- Docs excluded from public-API-boundary checks ---
 # These may reference aigc._internal without failing the check,

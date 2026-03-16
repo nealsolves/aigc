@@ -289,7 +289,7 @@ Example:
   "guard_evaluation",
   "role_validation",
   "precondition_validation",
-  "tool_validation"
+  "tool_constraint_validation"
 ]
 ```
 

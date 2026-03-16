@@ -6,6 +6,7 @@ from aigc._internal.errors import RiskThresholdError
 
 RISK_POLICY = "tests/golden_replays/policy_with_risk.yaml"
 WARN_POLICY = "tests/golden_replays/policy_with_risk_warn.yaml"
+SCORED_POLICY = "tests/golden_replays/policy_with_risk_scored.yaml"
 
 
 def _invocation(policy_file=RISK_POLICY, role="planner"):
@@ -35,6 +36,17 @@ def test_risk_warn_only_passes():
     assert audit["enforcement_result"] == "PASS"
     assert audit["risk_score"] is not None
     assert audit["risk_score"] > 0
+
+
+def test_risk_scored_does_not_block():
+    """risk_scored mode records score without blocking, even when threshold exceeded."""
+    audit = enforce_invocation(_invocation(policy_file=SCORED_POLICY))
+    assert audit["enforcement_result"] == "PASS"
+    assert audit["risk_score"] is not None
+    assert audit["risk_score"] > 0
+    scoring = audit["metadata"]["risk_scoring"]
+    assert scoring["mode"] == "risk_scored"
+    assert scoring["exceeded"] is True
 
 
 def test_risk_score_recorded_in_artifact():

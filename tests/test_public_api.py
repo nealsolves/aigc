@@ -157,6 +157,40 @@ def test_m2_gate_insertion_point_exports():
     assert isinstance(INSERTION_POST_OUTPUT, str)
 
 
+def test_audit_reexport_stub():
+    """All symbols in aigc.audit are importable from the public path."""
+    from aigc.audit import (
+        AUDIT_SCHEMA_VERSION,
+        POLICY_SCHEMA_VERSION,
+        checksum,
+        generate_audit_artifact,
+    )
+    assert isinstance(AUDIT_SCHEMA_VERSION, str)
+    assert isinstance(POLICY_SCHEMA_VERSION, str)
+    assert callable(checksum)
+    assert callable(generate_audit_artifact)
+
+
+def test_validator_reexport_stub():
+    """All symbols in aigc.validator are importable from the public path."""
+    from aigc.validator import (
+        validate_postconditions,
+        validate_preconditions,
+        validate_role,
+        validate_schema,
+    )
+    assert callable(validate_postconditions)
+    assert callable(validate_preconditions)
+    assert callable(validate_role)
+    assert callable(validate_schema)
+
+
+def test_telemetry_reexport_stub():
+    """aigc.telemetry re-export is importable from the public path."""
+    from aigc.telemetry import is_otel_available
+    assert callable(is_otel_available)
+
+
 def test_all_list_completeness():
     """__all__ contains every M2 symbol that should be public."""
     expected_m2_symbols = {

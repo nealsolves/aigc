@@ -157,3 +157,37 @@ def test_resolve_condition_non_boolean_default_raises_error():
     assert exc_info.value.details["condition"] == "is_enterprise"
     assert exc_info.value.details["default_type"] == "str"
     assert "default must be boolean" in str(exc_info.value)
+
+
+def test_optional_condition_skip_emits_info_log(caplog):
+    """Verify INFO log emitted when optional condition is skipped."""
+    import logging
+
+    policy = {
+        "conditions": {
+            "optional_flag": {"type": "boolean"},
+        }
+    }
+    context = {}
+
+    with caplog.at_level(logging.INFO, logger="aigc.conditions"):
+        resolved = resolve_conditions(policy, context)
+
+    assert resolved == {}
+    assert "Skipping optional condition 'optional_flag'" in caplog.text
+
+
+def test_required_condition_error_includes_available_conditions():
+    """Verify error message includes available boolean keys from context."""
+    policy = {
+        "conditions": {
+            "missing_flag": {"type": "boolean", "required": True}
+        }
+    }
+    context = {"is_enterprise": True, "some_string": "value"}
+
+    with pytest.raises(ConditionResolutionError) as exc_info:
+        resolve_conditions(policy, context)
+
+    assert "available_conditions" in exc_info.value.details
+    assert "is_enterprise" in exc_info.value.details["available_conditions"]

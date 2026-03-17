@@ -1,7 +1,7 @@
 # AIGC Extended Policy DSL Specification
 
-**Version:** `1.0.0`  
-**Status:** Draft
+**Version:** `1.0.0`
+**Status:** Authoritative
 
 This document defines the extended policy DSL used by the AIGC Governance SDK.
 It is written for humans, language models, and enforcement agents.
@@ -146,6 +146,35 @@ Intent: Define baseline validation gates before and after invocation.
 - `required`: must be satisfied
 - `optional`: may be used by downstream logic or guards
 
+Preconditions support two formats:
+
+**Typed preconditions** (recommended):
+
+```yaml
+pre_conditions:
+  required:
+    tenant_id:
+      type: string
+      pattern: "^[A-Z0-9]{8}$"
+    score:
+      type: number
+      minimum: 0
+      maximum: 1
+```
+
+**Legacy bare-string preconditions** (deprecated):
+
+```yaml
+pre_conditions:
+  required:
+    - role_declared
+    - schema_exists
+```
+
+Bare-string preconditions emit a `DeprecationWarning` at runtime. Typed
+preconditions enforce value constraints (type, pattern, enum, min/max) beyond
+key existence.
+
 ### `guards`
 
 Intent: Apply conditional policy expansions based on runtime context.
@@ -219,100 +248,24 @@ The DSL should be validated against:
 
 ## JSON Schema Reference
 
-Save as:
-`schemas/policy_dsl.schema.json`
+The canonical schema is `schemas/policy_dsl.schema.json`. Always validate
+policies against that file. Do not rely on inline copies, which may lag
+behind the canonical schema.
 
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "AIGC Extended Policy DSL Schema",
-  "type": "object",
-  "properties": {
-    "policy_version": { "type": "string" },
-    "description": { "type": "string" },
-    "roles": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "conditions": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "type": { "type": "string", "enum": ["boolean"] },
-          "required": { "type": "boolean" },
-          "default": {}
-        }
-      }
-    },
-    "tools": {
-      "type": "object",
-      "properties": {
-        "allowed_tools": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": { "type": "string" },
-              "max_calls": { "type": "integer" }
-            },
-            "required": ["name", "max_calls"]
-          }
-        }
-      }
-    },
-    "retry_policy": {
-      "type": "object",
-      "properties": {
-        "max_retries": { "type": "integer" },
-        "backoff_ms": { "type": "integer" }
-      }
-    },
-    "pre_conditions": {
-      "type": "object",
-      "properties": {
-        "required": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "optional": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      }
-    },
-    "post_conditions": {
-      "type": "object",
-      "properties": {
-        "required": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "optional": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      }
-    },
-    "guards": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "when": {
-            "type": "object",
-            "properties": {
-              "condition": { "type": "string" }
-            },
-            "required": ["condition"]
-          },
-          "then": {
-            "type": "object"
-          }
-        }
-      }
-    }
-  },
-  "required": ["policy_version", "roles"]
-}
-```
+Top-level properties defined in the canonical schema (v0.3.0):
+
+- `extends` — path to base policy for composition
+- `composition_strategy` — merge strategy: `intersect`, `union`, `replace`
+- `policy_version` — version string (required)
+- `description` — human-readable description
+- `effective_date` — activation date (`YYYY-MM-DD`)
+- `expiration_date` — expiration date (`YYYY-MM-DD`)
+- `roles` — allowed roles (required, non-empty array)
+- `conditions` — typed boolean conditions for guards
+- `tools` — tool constraints (`allowed_tools` with `name`/`max_calls`)
+- `retry_policy` — retry configuration (`max_retries`, `backoff_ms`)
+- `risk` — risk scoring configuration (`mode`, `threshold`, `factors`)
+- `pre_conditions` — preconditions (typed dict or legacy bare-string list)
+- `post_conditions` — postconditions
+- `output_schema` — JSON Schema for output validation
+- `guards` — conditional policy activation rules

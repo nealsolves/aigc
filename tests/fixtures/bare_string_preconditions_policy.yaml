@@ -1,0 +1,26 @@
+policy_version: "1.0"
+roles:
+  - planner
+  - verifier
+
+pre_conditions:
+  required:
+    - role_declared
+    - schema_exists
+
+post_conditions:
+  required:
+    - output_schema_valid
+
+output_schema:
+  $schema: "http://json-schema.org/draft-07/schema#"
+  title: "Bare-String Precondition Policy"
+  type: object
+  properties:
+    result:
+      type: string
+    confidence:
+      type: number
+  required:
+    - result
+    - confidence

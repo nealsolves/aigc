@@ -51,9 +51,14 @@ jobs:
 
       - name: Run Golden Replay Tests
         run: |
-          pytest tests/test_golden_replay_success.py \
-                 tests/test_golden_replay_failure.py \
-                 tests/test_audit_artifact_contract.py
+          python -m pytest \
+            tests/test_golden_replay_success.py \
+            tests/test_golden_replay_failure.py \
+            tests/test_golden_replay_guards.py \
+            tests/test_golden_replay_tools.py \
+            tests/test_golden_replay_conditions.py \
+            tests/test_golden_replay_composition.py \
+            tests/test_audit_artifact_contract.py
 
       - name: Report Test Results
         run: echo "Golden replay tests completed"

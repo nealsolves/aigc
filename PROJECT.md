@@ -17,15 +17,21 @@ See [README.md](README.md) for quick-start, public API, and usage.
 - **Role allowlist enforcement** — invocation role must be declared in
   policy `roles`
 - **Precondition validation** — required context keys checked before model
-  output is evaluated
+  output is evaluated; supports typed preconditions (type, pattern, enum,
+  min/max constraints) alongside legacy bare-string format
 - **Output schema validation** — model outputs validated against JSON Schema
   defined in policy
 - **Postcondition validation** — `output_schema_valid` enforced after schema
   validation
 - **Audit artifact generation** — SHA-256 checksummed records with model,
   role, policy, and invocation context metadata via
-  `schemas/audit_artifact.schema.json` (schema version 1.1; `context` field
-  carries caller-supplied session/tenant identifiers for sink correlation)
+  `schemas/audit_artifact.schema.json` (schema version 1.2; `context` field
+  carries caller-supplied session/tenant identifiers for sink correlation;
+  `risk_score` populated by the risk scoring engine when policy declares
+  risk configuration; `signature` populated by `ArtifactSigner`
+  (HMAC-SHA256) when signing is enabled);
+  bounded arrays (max 1000 failures, 100 metadata/context keys);
+  exception sanitization redacts sensitive data (API keys, tokens, emails)
 - **Failure audit emission** — FAIL audit artifacts emitted and attached to
   exceptions before propagation (Phase 1.8)
 - **Custom exception hierarchy** — typed exceptions with machine-readable
@@ -39,12 +45,13 @@ See [README.md](README.md) for quick-start, public API, and usage.
 
 - **Conditional guards** — `when/then` rules that expand the effective
   policy based on runtime context (guards evaluated before role validation;
-  effects are additive and merge into effective policy)
+  effects are additive and merge into effective policy); AST-based expression
+  language supports `and`, `or`, `not`, comparison operators, and `in` operator
 - **Named conditions** — boolean flags resolved from invocation context
   with defaults and required enforcement (used by guards for dynamic policy
   expansion)
 - **Tool constraints** — per-tool call caps (`max_calls`) and tool
-  allowlists (validated after postconditions; violations emit FAIL audits)
+  allowlists (validated before output schema; violations emit FAIL audits)
 - **Retry policy** — bounded, auditable retry wrapper (`max_retries`,
   `backoff_ms`) for transient SchemaValidationError failures (opt-in via
   `with_retry()`)
@@ -57,12 +64,45 @@ See [README.md](README.md) for quick-start, public API, and usage.
 - **Async enforcement** — `enforce_invocation_async()` via `asyncio.to_thread`
   for non-blocking policy I/O in async orchestrators (Phase 3.1)
 - **Pluggable audit sinks** — `AuditSink` ABC with `JsonFileAuditSink` and
-  `CallbackAuditSink`; registered via `set_audit_sink()`; sink failures log
-  a warning and do not block enforcement (Phase 3.2)
+  `CallbackAuditSink`; registered via `set_audit_sink()`; configurable failure
+  mode (`log`/`raise`) via `set_sink_failure_mode()` (Phase 3.2)
+- **Instance-scoped enforcement** — `AIGC` class with per-instance sink,
+  failure mode, strict mode, and redaction patterns; thread-safe (Phase 3.5)
+- **Policy caching** — `PolicyCache` with LRU eviction, keyed by
+  `(canonical_path, mtime)`; thread-safe via `threading.Lock` (D-03)
 - **Structured logging** — `aigc` logger namespace with `NullHandler` default;
   gate-level DEBUG, INFO on complete, WARNING on sink failure (Phase 3.3)
 - **Decorator/middleware pattern** — `@governed(policy_file, role,
-  model_provider, model_identifier)` for sync and async LLM call sites (Phase 3.4)
+  model_provider, model_identifier)` for sync and async LLM call sites;
+  robust parameter binding via `inspect.signature()` (Phase 3.4)
+
+### Milestone 2 (Governance Hardening - v0.3.0)
+
+- **Risk scoring engine** — factor-based risk computation with
+  `strict`, `risk_scored`, and `warn_only` modes; new `risk_scoring`
+  gate and `RiskThresholdError` exception
+- **Artifact signing** — `ArtifactSigner` ABC with `HMACSigner`
+  (HMAC-SHA256); constant-time verification; deterministic signatures
+- **Tamper-evident audit chain** — opt-in `AuditChain` utility with
+  hash-chained artifacts (`chain_id`, `chain_index`,
+  `previous_audit_checksum`); host-managed, not automatic in
+  `AIGC.enforce()`
+- **Composition restriction semantics** — `composition_strategy`
+  field (`intersect`, `union`, `replace`) for policy inheritance
+- **Pluggable PolicyLoader** — `PolicyLoaderBase` ABC; AIGC class
+  accepts `policy_loader` parameter
+- **Policy version dates** — `effective_date` / `expiration_date`
+  enforcement with injectable clock
+- **OpenTelemetry integration** — optional spans and gate events;
+  no-op when OTel not installed
+- **Policy testing framework** — `PolicyTestCase`,
+  `PolicyTestSuite`, `expect_pass()`, `expect_fail()`
+- **Compliance export CLI** — `aigc compliance export` generates
+  JSON compliance reports from JSONL audit trails
+- **Custom EnforcementGate plugins** — `EnforcementGate` ABC with
+  four insertion points for host-specific gates
+- **Queue sink mode deprecation** — `"queue"` mode emits
+  `DeprecationWarning` and maps to `"log"`
 
 ### Planned (Post-SDK)
 
@@ -93,17 +133,23 @@ enforce_invocation(invocation)
 ├── 4. Validate Preconditions   validator.py        [Phase 1]
 │     Check required context keys in effective policy
 │
-├── 5. Validate Output Schema   validator.py        [Phase 1]
-│     JSON Schema validation of model output
-│
-├── 6. Validate Postconditions  validator.py        [Phase 1]
-│     Semantic checks on enforcement state (output_schema_valid)
-│
-├── 7. Validate Tool Constraints tools.py           [Phase 2.3]
+├── 5. Validate Tool Constraints tools.py           [Phase 2.3]
 │     Check allowlists and max_calls, fail on violations
 │
-└── 8. Generate Audit Artifact  audit.py            [Phase 1 + 2.5]
-      SHA-256 checksums, Phase 2 metadata (guards, conditions, tools)
+├── 6. Validate Output Schema   validator.py        [Phase 1]
+│     JSON Schema validation of model output
+│
+├── 7. Validate Postconditions  validator.py        [Phase 1]
+│     Semantic checks on enforcement state (output_schema_valid)
+│
+├── 8. Compute Risk Score       risk_scoring.py     [M2]
+│     Factor-based risk scoring (strict/risk_scored/warn_only modes)
+│
+├── 9. Custom Gates (post_output) gates.py          [M2]
+│     Host-registered custom gates at post_output insertion point
+│
+└── 10. Generate Audit Artifact audit.py            [Phase 1 + 2.5 + M2]
+      SHA-256 checksums, risk score, signing, chain fields
 
 Optional Wrapper:
   with_retry(invocation)        retry.py            [Phase 2.4]
@@ -168,23 +214,35 @@ aigc/
 │   ├── validator.py                   Public validator imports
 │   ├── audit.py                       Public audit helpers
 │   ├── sinks.py                       Public audit sink imports (Phase 3.2)
-│   └── decorators.py                  Public decorator imports (Phase 3.4)
+│   ├── builder.py                     Public InvocationBuilder import (v0.2.0)
+│   ├── decorators.py                  Public decorator imports (Phase 3.4)
+│   ├── retry.py                       Public retry helper import (Phase 2.4)
+│   ├── cli.py                         Public CLI import (v0.2.0)
+│   └── __main__.py                    python -m aigc entry point (v0.2.0)
 │
 ├── aigc/_internal/
 │   ├── __init__.py                    Internal package initialization
-│   ├── enforcement.py                 Orchestrator — sync + async entry points (Phase 3.1)
+│   ├── enforcement.py                 Orchestrator — sync + async entry points, gate constants (Phase 3.1)
 │   ├── policy_loader.py               YAML loading + composition + JSON Schema validation
 │   │                                  load_policy_async added in Phase 3.1
 │   ├── validator.py                   Precondition + schema validation
 │   ├── audit.py                       Audit artifact generation
-│   ├── guards.py                      Guard evaluation engine (Phase 2.1)
+│   ├── guards.py                      AST-based guard evaluation engine (Phase 2.1 + v0.2.0)
+│   ├── cli.py                         Policy CLI (aigc policy lint/validate) (v0.2.0)
 │   ├── conditions.py                  Named condition resolution (Phase 2.2)
 │   ├── tools.py                       Tool constraint validation (Phase 2.3)
 │   ├── retry.py                       Retry policy wrapper (Phase 2.4)
 │   ├── sinks.py                       Audit sink registry + built-in sinks (Phase 3.2)
+│   ├── builder.py                     InvocationBuilder fluent API (v0.2.0)
 │   ├── decorators.py                  @governed decorator (Phase 3.4)
 │   ├── utils.py                       Canonical JSON serialization + checksums
-│   └── errors.py                      Custom exception hierarchy
+│   ├── errors.py                      Custom exception hierarchy
+│   ├── risk_scoring.py                Risk scoring engine (M2)
+│   ├── signing.py                     Artifact signing — HMAC-SHA256 (M2)
+│   ├── audit_chain.py                 Tamper-evident audit chain (M2)
+│   ├── gates.py                       Custom EnforcementGate plugin (M2)
+│   ├── telemetry.py                   OpenTelemetry integration (M2)
+│   └── policy_testing.py             Policy testing framework (M2)
 │
 ├── tests/
 │   ├── golden_replays/
@@ -217,7 +275,8 @@ aigc/
 │   ├── test_audit_artifact_contract.py  Audit field presence contract
 │   ├── test_checksum_determinism.py   Canonical JSON checksum tests
 │   ├── test_conditions.py             Condition resolution unit tests (Phase 2.2)
-│   ├── test_guards.py                 Guard evaluation unit tests (Phase 2.1)
+│   ├── test_guards.py                 Guard evaluation unit tests (Phase 2.1 + AST)
+│   ├── test_cli.py                    Policy CLI tests (v0.2.0)
 │   ├── test_tools.py                  Tool constraint unit tests (Phase 2.3)
 │   ├── test_retry.py                  Retry policy unit tests (Phase 2.4)
 │   ├── test_policy_composition.py     Policy composition unit tests (Phase 2.6)
@@ -229,7 +288,21 @@ aigc/
 │   ├── test_async_enforcement.py      Async enforcement tests (Phase 3.1)
 │   ├── test_audit_sinks.py            Audit sink tests (Phase 3.2)
 │   ├── test_decorators.py             @governed decorator tests (Phase 3.4)
-│   └── test_errors.py                 Error taxonomy unit tests
+│   ├── test_errors.py                 Error taxonomy unit tests
+│   ├── test_pre_action_boundary.py    Sentinel gate ordering tests (D-04 tripwire)
+│   ├── test_risk_scoring.py           Risk scoring engine tests (M2)
+│   ├── test_signing.py                Artifact signing tests (M2)
+│   ├── test_audit_chain.py            Tamper-evident chain tests (M2)
+│   ├── test_custom_gates.py           Custom gate plugin tests (M2)
+│   ├── test_policy_dates.py           Policy version date tests (M2)
+│   ├── test_composition_semantics.py  Composition strategy tests (M2)
+│   ├── test_pluggable_loader.py       Pluggable loader tests (M2)
+│   ├── test_telemetry.py              OTel integration tests (M2)
+│   ├── test_policy_testing_framework.py  Policy testing framework tests (M2)
+│   ├── test_compliance_export.py      Compliance export CLI tests (M2)
+│   ├── test_queue_deprecation.py      Queue mode deprecation tests (M2)
+│   ├── test_golden_replay_risk_scoring.py  Risk scoring golden replays (M2)
+│   └── test_golden_replay_signing.py  Signing golden replays (M2)
 │
 ├── .flake8                            Flake8 linter configuration
 ├── .markdownlint-cli2.yaml            Markdown lint configuration
@@ -292,8 +365,8 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ### Test Coverage
 
-- **180 tests** (all passing)
-- **100% coverage** across all `aigc._internal` modules
+- **585 tests** (all passing)
+- **95% coverage** across all `aigc` modules
 - All DSL features have golden replay regression fixtures
 
 ### Architectural Impact
@@ -301,7 +374,8 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 - **No fail-closed feature gates** — all schema-declared features are enforced
 - **Determinism preserved** — guards evaluated deterministically, retry is opt-in wrapper
 - **Backward compatible** — Phase 1 invocations unchanged, Phase 2 fields optional
-- **Typed error taxonomy** — 3 new exception types (ConditionResolutionError, GuardEvaluationError, ToolConstraintViolationError)
+- **Typed error taxonomy** — 4 new exception types (ConditionResolutionError,
+  GuardEvaluationError, ToolConstraintViolationError, AuditSinkError)
 
 ---
 
@@ -324,8 +398,8 @@ and are not part of this SDK.
 
 ### Phase 3 Test Coverage
 
-- **180 tests** (all passing)
-- **100% line coverage** across all `aigc._internal` modules
+- **585 tests** (all passing)
+- **95% coverage** across all `aigc` modules
 - Phase 3 runtime features have dedicated test files:
   `test_async_enforcement.py`, `test_audit_sinks.py`, `test_decorators.py`
 
@@ -333,8 +407,9 @@ and are not part of this SDK.
 
 - **No host-specific runtime classes** in SDK packages (`aigc._internal`, `aigc`) — boundary is clean
 - **Async entry point** shares the sync enforcement pipeline; governance is identical
-- **Sink failures do not block enforcement** — logged at WARNING level, invocation continues
-- **Backward compatible** — all Phase 1 and Phase 2 behavior unchanged
+- **Sink failure mode configurable** — `log` (default, backward-compatible) or `raise` (strict)
+- **Instance-scoped `AIGC` class** — eliminates global mutable state for new code
+- **Backward compatible** — all Phase 1 and Phase 2 behavior unchanged; global functions still work
 
 ---
 
@@ -350,6 +425,16 @@ and are not part of this SDK.
 | [Golden Replays Guide](docs/GOLDEN_REPLAYS_README.md) | How to author and maintain golden replay fixtures |
 | [Golden Replays CI](docs/GOLDEN_REPLAYS_CI_GUIDE.md) | CI integration for golden replay regression |
 | [Golden Replay Checklist](docs/GOLDEN_REPLAYS_CHECKLIST.md) | Checklist for adding new golden replays |
+
+### Documents Not In This Repository
+
+The following documents were referenced in audit reviews but are not part
+of this SDK repository:
+
+| Document | Status |
+| -------- | ------ |
+| `TRACE_CLAUDE.md` | Not an AIGC artifact. This is a host-application traceability document maintained outside the SDK. See the host project's repository for the current version. |
+| `Agentic App Kit Design.txt` | Superseded by the AIGC architecture docs above. The original design brief pre-dates the SDK and is not maintained as a repo artifact. |
 
 ---
 

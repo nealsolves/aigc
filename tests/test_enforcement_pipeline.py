@@ -237,11 +237,75 @@ def test_map_governance_violation_postcondition():
 
 
 def test_map_unknown_aigc_error():
-    """An AIGCError subclass that does not match any known gate returns 'unknown'."""
+    """An AIGCError subclass that does not match any known gate falls back to invocation_validation."""
 
     class _UnknownAIGCError(AIGCError):
         def __init__(self):
             super().__init__("unknown failure", code="UNKNOWN")
 
     exc = _UnknownAIGCError()
-    assert _map_exception_to_failure_gate(exc) == "unknown"
+    assert _map_exception_to_failure_gate(exc) == "invocation_validation"
+
+
+# --- AIGC instance tests ---
+
+from aigc._internal.enforcement import AIGC
+
+
+def test_aigc_instance_enforce_passes():
+    """AIGC instance enforce() produces same result as module-level function."""
+    aigc = AIGC()
+    invocation = _base_invocation()
+    audit = aigc.enforce(invocation)
+    assert audit["enforcement_result"] == "PASS"
+    assert audit["policy_file"] == invocation["policy_file"]
+
+
+def test_aigc_instance_enforce_raises_on_violation():
+    """AIGC instance enforce() raises on governance violation."""
+    aigc = AIGC()
+    invocation = _base_invocation()
+    invocation["role"] = "attacker"
+    with pytest.raises(GovernanceViolationError) as exc_info:
+        aigc.enforce(invocation)
+    assert exc_info.value.audit_artifact["enforcement_result"] == "FAIL"
+
+
+def test_aigc_instance_invalid_on_sink_failure():
+    """AIGC rejects invalid on_sink_failure value."""
+    with pytest.raises(ValueError, match="on_sink_failure"):
+        AIGC(on_sink_failure="invalid")
+
+
+def test_aigc_instance_config_properties():
+    """AIGC instance exposes config as read-only properties."""
+    aigc = AIGC(strict_mode=True, on_sink_failure="raise")
+    assert aigc.strict_mode is True
+    assert aigc.on_sink_failure == "raise"
+    assert aigc.sink is None
+
+
+async def test_aigc_instance_enforce_async_passes():
+    """AIGC instance enforce_async() works correctly."""
+    aigc = AIGC()
+    invocation = _base_invocation()
+    audit = await aigc.enforce_async(invocation)
+    assert audit["enforcement_result"] == "PASS"
+
+
+def test_aigc_instance_thread_safety():
+    """AIGC instance enforce() is safe from multiple threads."""
+    import concurrent.futures
+
+    aigc = AIGC()
+
+    def enforce_once():
+        invocation = _base_invocation()
+        return aigc.enforce(invocation)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+        futures = [executor.submit(enforce_once) for _ in range(50)]
+        results = [f.result() for f in futures]
+
+    assert all(r["enforcement_result"] == "PASS" for r in results)
+    assert len(results) == 50

@@ -35,6 +35,7 @@
     },
     "failures": {
       "type": "array",
+      "maxItems": 1000,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -48,7 +49,7 @@
     },
     "failure_gate": {
       "type": ["string", "null"],
-      "enum": [null, "invocation_validation", "role_validation", "precondition_validation", "schema_validation", "postcondition_validation", "feature_not_implemented", "tool_validation", "guard_evaluation", "condition_resolution"],
+      "enum": [null, "invocation_validation", "role_validation", "precondition_validation", "schema_validation", "postcondition_validation", "feature_not_implemented", "tool_validation", "guard_evaluation", "condition_resolution", "sink_emission", "risk_scoring", "custom_gate_violation"],
       "description": "Which enforcement gate failed (null for PASS results)"
     },
     "failure_reason": {
@@ -69,10 +70,32 @@
     },
     "context": {
       "type": "object",
+      "maxProperties": 100,
       "description": "Invocation context fields (e.g. session_id, tenant_id) for sink consumers"
     },
     "metadata": {
-      "type": "object"
+      "type": "object",
+      "maxProperties": 100
+    },
+    "risk_score": {
+      "type": ["number", "null"],
+      "description": "Computed risk score from risk scoring engine"
+    },
+    "signature": {
+      "type": ["string", "null"],
+      "description": "Cryptographic signature of the artifact"
+    },
+    "chain_id": {
+      "type": ["string", "null"],
+      "description": "Audit chain identifier for tamper-evident chaining"
+    },
+    "chain_index": {
+      "type": ["integer", "null"],
+      "description": "Position in the audit chain"
+    },
+    "previous_audit_checksum": {
+      "type": ["string", "null"],
+      "description": "SHA-256 checksum of the previous artifact in the chain"
     }
   },
   "required": [

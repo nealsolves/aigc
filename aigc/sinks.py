@@ -6,7 +6,9 @@ from aigc._internal.sinks import (
     JsonFileAuditSink,
     emit_to_sink,
     get_audit_sink,
+    get_sink_failure_mode,
     set_audit_sink,
+    set_sink_failure_mode,
 )
 
 __all__ = [
@@ -15,5 +17,7 @@ __all__ = [
     "JsonFileAuditSink",
     "emit_to_sink",
     "get_audit_sink",
+    "get_sink_failure_mode",
     "set_audit_sink",
+    "set_sink_failure_mode",
 ]

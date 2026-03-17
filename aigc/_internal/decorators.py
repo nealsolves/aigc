@@ -38,10 +38,50 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import inspect
 import logging
 from typing import Any, Callable
 
 logger = logging.getLogger("aigc.decorators")
+
+
+def _extract_args(fn: Callable, args: tuple, kwargs: dict) -> tuple[dict, dict]:
+    """Bind arguments using inspect.signature() and extract input_data and context."""
+    sig = inspect.signature(fn)
+    try:
+        bound = sig.bind(*args, **kwargs)
+    except TypeError as e:
+        raise TypeError(
+            f"@governed: could not bind arguments for {fn.__name__}: {e}"
+        ) from e
+    bound.apply_defaults()
+
+    params = list(sig.parameters.keys())
+    arguments = bound.arguments
+
+    # Try named parameters first, then fall back to positional
+    input_data: dict = {}
+    if "input_data" in arguments:
+        input_data = arguments["input_data"]
+    elif "input" in arguments:
+        input_data = arguments["input"]
+    elif len(params) > 0 and params[0] in arguments:
+        input_data = arguments[params[0]]
+
+    context: dict = {}
+    if "context" in arguments:
+        context = arguments["context"]
+    elif len(params) > 1 and params[1] != "input_data" and params[1] != "input":
+        val = arguments.get(params[1])
+        if isinstance(val, dict):
+            context = val
+
+    if not isinstance(input_data, dict):
+        input_data = {}
+    if not isinstance(context, dict):
+        context = {}
+
+    return input_data, context
 
 
 def governed(
@@ -67,8 +107,7 @@ def governed(
         if asyncio.iscoroutinefunction(fn):
             @functools.wraps(fn)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-                input_data = args[0] if args else kwargs.get("input_data", kwargs.get("input", {}))
-                context = args[1] if len(args) > 1 else kwargs.get("context", {})
+                input_data, context = _extract_args(fn, args, kwargs)
 
                 output = await fn(*args, **kwargs)
 
@@ -89,8 +128,7 @@ def governed(
         else:
             @functools.wraps(fn)
             def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-                input_data = args[0] if args else kwargs.get("input_data", kwargs.get("input", {}))
-                context = args[1] if len(args) > 1 else kwargs.get("context", {})
+                input_data, context = _extract_args(fn, args, kwargs)
 
                 output = fn(*args, **kwargs)
 

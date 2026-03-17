@@ -11,8 +11,10 @@ conditions:
     default: false
 pre_conditions:
   required:
-    - role_declared
-    - schema_exists
+    role_declared:
+      type: boolean
+    schema_exists:
+      type: boolean
 post_conditions:
   required:
     - output_schema_valid
@@ -32,10 +34,12 @@ guards:
     then:
       pre_conditions:
         required:
-          - enterprise_quota_available
+          enterprise_quota_available:
+            type: boolean
   - when:
       condition: "audit_enabled"
     then:
       pre_conditions:
         required:
-          - audit_log_configured
+          audit_log_configured:
+            type: boolean

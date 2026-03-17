@@ -2,7 +2,7 @@
 
 **Auditable Intelligence Governance Contract**
 
-Version: 1.0.0 | Status: Authoritative | Last Updated: 2026-02-16
+Version: 1.1.0 | Status: Authoritative | Last Updated: 2026-03-15
 
 ---
 
@@ -286,44 +286,67 @@ enforce_invocation(invocation)
 │     ├─ Validate against policy_dsl.schema.json
 │     └─ Return policy dict
 │
-├─ 2. RESOLVE GUARDS                         [Phase 2 — implemented]
+├─ 2. RUN CUSTOM GATES (pre_authorization)      [M2 — implemented]
+│     If custom gates registered at pre_authorization insertion point,
+│     run before guard evaluation and authorization checks.
+│
+├─ 3. RESOLVE GUARDS                            [Phase 2 — implemented]
 │     If policy declares guards or conditions, evaluate_guards() is called.
 │     ├─ Resolve named conditions from context or defaults
 │     ├─ Evaluate guard expressions in declaration order
 │     ├─ Apply additive merge to produce effective_policy
 │     └─ Raise GuardEvaluationError or ConditionResolutionError on failure
 │
-├─ 3. VALIDATE ROLE                          [Phase 1]
+├─ 4. VALIDATE ROLE                             [Phase 1]
 │     Check invocation["role"] ∈ effective_policy["roles"]
 │     └─ Raise GovernanceViolationError if unauthorized
 │
-├─ 4. VALIDATE PRECONDITIONS
+├─ 5. VALIDATE PRECONDITIONS
 │     For each key in effective_policy["pre_conditions"]["required"]:
 │       ├─ Check key exists in context and is truthy
 │       └─ Raise PreconditionError if missing/falsy
 │
-├─ 5. VALIDATE OUTPUT SCHEMA
-│     If effective_policy has "output_schema":
-│       ├─ Validate invocation["output"] against schema
-│       └─ Raise SchemaValidationError on mismatch
-│
-├─ 6. VALIDATE POSTCONDITIONS                [Phase 1]
-│     For each key in effective_policy["post_conditions"]["required"]:
-│       ├─ Check key is satisfiable from invocation state
-│       └─ Raise GovernanceViolationError if unsatisfied
-│
-├─ 7. VALIDATE TOOL CONSTRAINTS              [Phase 2 — implemented]
+├─ 6. VALIDATE TOOL CONSTRAINTS                 [Phase 2 — implemented]
 │     If policy declares tools, validate_tool_constraints() is called.
 │     ├─ Enforce tool allowlist
 │     ├─ Enforce max_calls limits per tool
 │     └─ Raise ToolConstraintViolationError on violation
 │
-├─ 8. GENERATE AUDIT ARTIFACT
-│     Collect all enforcement decisions into structured record
-│     ├─ Compute input/output checksums (SHA-256, canonical JSON)
-│     ├─ Record all gate results
-│     ├─ Stamp timestamp
-│     └─ Return audit artifact
+├─ 7. RUN CUSTOM GATES (post_authorization)     [M2 — implemented]
+│     If custom gates registered at post_authorization insertion point,
+│     run after all authorization gates, before output processing.
+│
+├─ 8. RUN CUSTOM GATES (pre_output)             [M2 — implemented]
+│     If custom gates registered at pre_output insertion point,
+│     run before output schema validation and postcondition checks.
+│
+├─ 9. VALIDATE OUTPUT SCHEMA
+│     If effective_policy has "output_schema":
+│       ├─ Validate invocation["output"] against schema
+│       └─ Raise SchemaValidationError on mismatch
+│
+├─ 10. VALIDATE POSTCONDITIONS                  [Phase 1]
+│      For each key in effective_policy["post_conditions"]["required"]:
+│        ├─ Check key is satisfiable from invocation state
+│        └─ Raise GovernanceViolationError if unsatisfied
+│
+├─ 11. RUN CUSTOM GATES (post_output)           [M2 — implemented]
+│      If custom gates registered at post_output insertion point,
+│      run after postcondition validation, before risk scoring.
+│
+├─ 12. COMPUTE RISK SCORE                       [M2 — implemented]
+│      If policy declares risk config, compute_risk_score() is called.
+│      ├─ Evaluate risk factors (no_output_schema, broad_roles, etc.)
+│      ├─ In strict mode: raise RiskThresholdError if threshold exceeded
+│      └─ In risk_scored mode: record score without blocking
+│
+├─ 13. GENERATE AUDIT ARTIFACT
+│      Collect all enforcement decisions into structured record
+│      ├─ Compute input/output checksums (SHA-256, canonical JSON)
+│      ├─ Record all gate results + gates_evaluated ordering proof
+│      ├─ Include risk_score if computed
+│      ├─ Stamp timestamp
+│      └─ Return audit artifact
 │
 └─ RETURN audit_artifact
 ```
@@ -338,23 +361,40 @@ The gate order is intentional:
    must be resolved before role validation uses the effective policy's roles list
 3. **Role check before preconditions** — reject unauthorized callers before
    revealing any precondition semantics to unauthorized roles
-4. **Preconditions before schema** — if the context is invalid, schema
+4. **Preconditions before tools** — if the context is invalid, downstream
    validation results are meaningless
-5. **Schema before postconditions** — output must be structurally valid
+5. **Tool constraints before schema** — authorization gates (guards, role,
+   preconditions, tools) must all run before output-processing gates (schema,
+   postconditions); prohibited tools must be caught before model output is
+   evaluated (see D-04 fix, enforced by `tests/test_pre_action_boundary.py`)
+6. **Schema before postconditions** — output must be structurally valid
    before semantic postconditions can be evaluated
-6. **Tool constraints last** — tools are the most granular check and
-   depend on all prior context being valid
-7. **Audit always** — only reached on full success; exceptions short-circuit
+7. **Audit always** — every enforcement attempt produces an audit artifact.
+   On PASS, the artifact is returned directly. On FAIL or exception, a FAIL
+   artifact is generated *before* the exception propagates and is attached
+   via `exc.audit_artifact`. This ensures governance evidence exists for
+   every enforcement attempt regardless of outcome (see CLAUDE.md
+   §Audit Artifact Guarantee)
 
 ### 6.2 Exception Hierarchy
 
 ```text
-Exception
-├── PreconditionError          — required context key missing or falsy
-├── SchemaValidationError      — output does not match JSON Schema
-└── GovernanceViolationError   — role unauthorized, tool cap exceeded,
-                                 postcondition unsatisfied, or any
-                                 other policy-level violation
+AIGCError (base)
+├── PreconditionError              — required context key missing or falsy
+├── SchemaValidationError          — output does not match JSON Schema
+├── ConditionResolutionError       — condition resolution failure
+├── GuardEvaluationError           — guard expression evaluation failure
+├── AuditSinkError                 — audit sink emission failure (raise mode)
+├── RiskThresholdError             — risk score exceeds threshold (strict mode) [M2]
+└── GovernanceViolationError       — role unauthorized, tool cap exceeded,
+    │                                postcondition unsatisfied, or any
+    │                                other policy-level violation
+    ├── InvocationValidationError  — invocation payload contract violation
+    ├── PolicyLoadError            — policy loading/parsing failure
+    ├── PolicyValidationError      — policy schema validation failure
+    ├── ToolConstraintViolationError — tool constraint violation
+    ├── CustomGateViolationError   — custom gate failure (failure_gate: custom_gate_violation)
+    └── FeatureNotImplementedError — schema-declared feature not implemented
 ```
 
 Exceptions are implemented in `aigc/_internal/errors.py` and exposed via `aigc/errors.py`. The host application catches
@@ -384,9 +424,9 @@ minimal deployment), it falls back to the legacy schema.
 2. Guard evaluation     — Conditional expansion (context)
 3. Role resolution      — Allowlist check (identity)
 4. Precondition check   — Context requirements (readiness)
-5. Schema validation    — Output structure (correctness)
-6. Postcondition check  — Semantic requirements (completeness)
-7. Tool constraints     — Usage limits (cost/risk)
+5. Tool constraints     — Usage limits (cost/risk, authorization)
+6. Schema validation    — Output structure (correctness)
+7. Postcondition check  — Semantic requirements (completeness)
 ```
 
 ### 7.3 Guard Resolution
@@ -414,17 +454,47 @@ all matched guard expansions. The base policy is never mutated.
 effective_policy = base_policy + Σ(matched_guard.then)
 ```
 
-### 7.4 Condition Expressions
+### 7.4 Guard Expression Language (AST-Based)
 
-Conditions are resolved from the invocation context:
+Guard conditions are compiled into an AST (abstract syntax tree) and
+evaluated deterministically. The expression language is intentionally
+limited — no Turing-completeness, no side effects, no function calls.
+Governance logic must be auditable by reading the YAML alone.
 
-- **Simple boolean**: `"is_enterprise"` → `context.get("is_enterprise",
-  default)`
+Supported expressions:
+
+- **Simple boolean**: `"is_enterprise"` → `context.get("is_enterprise", default)`
 - **Equality**: `"role == verifier"` → `invocation["role"] == "verifier"`
+- **Comparison**: `"count > 5"`, `"score <= 0.8"`
+- **Not equal**: `"role != admin"`
+- **Logical AND**: `"is_enterprise and audit_enabled"`
+- **Logical OR**: `"is_enterprise or is_government"`
+- **Logical NOT**: `"not is_internal"`
+- **Parentheses**: `"(is_enterprise or is_government) and audit_enabled"`
+- **Membership**: `'"search" in allowed_tools'`
 
-Conditions are evaluated as pure lookups. There is no expression language,
-no Turing-completeness, no side effects. This is intentional — governance
-logic must be auditable by reading the YAML alone.
+All expressions compile to a fixed set of AST node types (`_BoolLookup`,
+`_CompareExpr`, `_AndExpr`, `_OrExpr`, `_NotExpr`, `_InExpr`) and evaluate
+as pure functions over resolved conditions and invocation context.
+
+#### 7.4.1 Planned Expression Extensions (Post-v0.3.0)
+
+The following extensions are planned for a future release. They are not
+implemented in v0.3.0 and do not affect current behavior.
+
+- **Dotted attribute access**: `"context.domain == 'medical'"` — resolves
+  nested keys in invocation context via chained dict lookups. Adds a
+  `_DotAccessExpr` AST node type.
+- **List literals**: `"context.domain in ['medical', 'financial', 'legal']"` —
+  allows membership tests against inline lists. Adds a `_ListLiteralExpr`
+  AST node type.
+- **Negated membership**: `"role not in ['intern', 'guest']"` — syntactic
+  sugar for `not (role in [...])`. Reuses `_NotExpr` wrapping `_InExpr`.
+
+These extensions maintain the same guarantees: no Turing-completeness, no
+side effects, no function calls, deterministic evaluation. Implementation
+must include tests in `test_guards.py` covering each new node type and
+golden replay updates if guard evaluation behavior changes.
 
 ---
 
@@ -568,10 +638,12 @@ Audit artifact checksums         Runtime tool call counts
 
 These properties must hold for every enforcement:
 
-1. **No silent pass** — every enforcement produces an audit artifact or
-   raises an exception
-2. **No partial enforcement** — all gates run or none do; exceptions
-   short-circuit
+1. **No silent pass** — every enforcement attempt produces an audit artifact.
+   On PASS the artifact is returned. On FAIL an exception is raised *and*
+   the FAIL artifact is attached to the exception via `exc.audit_artifact`.
+   No enforcement path may complete without producing governance evidence.
+2. **No partial enforcement** — gates run in strict sequence; the first
+   failure short-circuits the pipeline and no subsequent gates execute
 3. **Policy immutability** — the loaded policy dict is never mutated during
    enforcement
 4. **Checksum determinism** — same input/output always produces the same

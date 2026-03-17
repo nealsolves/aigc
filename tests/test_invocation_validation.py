@@ -1,3 +1,6 @@
+import datetime
+from decimal import Decimal
+
 import pytest
 
 from aigc._internal.enforcement import enforce_invocation
@@ -54,3 +57,24 @@ def test_invocation_must_be_mapping():
     with pytest.raises(InvocationValidationError) as exc_info:
         enforce_invocation([])  # type: ignore[arg-type]
     assert exc_info.value.code == "INVOCATION_VALIDATION_ERROR"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("context", {"timestamp": datetime.datetime.now()}),
+        ("input", {"amount": Decimal("9.99")}),
+        ("output", {"data": {1, 2, 3}}),
+        ("context", {"nested": {"deep": datetime.date.today()}}),
+    ],
+)
+def test_non_serializable_field_raises_at_entry(field, value):
+    invocation = _valid_invocation()
+    invocation[field] = value
+
+    with pytest.raises(InvocationValidationError) as exc_info:
+        enforce_invocation(invocation)
+
+    assert exc_info.value.code == "INVOCATION_VALIDATION_ERROR"
+    assert exc_info.value.details["field"] == field
+    assert "not JSON-serializable" in str(exc_info.value)

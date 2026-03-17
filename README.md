@@ -4,7 +4,7 @@
 
 AIGC makes AI invocation governance deterministic, enforceable, and auditable by design.
 
-AIGC enforces deterministic, fail-closed policy evaluation over every model invocation. No silent fallbacks. No advisory-only checks. No prompt-based governance.
+AIGC enforces deterministic, fail-closed policy evaluation over every model invocation. No silent fallbacks. No prompt-based governance. Core governance gates are unconditionally fail-closed; configured exceptions (risk scoring `warn_only`, sink failure `log` mode) are explicitly scoped and audited.
 
 Every model call is validated against a declared policy, checked for role authorization, schema compliance, and tool constraints, and produces a tamper-evident audit artifact.
 
@@ -14,7 +14,7 @@ Governance is not documentation. It is runtime enforcement.
 
 **SDK Implementation:** Reference implementation of constitutional governance for AI-assisted systems.
 
-**Status:** Feature-complete — 180 tests, 100% coverage, all three phases shipped.
+**Status:** v0.3.0 — 585 tests, 95% coverage. M2: risk scoring, signing (HMAC-SHA256), audit chain (opt-in), composition semantics, pluggable PolicyLoader, policy dates, OTel, policy testing, compliance export CLI, custom gates. Audit schema v1.2.
 
 ---
 
@@ -76,13 +76,23 @@ If using an internal PyPI mirror or wheelhouse, ensure `pip`, `setuptools`, and
 Preferred imports:
 
 ```python
-from aigc.enforcement import enforce_invocation
+from aigc import enforce_invocation, AIGC
 from aigc.errors import (
     InvocationValidationError,
     PreconditionError,
     SchemaValidationError,
     GovernanceViolationError,
 )
+```
+
+Instance-scoped enforcement (recommended for new code):
+
+```python
+from aigc import AIGC
+from aigc.sinks import JsonFileAuditSink
+
+engine = AIGC(sink=JsonFileAuditSink("audit.jsonl"))
+audit = engine.enforce(invocation)
 ```
 
 ## Enforced Controls
@@ -114,14 +124,21 @@ from aigc.errors import (
 
 - **Async enforcement** — `enforce_invocation_async()` runs policy I/O off the
   event loop via `asyncio.to_thread`; identical governance behavior to sync
-- **Pluggable audit sinks** — register a sink once; every enforcement emits to
-  it automatically:
+- **Pluggable audit sinks** — every enforcement emits to the configured
+  sink automatically; configurable failure mode (`log` or `raise`).
+  Prefer instance-scoped configuration:
 
   ```python
-  from aigc.sinks import JsonFileAuditSink, set_audit_sink
-  set_audit_sink(JsonFileAuditSink("audit.jsonl"))
+  from aigc import AIGC
+  from aigc.sinks import JsonFileAuditSink
+  engine = AIGC(sink=JsonFileAuditSink("audit.jsonl"))
   ```
 
+  The global `set_audit_sink()` function is retained for backward
+  compatibility but is not recommended for new code.
+
+- **Instance-scoped enforcement** — `AIGC` class for thread-safe, isolated
+  configuration (sink, failure mode, strict mode, redaction patterns)
 - **Structured logging** — `aigc.*` logger namespace with `NullHandler` default;
   host applications configure log levels and handlers
 - **`@governed` decorator** — wraps sync and async LLM call sites:
@@ -138,6 +155,32 @@ from aigc.errors import (
   async def plan_investigation(input_data: dict, context: dict) -> dict:
       return await llm.generate(input_data)
   ```
+
+### Milestone 2 (Governance Hardening)
+
+- **Risk scoring engine** — factor-based risk computation with
+  `strict`, `risk_scored`, and `warn_only` modes; `RiskThresholdError`
+  raised in strict mode when threshold exceeded
+- **Artifact signing** — HMAC-SHA256 signing via pluggable
+  `ArtifactSigner` interface; constant-time signature verification
+- **Tamper-evident audit chain** — opt-in `AuditChain` utility for
+  hash-chaining artifacts with `chain_id`, `chain_index`,
+  `previous_audit_checksum` fields; manual integration by the host
+- **Composition restriction semantics** — `intersect`, `union`, and
+  `replace` strategies for policy inheritance via `composition_strategy`
+- **Pluggable PolicyLoader** — `PolicyLoaderBase` ABC for custom policy
+  sources (database, API, vault); `FilePolicyLoader` default
+- **Policy version dates** — `effective_date` / `expiration_date`
+  enforcement with injectable clock for testing
+- **OpenTelemetry integration** — optional spans and gate events; no-op
+  when OTel is not installed; governance unaffected by telemetry
+- **Policy testing framework** — `PolicyTestCase`, `PolicyTestSuite`,
+  `expect_pass()`, `expect_fail()` for policy validation
+- **Compliance export CLI** — `aigc compliance export` generates JSON
+  compliance reports from JSONL audit trails
+- **Custom EnforcementGate plugins** — `EnforcementGate` ABC with four
+  insertion points (`pre_authorization`, `post_authorization`,
+  `pre_output`, `post_output`) for host-specific gates
 
 ## Audit Artifact Contract
 

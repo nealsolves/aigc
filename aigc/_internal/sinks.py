@@ -2,20 +2,28 @@
 Audit sink registry and built-in sink implementations.
 
 Sinks receive every audit artifact after enforcement completes (PASS and FAIL).
-Sink failures are logged as warnings and never propagate to the caller.
+Sink failure behavior is configurable: raise or log.
+
+Note: The "queue" failure mode was deprecated in v0.3.0 and will be removed
+in a future release. It now behaves identically to "log" mode.
 """
 
 from __future__ import annotations
 
 import abc
+import copy
 import json
 import logging
 from pathlib import Path
 from typing import Any, Callable
 
+from aigc._internal.errors import AuditSinkError
+
 logger = logging.getLogger("aigc.sinks")
 
 _registered_sink: AuditSink | None = None
+_sink_failure_mode: str = "log"
+_SENTINEL = object()  # distinguish "not passed" from explicit None
 
 
 class AuditSink(abc.ABC):
@@ -27,7 +35,7 @@ class AuditSink(abc.ABC):
         Receive a completed audit artifact.
 
         Implementations must be synchronous.  Failures should raise exceptions
-        (the registry catches them and logs a warning).
+        (the registry catches them and handles per failure mode).
         """
 
 
@@ -56,6 +64,13 @@ def set_audit_sink(sink: AuditSink | None) -> None:
     """
     Register the global audit sink.
 
+    .. deprecated::
+        Global sink registration is a compatibility path retained for
+        existing code. New integrations should use instance-scoped
+        ``AIGC(sink=...)`` instead, which is thread-safe and avoids
+        shared mutable state. Global registration will be removed in
+        a future major release.
+
     Pass ``None`` to clear the registered sink (default: no sink).
     Not thread-safe; register once at application startup.
     """
@@ -68,17 +83,65 @@ def get_audit_sink() -> AuditSink | None:
     return _registered_sink
 
 
-def emit_to_sink(audit_artifact: dict[str, Any]) -> None:
-    """
-    Emit an audit artifact to the registered sink.
+def set_sink_failure_mode(mode: str) -> None:
+    """Set the global sink failure mode: 'raise' or 'log'.
 
-    If no sink is registered, this is a no-op.
-    If the sink raises, the exception is caught and logged as a warning.
+    The 'queue' mode is deprecated since v0.3.0 and will be removed in
+    a future release.  When 'queue' is passed, a DeprecationWarning is
+    emitted and the effective mode falls back to 'log'.
     """
-    sink = _registered_sink
-    if sink is None:
+    import warnings
+
+    if mode == "queue":
+        warnings.warn(
+            "Sink failure mode 'queue' is deprecated since v0.3.0 "
+            "and will be removed in a future release. "
+            "Falling back to 'log' mode.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        mode = "log"
+    if mode not in ("raise", "log"):
+        raise ValueError(f"Invalid sink failure mode: {mode}")
+    global _sink_failure_mode
+    _sink_failure_mode = mode
+
+
+def get_sink_failure_mode() -> str:
+    """Return the current sink failure mode."""
+    return _sink_failure_mode
+
+
+def emit_to_sink(
+    audit_artifact: dict[str, Any],
+    *,
+    sink: AuditSink | None = _SENTINEL,
+    failure_mode: str | None = None,
+) -> None:
+    """
+    Emit an audit artifact to a sink.
+
+    The artifact is deep-copied before being handed to the sink, so sinks
+    cannot mutate the caller's artifact object (Invariant C).
+
+    :param audit_artifact: Audit artifact dict to emit
+    :param sink: Explicit sink to use. When omitted (sentinel), falls back
+        to the module-global ``_registered_sink``.  Pass ``None`` explicitly
+        to skip emission.
+    :param failure_mode: Explicit failure mode (``"raise"``/``"log"``).
+        When ``None``, falls back to the module-global ``_sink_failure_mode``.
+    """
+    effective_sink = _registered_sink if sink is _SENTINEL else sink
+    if effective_sink is None:
         return
+    effective_mode = failure_mode if failure_mode is not None else _sink_failure_mode
+    artifact_copy = copy.deepcopy(audit_artifact)
     try:
-        sink.emit(audit_artifact)
+        effective_sink.emit(artifact_copy)
     except Exception as exc:  # noqa: BLE001
+        if effective_mode == "raise":
+            raise AuditSinkError(
+                f"Audit sink emit failed: {exc}",
+                details={"original_error": str(exc)},
+            ) from exc
         logger.warning("Audit sink emit failed: %s", exc)

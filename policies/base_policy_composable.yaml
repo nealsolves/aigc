@@ -4,7 +4,8 @@ roles:
   - planner
 pre_conditions:
   required:
-    - role_declared
+    role_declared:
+      type: boolean
 post_conditions:
   required:
     - output_schema_valid

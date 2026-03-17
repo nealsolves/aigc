@@ -7,6 +7,113 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.3.0] - 2026-03-15
+
+### Added
+
+- **Custom gate isolation** — Custom gates receive immutable read-only views
+  of policy and invocation data; mutation attempts are caught and converted
+  to governance failures (`CUSTOM_GATE_MUTATION`)
+- **Custom gate metadata preservation** — Gate metadata from all insertion
+  points is merged deterministically into audit artifacts under
+  `metadata.custom_gate_metadata`
+- **`CustomGateViolationError`** — Explicit error type for custom gate
+  failures, replacing heuristic string-matching classification
+- **`custom_gate_violation` failure gate** — Audit artifact `failure_gate`
+  enum extended with `custom_gate_violation` for accurate forensic
+  classification
+- **Pluggable PolicyLoader runtime wiring** — `AIGC(policy_loader=...)`
+  now routes enforcement through the custom loader; non-filesystem policy
+  references supported
+- **Pre-pipeline FAIL artifact validity** — Pre-pipeline failure paths
+  produce schema-valid artifacts with deterministic placeholder
+  `policy_version: "unknown"`
+- **Risk scoring engine** — Configurable risk scoring with strict and
+  warn-only modes
+- **Artifact signing** — HMAC-SHA256 artifact signing via `ArtifactSigner`
+- **Tamper-evident audit chain** — `AuditChain` for chained artifact
+  verification
+- **OpenTelemetry integration** — Enforcement spans and gate events via
+  `aigc.telemetry`
+- **Policy testing framework** — Programmatic policy testing via
+  `aigc.policy_testing`
+- **Policy version dates** — `effective_date` / `expiration_date`
+  enforcement
+- **Composition strategies** — `intersect`, `union`, `replace` for policy
+  composition
+- **Compliance export CLI** — `aigc compliance export` command
+
+### Changed
+
+- Custom gate failures now raise `CustomGateViolationError` instead of
+  generic `GovernanceViolationError` (backward-compatible:
+  `CustomGateViolationError` is a subclass)
+- Markdown lint scope excludes `.claude/` and `demo-app/` directories
+
+### Fixed
+
+- Custom gates could mutate policy/invocation objects, bypassing governance
+  (Critical)
+- Pre-pipeline FAIL artifacts had `policy_version: null`, violating schema
+  contract (Critical)
+- `AIGC(policy_loader=...)` parameter was accepted but not used at runtime
+  (High)
+- Custom gate metadata was captured but not merged into audit artifacts
+  (High)
+- Custom gate failures were misclassified as `postcondition_validation`
+  (High)
+
+---
+
+## [0.2.0] - 2026-03-06
+
+### Added
+
+- **Instance-scoped enforcement** — `AIGC` class with per-instance sink,
+  failure mode, strict mode, and redaction patterns; thread-safe (WS-1)
+- **Typed preconditions** — `pre_conditions.required` accepts typed dict format
+  with value constraints (`type`, `pattern`, `enum`, `min/max`); bare-string
+  format deprecated with `DeprecationWarning` (WS-2, D-01)
+- **Exception message sanitization** — API keys, bearer tokens, emails, SSNs
+  redacted from FAIL audit artifact messages; custom patterns supported (WS-3, D-05)
+- **Policy caching** — `PolicyCache` with LRU eviction keyed by
+  `(canonical_path, mtime)`; thread-safe via `threading.Lock` (WS-4, D-03)
+- **Sink failure mode configuration** — `set_sink_failure_mode("raise")`
+  propagates sink errors as `AuditSinkError`; `"log"` (default) preserves
+  backward-compatible behavior (WS-5, D-02)
+- **JSON serializability validation** — `input`, `output`, `context` fields
+  validated for JSON serializability before enforcement (WS-6, D-14)
+- **Audit schema bounds** — `maxItems: 1000` on failures, `maxProperties: 100`
+  on metadata and context; truncation with logging (WS-7, D-13)
+- **Strict mode** — `AIGC(strict_mode=True)` rejects policies without roles,
+  preconditions, or typed preconditions (WS-13)
+- **Internal import deprecation** — `from aigc._internal import X` emits
+  `DeprecationWarning`; public imports unaffected (WS-14)
+- **Audit schema v1.2** — `risk_score` (null) and `signature` (null)
+  forward-compatibility placeholders (WS-15)
+- **InvocationBuilder** — fluent builder API for constructing invocation
+  dicts (WS-16)
+- **AST-based guard expressions** — guard conditions compiled to AST; supports
+  `and`, `or`, `not`, comparison operators, `in` operator, parenthesized
+  expressions (WS-19, D-07)
+- **Policy CLI** — `aigc policy lint` and `aigc policy validate` commands;
+  `python -m aigc` entry point (WS-20, D-07)
+
+### Changed
+
+- `@governed` decorator uses `inspect.signature()` for robust parameter
+  binding (WS-8, D-11)
+- Condition resolution logs `INFO` for skipped optional conditions; error
+  details include `available_conditions` (WS-9, D-12)
+- Guard evaluation uses single-copy optimization instead of per-guard
+  `deepcopy` (WS-10, D-15)
+
+### Fixed
+
+- `@governed` decorator handles reordered function parameters correctly
+
+---
+
 ## [0.1.3] - 2026-02-23
 
 ### Fixed
@@ -92,6 +199,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+[0.3.0]: https://github.com/nealsolves/aigc/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/nealsolves/aigc/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/nealsolves/aigc/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/nealsolves/aigc/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/nealsolves/aigc/compare/v0.1.0...v0.1.1

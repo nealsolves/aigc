@@ -5,6 +5,19 @@ ignores:
   - "aigc-env/**"
   - "node_modules/**"
   - ".git/**"
+  - ".claude/**"
+  - "demo-app/**"
+  - "docs/research/**"
+  - "docs/audits/**"
+  - "docs/superpowers/**"
+  - "docs/_archive/**"
+  - "docs/dev/**"
+  - "docs/plans/**"
+  - "docs/prs/**"
+  - "build/**"
+  - "UNKNOWN-0.0.0/**"
+  - "*.egg-info/**"
+  - "AIGC_0.3.0_Release_Readiness_Audit.md"
 
 # Rule configuration
 config:
@@ -36,3 +49,6 @@ config:
   # changelogs where ### Added / ### Fixed / ### Changed repeat per version)
   MD024:
     siblings_only: true
+
+  # Disable table column style enforcement (triggers on standard separator rows)
+  MD060: false

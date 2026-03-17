@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aigc-sdk"
-version = "0.1.3"
+version = "0.3.0"
 description = "Deterministic, fail-closed governance enforcement for AI model invocations."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -39,6 +39,9 @@ dependencies = [
   "jsonschema>=4.0",
 ]
 
+[project.scripts]
+aigc = "aigc._internal.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/nealsolves/aigc"
 Repository = "https://github.com/nealsolves/aigc"
@@ -48,10 +51,10 @@ Changelog = "https://github.com/nealsolves/aigc/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=7.0",
-  "pytest-cov>=4.1",
-  "pytest-asyncio>=0.23",
-  "flake8>=5.0",
+  "pytest>=8.0",
+  "pytest-cov>=6.0",
+  "pytest-asyncio>=1.0",
+  "flake8>=7.0",
 ]
 
 [tool.pytest.ini_options]
@@ -62,4 +65,4 @@ where = ["."]
 include = ["aigc", "aigc.*"]
 
 [tool.setuptools.package-data]
-aigc = ["schemas/*.json"]
+aigc = ["schemas/*.json", "py.typed"]

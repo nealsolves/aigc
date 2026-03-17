@@ -9,6 +9,8 @@ This module ensures:
 
 from __future__ import annotations
 
+import logging
+import warnings
 from typing import Any, Mapping
 
 import jsonschema
@@ -18,6 +20,8 @@ from aigc._internal.errors import (
     PreconditionError,
     SchemaValidationError,
 )
+
+logger = logging.getLogger("aigc.validator")
 
 
 def _path_to_pointer(path: list[Any]) -> str:
@@ -54,6 +58,55 @@ def validate_schema(output: Mapping[str, Any], schema: Mapping[str, Any]) -> Non
         ) from err
 
 
+def _validate_typed_precondition(
+    key: str,
+    spec: Mapping[str, Any],
+    context: Mapping[str, Any],
+) -> None:
+    """Validate a single typed precondition against context value."""
+    if key not in context:
+        raise PreconditionError(
+            f"Missing required precondition: {key}",
+            details={"precondition": key},
+        )
+
+    value = context[key]
+
+    # Build a mini JSON Schema for validation
+    schema: dict[str, Any] = {}
+    if "type" in spec and spec["type"] != "any":
+        schema["type"] = spec["type"]
+    if "pattern" in spec:
+        schema["pattern"] = spec["pattern"]
+    if "enum" in spec:
+        schema["enum"] = spec["enum"]
+    if "minLength" in spec:
+        schema["minLength"] = spec["minLength"]
+    if "maxLength" in spec:
+        schema["maxLength"] = spec["maxLength"]
+    if "minimum" in spec:
+        schema["minimum"] = spec["minimum"]
+    if "maximum" in spec:
+        schema["maximum"] = spec["maximum"]
+
+    if not schema:
+        # Type "any" or no constraints - just check existence
+        if not bool(value):
+            raise PreconditionError(
+                f"Missing or false required precondition: {key}",
+                details={"precondition": key},
+            )
+        return
+
+    try:
+        jsonschema.validate(value, schema)
+    except ValidationError as err:
+        raise PreconditionError(
+            f"Precondition '{key}' validation failed: {err.message}",
+            details={"precondition": key, "value": value, "constraint": schema},
+        ) from err
+
+
 def validate_preconditions(
     context: Mapping[str, Any],
     policy: Mapping[str, Any],
@@ -61,13 +114,32 @@ def validate_preconditions(
     """
     Validates that all policy preconditions are met.
 
-    Preconditions might include:
-    - role declared
-    - schema exists
-    - within budget limits
+    Supports two formats:
+    - Legacy bare-string: required: ["key1", "key2"] (deprecated)
+    - Typed: required: {"key1": {"type": "string", "pattern": "..."}} (preferred)
     """
     required = policy.get("pre_conditions", {}).get("required", [])
-    satisfied: list[str] = []
+
+    if isinstance(required, dict):
+        # Typed preconditions
+        satisfied: list[str] = []
+        for key in sorted(required.keys()):
+            spec = required[key]
+            _validate_typed_precondition(key, spec, context)
+            satisfied.append(key)
+        return satisfied
+
+    # Legacy bare-string format
+    if isinstance(required, list) and required and isinstance(required[0], str):
+        if any(isinstance(r, str) for r in required):
+            warnings.warn(
+                "Bare-string preconditions are deprecated. "
+                "Use typed format: required: {key: {type: string}}",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+    satisfied = []
     for cond in required:
         if cond not in context or not bool(context[cond]):
             raise PreconditionError(

@@ -18,8 +18,10 @@ conditions:
 
 pre_conditions:
   required:
-    - "role_declared"
-    - "context_valid"
+    role_declared:
+      type: boolean
+    context_valid:
+      type: boolean
 
 post_conditions:
   required:

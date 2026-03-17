@@ -365,7 +365,7 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ### Test Coverage
 
-- **582 tests** (all passing)
+- **585 tests** (all passing)
 - **95% coverage** across all `aigc` modules
 - All DSL features have golden replay regression fixtures
 
@@ -398,7 +398,7 @@ and are not part of this SDK.
 
 ### Phase 3 Test Coverage
 
-- **582 tests** (all passing)
+- **585 tests** (all passing)
 - **95% coverage** across all `aigc` modules
 - Phase 3 runtime features have dedicated test files:
   `test_async_enforcement.py`, `test_audit_sinks.py`, `test_decorators.py`

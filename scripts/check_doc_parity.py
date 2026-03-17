@@ -22,6 +22,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -50,21 +51,27 @@ def is_internal_doc(path: str, internal_patterns: list[str]) -> bool:
 
 
 def collect_md_files() -> list[Path]:
-    """Collect all tracked .md files, excluding non-project directories."""
-    excluded = {"aigc-env", "node_modules", ".git", ".pytest_cache",
-                ".venv", "venv", "dist"}
-    result = []
-    for p in REPO_ROOT.rglob("*.md"):
-        parts = p.relative_to(REPO_ROOT).parts
-        if any(part in excluded for part in parts):
-            continue
-        # Skip egg-info directories
-        if any(part.endswith(".egg-info") for part in parts):
-            continue
-        # Skip gitignored research docs
-        if "research" in parts:
-            continue
-        result.append(p)
+    """Collect all git-tracked .md files to avoid scanning gitignored artifacts."""
+    try:
+        output = subprocess.check_output(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard",
+             "*.md", "**/*.md"],
+            cwd=REPO_ROOT,
+            text=True,
+        )
+        result = [REPO_ROOT / line for line in output.strip().splitlines() if line]
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Fallback: rglob with basic exclusions (e.g. outside a git repo)
+        excluded = {"aigc-env", "node_modules", ".git", ".pytest_cache",
+                    ".venv", "venv", "dist"}
+        result = []
+        for p in REPO_ROOT.rglob("*.md"):
+            parts = p.relative_to(REPO_ROOT).parts
+            if any(part in excluded for part in parts):
+                continue
+            if any(part.endswith(".egg-info") for part in parts):
+                continue
+            result.append(p)
     return sorted(result)
 
 

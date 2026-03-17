@@ -22,10 +22,9 @@ What problem does this solve? What governance or architectural risk does it addr
 
 If this PR creates, removes, or reorganizes directories:
 
-- [ ] `PROJECT.md` updated first
+- [ ] `PROJECT.md` updated first (authoritative structural contract)
 - [ ] Decision record added in `docs/decisions/`
 - [ ] Imports and tests updated
-- [ ] No directory structure hard-coded in `CLAUDE.md`
 
 ## Governance Hard Gates
 

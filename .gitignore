@@ -39,6 +39,8 @@ docs/architecture/AIGC_Architecture_Redesign_and_Roadmap.md
 
 # Build artifacts
 dist/
+build/
+UNKNOWN-0.0.0/
 
 # Demo app generated docs
 demo-app/docs/reference/
@@ -58,3 +60,9 @@ implementation_plan.md
 implementation_status.md
 /ARCHITECTURAL_INVARIANTS.md
 docs/dev/
+docs/plans/
+docs/prs/
+docs/superpowers/
+
+# Local audit reports (root level)
+AIGC_0.3.0_Release_Readiness_Audit.md

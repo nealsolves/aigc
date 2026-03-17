@@ -8,6 +8,16 @@ ignores:
   - ".claude/**"
   - "demo-app/**"
   - "docs/research/**"
+  - "docs/audits/**"
+  - "docs/superpowers/**"
+  - "docs/_archive/**"
+  - "docs/dev/**"
+  - "docs/plans/**"
+  - "docs/prs/**"
+  - "build/**"
+  - "UNKNOWN-0.0.0/**"
+  - "*.egg-info/**"
+  - "AIGC_0.3.0_Release_Readiness_Audit.md"
 
 # Rule configuration
 config:

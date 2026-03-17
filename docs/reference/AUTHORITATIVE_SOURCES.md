@@ -14,8 +14,8 @@ those external artifacts and the canonical AIGC documentation set.
 
 | Artifact | Repo Path | Status | Canonical AIGC Equivalent |
 |----------|-----------|--------|---------------------------|
-| `TRACE_CLAUDE.md` | [docs/reference/external/TRACE_CLAUDE.md](external/TRACE_CLAUDE.md) | Reference stub — host-application traceability document maintained outside the SDK | [docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](../architecture/AIGC_HIGH_LEVEL_DESIGN.md), [docs/INTEGRATION_GUIDE.md](../INTEGRATION_GUIDE.md) |
-| `Agentic App Kit Design.txt` | [docs/reference/external/Agentic_App_Kit_Design.txt](external/Agentic_App_Kit_Design.txt) | Reference stub — original design brief pre-dating the SDK | [PROJECT.md](../../PROJECT.md) |
+| `TRACE_CLAUDE.md` | `docs/reference/external/` (gitignored, local-only) | Host-application traceability document maintained outside the SDK | [docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](../architecture/AIGC_HIGH_LEVEL_DESIGN.md), [docs/INTEGRATION_GUIDE.md](../INTEGRATION_GUIDE.md) |
+| `Agentic App Kit Design.txt` | `docs/reference/external/` (gitignored, local-only) | Original design brief pre-dating the SDK | [PROJECT.md](../../PROJECT.md) |
 
 ## How to Use This Index
 

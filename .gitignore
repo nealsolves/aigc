@@ -46,6 +46,9 @@ UNKNOWN-0.0.0/
 demo-app/docs/reference/
 demo-app/docs/audits/
 
+# External reference docs
+docs/reference/external/
+
 # Research notes
 docs/research/
 

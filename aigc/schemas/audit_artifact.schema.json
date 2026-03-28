@@ -96,6 +96,10 @@
     "previous_audit_checksum": {
       "type": ["string", "null"],
       "description": "SHA-256 checksum of the previous artifact in the chain"
+    },
+    "checksum": {
+      "type": ["string", "null"],
+      "description": "SHA-256 checksum of this artifact (populated by AuditChain to enable tamper detection of the last link)"
     }
   },
   "required": [

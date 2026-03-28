@@ -3,6 +3,8 @@
 # Globs to ignore
 ignores:
   - "aigc-env/**"
+  - ".venv/**"
+  - "venv/**"
   - "node_modules/**"
   - ".git/**"
   - ".claude/**"

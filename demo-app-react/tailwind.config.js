@@ -1,68 +1,31 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-    darkMode: ["class"],
-    content: [
-    "./index.html",
-    "./src/**/*.{ts,tsx}",
-  ],
+  darkMode: ['selector', '[data-theme="dark"]'],
+  content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
-  	extend: {
-  		borderRadius: {
-  			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
-  		},
-  		colors: {
-  			background: 'hsl(var(--background))',
-  			foreground: 'hsl(var(--foreground))',
-  			card: {
-  				DEFAULT: 'hsl(var(--card))',
-  				foreground: 'hsl(var(--card-foreground))'
-  			},
-  			popover: {
-  				DEFAULT: 'hsl(var(--popover))',
-  				foreground: 'hsl(var(--popover-foreground))'
-  			},
-  			primary: {
-  				DEFAULT: 'hsl(var(--primary))',
-  				foreground: 'hsl(var(--primary-foreground))'
-  			},
-  			secondary: {
-  				DEFAULT: 'hsl(var(--secondary))',
-  				foreground: 'hsl(var(--secondary-foreground))'
-  			},
-  			muted: {
-  				DEFAULT: 'hsl(var(--muted))',
-  				foreground: 'hsl(var(--muted-foreground))'
-  			},
-  			accent: {
-  				DEFAULT: 'hsl(var(--accent))',
-  				foreground: 'hsl(var(--accent-foreground))'
-  			},
-  			destructive: 'hsl(var(--destructive))',
-  			border: 'hsl(var(--border))',
-  			input: 'hsl(var(--input))',
-  			ring: 'hsl(var(--ring))',
-  			chart: {
-  				'1': 'hsl(var(--chart-1))',
-  				'2': 'hsl(var(--chart-2))',
-  				'3': 'hsl(var(--chart-3))',
-  				'4': 'hsl(var(--chart-4))',
-  				'5': 'hsl(var(--chart-5))'
-  			},
-  			sidebar: {
-  				DEFAULT: 'hsl(var(--sidebar))',
-  				foreground: 'hsl(var(--sidebar-foreground))',
-  				primary: 'hsl(var(--sidebar-primary))',
-  				'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-  				accent: 'hsl(var(--sidebar-accent))',
-  				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-  				border: 'hsl(var(--sidebar-border))',
-  				ring: 'hsl(var(--sidebar-ring))'
-  			}
-  		}
-  	}
+    extend: {
+      fontFamily: {
+        mono: ['"IBM Plex Mono"', 'monospace'],
+        sans: ['"IBM Plex Sans"', 'sans-serif'],
+      },
+      colors: {
+        'ibm-blue':    'var(--ibm-blue-60)',
+        'ibm-blue-lt': 'var(--ibm-blue-40)',
+        'ibm-cyan':    'var(--ibm-cyan-30)',
+        'ibm-teal':    'var(--ibm-teal-30)',
+        'ibm-teal-dk': 'var(--ibm-teal-60)',
+        'ibm-magenta': 'var(--ibm-magenta-40)',
+        'ibm-purple':  'var(--ibm-purple-40)',
+        surface:    'var(--bg-surface)',
+        base:       'var(--bg-base)',
+        nav:        'var(--bg-nav)',
+        hero:       'var(--bg-hero)',
+        'border-ui': 'var(--border-ui)',
+        'text-1':   'var(--text-primary)',
+        'text-2':   'var(--text-secondary)',
+        'text-3':   'var(--text-tertiary)',
+      },
+    },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [],
 }
-

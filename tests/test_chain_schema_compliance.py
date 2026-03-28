@@ -7,20 +7,19 @@ export CLI.  They guard against the schema incompatibility found in R030-002.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
-import pytest
 from jsonschema import validate as jsonschema_validate
 
 from aigc._internal.audit import generate_audit_artifact
 from aigc._internal.audit_chain import AuditChain
 from aigc._internal.cli import main
+from aigc._internal.policy_loader import SCHEMAS_DIR
 
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-_SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "audit_artifact.schema.json"
+_SCHEMA_PATH = SCHEMAS_DIR / "audit_artifact.schema.json"
 
 
 def _audit_schema() -> dict:

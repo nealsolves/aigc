@@ -41,6 +41,7 @@ class InMemoryPolicyLoader(PolicyLoaderBase):
 VALID_POLICY = {
     "policy_version": "1.0",
     "roles": ["planner"],
+    "pre_conditions": {"required": {"prompt": {"type": "string"}}},
 }
 
 VALID_INVOCATION = {
@@ -50,7 +51,7 @@ VALID_INVOCATION = {
     "role": "planner",
     "input": {"prompt": "test"},
     "output": {"result": "ok"},
-    "context": {},
+    "context": {"prompt": "test"},
 }
 
 
@@ -116,6 +117,7 @@ def test_custom_loader_roles_are_enforced():
     policy_with_roles = {
         "policy_version": "1.0",
         "roles": ["analyst", "reviewer"],
+        "pre_conditions": {"required": {"prompt": {"type": "string"}}},
     }
     loader = InMemoryPolicyLoader({"role-check": policy_with_roles})
     aigc = AIGC(policy_loader=loader)
@@ -136,6 +138,7 @@ def test_custom_loader_wrong_role_fails():
     policy_no_executor = {
         "policy_version": "1.0",
         "roles": ["planner"],
+        "pre_conditions": {"required": {"prompt": {"type": "string"}}},
     }
     loader = InMemoryPolicyLoader({"strict-roles": policy_no_executor})
     aigc = AIGC(policy_loader=loader)

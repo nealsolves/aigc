@@ -7,7 +7,6 @@ from aigc._internal.policy_loader import (
     COMPOSITION_INTERSECT,
     COMPOSITION_UNION,
     COMPOSITION_REPLACE,
-    VALID_COMPOSITION_STRATEGIES,
 )
 from aigc._internal.errors import PolicyValidationError
 
@@ -135,14 +134,14 @@ def test_extends_not_in_merged():
 def test_load_policy_union(tmp_path):
     base = tmp_path / "base.yaml"
     base.write_text(
-        "policy_version: '1.0'\nroles:\n  - planner\n  - verifier\n"
+        "policy_version: '1.0'\nroles:\n  - planner\n  - verifier\n  - reviewer\n"
     )
     child = tmp_path / "child.yaml"
     child.write_text(
         "policy_version: '2.0'\n"
         "extends: base.yaml\n"
         "composition_strategy: union\n"
-        "roles:\n  - reviewer\n"
+        "roles:\n  - planner\n  - reviewer\n"
     )
     policy = load_policy(str(child))
     assert "planner" in policy["roles"]
@@ -168,7 +167,8 @@ def test_load_policy_intersect(tmp_path):
     assert policy["roles"] == ["planner"]
 
 
-def test_load_policy_replace(tmp_path):
+def test_load_policy_replace_escalation_raises(tmp_path):
+    """replace strategy that adds roles absent from base raises PolicyValidationError."""
     base = tmp_path / "base.yaml"
     base.write_text(
         "policy_version: '1.0'\nroles:\n  - planner\n  - verifier\n"
@@ -180,8 +180,62 @@ def test_load_policy_replace(tmp_path):
         "composition_strategy: replace\n"
         "roles:\n  - admin\n"
     )
+    with pytest.raises(PolicyValidationError, match="Composition escalation"):
+        load_policy(str(child))
+
+
+def test_load_policy_replace_valid_subset(tmp_path):
+    """replace strategy that restricts to a subset of base roles is allowed."""
+    base = tmp_path / "base.yaml"
+    base.write_text(
+        "policy_version: '1.0'\nroles:\n  - planner\n  - verifier\n"
+    )
+    child = tmp_path / "child.yaml"
+    child.write_text(
+        "policy_version: '2.0'\n"
+        "extends: base.yaml\n"
+        "composition_strategy: replace\n"
+        "roles:\n  - planner\n"
+    )
     policy = load_policy(str(child))
-    assert policy["roles"] == ["admin"]
+    assert policy["roles"] == ["planner"]
+
+
+def test_union_role_escalation_raises(tmp_path):
+    """union strategy that adds a role not in base raises PolicyValidationError."""
+    base = tmp_path / "base.yaml"
+    base.write_text("policy_version: '1.0'\nroles:\n  - planner\n")
+    child = tmp_path / "child.yaml"
+    child.write_text(
+        "policy_version: '2.0'\n"
+        "extends: base.yaml\n"
+        "composition_strategy: union\n"
+        "roles:\n  - admin\n"
+    )
+    with pytest.raises(PolicyValidationError, match="Composition escalation"):
+        load_policy(str(child))
+
+
+def test_intersect_postcondition_weakening_raises(tmp_path):
+    """intersect that removes a required postcondition raises PolicyValidationError."""
+    base = tmp_path / "base.yaml"
+    base.write_text(
+        "policy_version: '1.0'\n"
+        "roles:\n  - planner\n"
+        "post_conditions:\n"
+        "  required:\n"
+        "    - output_schema_valid\n"
+    )
+    child = tmp_path / "child.yaml"
+    child.write_text(
+        "policy_version: '2.0'\n"
+        "extends: base.yaml\n"
+        "composition_strategy: intersect\n"
+        "post_conditions:\n"
+        "  required: []\n"
+    )
+    with pytest.raises(PolicyValidationError, match="Composition weakening"):
+        load_policy(str(child))
 
 
 def test_invalid_composition_strategy(tmp_path):

@@ -2,6 +2,7 @@ policy_version: "1.0"
 description: "Base policy for composition testing"
 roles:
   - planner
+  - verifier
 pre_conditions:
   required:
     role_declared:

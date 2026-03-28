@@ -171,3 +171,46 @@ def test_compliance_report_version(tmp_path):
     ])
     report = json.loads(output_file.read_text())
     assert report["compliance_report_version"] == "1.0"
+
+
+def test_compliance_export_all_invalid_returns_nonzero(tmp_path):
+    """Exit 1 when every artifact in the input fails schema validation."""
+    # Write a single structurally-valid JSON object that is NOT a valid artifact
+    input_file = tmp_path / "bad.jsonl"
+    input_file.write_text(json.dumps({"not": "an artifact"}) + "\n")
+
+    exit_code = main([
+        "compliance", "export",
+        "--input", str(input_file),
+    ])
+    assert exit_code == 1
+
+
+def test_compliance_export_partial_invalid_still_exits_zero(tmp_path):
+    """Exit 0 when at least one artifact is valid, even if others are invalid."""
+    artifacts = [_make_artifact("PASS")]
+    input_file = tmp_path / "mixed.jsonl"
+    with open(input_file, "w") as f:
+        f.write(json.dumps(artifacts[0]) + "\n")
+        f.write(json.dumps({"bad": "object"}) + "\n")
+
+    exit_code = main([
+        "compliance", "export",
+        "--input", str(input_file),
+    ])
+    assert exit_code == 0
+
+
+def test_compliance_export_all_invalid_no_output_file_written(tmp_path):
+    """When all artifacts are invalid and --output is specified, no file is written."""
+    input_file = tmp_path / "bad.jsonl"
+    input_file.write_text(json.dumps({"not": "an artifact"}) + "\n")
+
+    output_file = tmp_path / "report.json"
+    exit_code = main([
+        "compliance", "export",
+        "--input", str(input_file),
+        "--output", str(output_file),
+    ])
+    assert exit_code == 1
+    assert not output_file.exists()

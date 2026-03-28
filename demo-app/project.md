@@ -29,7 +29,7 @@ Every lab follows a consistent pattern:
 
 1. **Scenario selection** — User picks a mock scenario from `shared/ai_client.py` (preset prompts, outputs, and context dicts).
 2. **Invocation assembly** — `InvocationBuilder` from the AIGC SDK constructs a standardized invocation dict.
-3. **Enforcement** — `AIGC.enforce(invocation)` runs the full governance pipeline: guards → role validation → preconditions → tool constraints → schema validation → postconditions → risk scoring → custom gates → audit generation.
+3. **Enforcement** — `AIGC.enforce(invocation)` runs the full governance pipeline: custom gates (pre-auth) → guards → role validation → preconditions → tool constraints → custom gates (post-auth, pre-output) → schema validation → postconditions → custom gates (post-output) → risk scoring → audit generation.
 4. **Result display** — The audit artifact is rendered with PASS/FAIL badge, risk gauge, signal breakdown, and raw JSON.
 5. **Audit sink** — A `CallbackAuditSink` appends every artifact to `st.session_state.audit_history`, feeding the Compliance Dashboard (Lab 7).
 
@@ -65,7 +65,7 @@ No real API calls are ever made.
 Demonstrates factor-based risk scoring. Users pick from three preset scenarios (low/medium/high risk) and toggle between three risk modes:
 
 - **strict** — Score above threshold fails enforcement immediately.
-- **risk_scored** — Score is recorded and enforced; scores at or below threshold pass.
+- **risk_scored** — Score is recorded in the audit artifact; threshold exceedance does not block enforcement.
 - **warn_only** — Score is recorded but never blocks.
 
 The policy uses five medical risk factors: `no_output_schema`, `broad_roles`, `missing_guards`, `external_model`, `no_preconditions`. Renders a color-coded risk gauge and signal breakdown table.

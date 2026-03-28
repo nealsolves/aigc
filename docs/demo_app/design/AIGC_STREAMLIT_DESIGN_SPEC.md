@@ -989,11 +989,12 @@ def generate_compliance_summary(
 
 **CLI extension in `aigc/_internal/cli.py`:**
 
+> **Note:** The `aigc audit` subcommand was never shipped. Use `aigc compliance export` instead. The `--format`, `--signed-only`, and `--days` flags described in earlier drafts are aspirational and not yet implemented.
+
 ```bash
-# New subcommand
-aigc audit export --format csv --days 7 --policy medical_ai --output report.csv
-aigc audit export --format json --signed-only --output evidence.json
-aigc audit summary --days 30
+# Current CLI commands (v0.3.0+)
+aigc compliance export --input /path/to/audit.jsonl --output report.json
+aigc compliance export --input audit.jsonl --include-artifacts
 ```
 
 **PDF dependency:** PDF export is an optional feature gated behind

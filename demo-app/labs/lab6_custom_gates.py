@@ -275,6 +275,7 @@ def render() -> None:
         format_func=lambda s: s.replace("gate_", "").replace("_", " ").title(),
         horizontal=True,
         key="lab6_scenario",
+        on_change=lambda: st.session_state.pop("lab6_last_artifact", None),
     )
 
     if st.button("Run with Custom Gate", type="primary", use_container_width=True):

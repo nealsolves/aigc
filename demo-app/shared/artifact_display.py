@@ -24,7 +24,10 @@ def render_artifact(artifact: dict[str, Any], expanded: bool = False) -> None:
     # Badge colour
     badge = "\u2705 PASS" if result == "PASS" else "\u274c FAIL"
 
-    with st.expander(f"{badge} | {policy} | role={role}", expanded=expanded):
+    # Use container instead of expander to avoid nested-expander violations
+    # when render_artifact is called inside other expanders or columns.
+    st.markdown(f"**{badge}** | `{policy}` | role=`{role}`")
+    with st.container(border=True):
         # -- Summary row ---------------------------------------------------
         cols = st.columns(4)
         cols[0].metric("Result", result)

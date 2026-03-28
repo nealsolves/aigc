@@ -2,27 +2,43 @@
 
 Interactive Streamlit application for exploring the AIGC SDK's governance pipeline. Seven hands-on labs walk you through risk scoring, artifact signing, audit chains, policy composition, pluggable loaders, custom gates, and compliance reporting — all without spending API tokens.
 
-## Quick Start
+## Prerequisites
+
+- Python 3.10+ (required for `X | Y` union type syntax used throughout the codebase)
+- pip
+
+## Environment Setup
+
+A virtual environment is recommended to avoid dependency conflicts with your system Python.
 
 ```bash
-# From the project root, install the SDK in dev mode
+# Navigate to the project root (parent of demo-app/)
+cd /path/to/aigc
+
+# Create and activate a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate        # macOS / Linux
+# .venv\Scripts\activate         # Windows
+
+# Install the AIGC SDK in dev mode
 pip install -e .
 
 # Install demo-app dependencies
 pip install -r demo-app/requirements.txt
+```
 
-# Launch the app
+This installs four packages: the `aigc` SDK (from source), Streamlit ≥ 1.30, PyYAML ≥ 6.0, and jsonschema ≥ 4.0.
+
+> **Note:** The `pip install -e .` step from the project root is required — the demo-app imports directly from the `aigc` package. If you skip it, you'll get `ModuleNotFoundError: No module named 'aigc'`.
+
+## Quick Start
+
+```bash
 cd demo-app
 streamlit run app.py
 ```
 
 The app opens at `http://localhost:8501`. No API keys are required — every lab uses deterministic mock responses.
-
-## Prerequisites
-
-- Python 3.10+
-- The `aigc` SDK installed from the parent directory (`pip install -e ../`)
-- Dependencies listed in `requirements.txt`: Streamlit ≥ 1.30, PyYAML ≥ 6.0, jsonschema ≥ 4.0
 
 ## Labs
 

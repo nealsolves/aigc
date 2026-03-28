@@ -43,8 +43,8 @@ build/
 UNKNOWN-0.0.0/
 
 # Demo app generated docs
-demo-app/docs/reference/
-demo-app/docs/audits/
+demo-app-streamlit/docs/reference/
+demo-app-streamlit/docs/audits/
 
 # External reference docs
 docs/reference/external/
@@ -69,3 +69,6 @@ docs/superpowers/
 
 # Local audit reports (root level)
 AIGC_0.3.0_Release_Readiness_Audit.md
+
+# Brainstorming session files
+.superpowers/

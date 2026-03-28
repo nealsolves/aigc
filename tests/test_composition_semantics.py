@@ -7,7 +7,6 @@ from aigc._internal.policy_loader import (
     COMPOSITION_INTERSECT,
     COMPOSITION_UNION,
     COMPOSITION_REPLACE,
-    VALID_COMPOSITION_STRATEGIES,
 )
 from aigc._internal.errors import PolicyValidationError
 

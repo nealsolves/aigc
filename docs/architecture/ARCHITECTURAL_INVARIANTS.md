@@ -144,7 +144,14 @@ Failures may be added by:
 
 Failures may never be removed.
 
-Plugins cannot suppress governance violations.
+Plugins cannot suppress already-recorded governance violations. Once a core
+gate records a failure, no subsequent plugin gate may remove or override it.
+Failures are append-only within a pipeline execution.
+
+Pre-authorization custom gates execute before core validation gates. Their
+failures are classified as `custom_gate_violation` and do not prevent core
+gate evaluation if a core gate has not yet run. This is intentional pipeline
+ordering, not a suppression exception.
 
 ---
 

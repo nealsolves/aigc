@@ -111,7 +111,9 @@ AIGC considers four attacker types.
 * restricted extension points
 * CI verification of failure propagation
 
-Plugins cannot remove or suppress failures.
+Custom gates cannot remove or suppress already-recorded core gate failures.
+Pre-authorization gates run before core gates by design and are classified
+separately as `custom_gate_violation`.
 
 ---
 
@@ -250,7 +252,15 @@ tenant_id:
 
 **Example:** plugin removes failure
 
-**Mitigation:** Failures are append-only. Plugins cannot remove failures.
+**Mitigation:** Failures are append-only. Custom gates cannot suppress
+already-recorded core gate failures. Once a core gate records a failure,
+no subsequent plugin gate may remove it.
+
+Pre-authorization gates run before core gates by design and are classified
+separately as `custom_gate_violation`. A pre-auth gate failure halts the
+pipeline before core gates execute; this is intentional pipeline sequencing,
+not a suppression exception. The non-suppression guarantee applies to gates
+running after a core gate has already evaluated and recorded a failure.
 
 ---
 

@@ -265,3 +265,43 @@ def test_aigc_validates_gates_at_construction():
 def test_abstract_gate_cannot_instantiate():
     with pytest.raises(TypeError):
         EnforcementGate()
+
+
+def test_post_auth_gate_cannot_suppress_role_failure(tmp_path):
+    """A post-authorization gate failure cannot suppress a role_validation failure
+    that was already recorded.  The artifact must show failure_gate=role_validation."""
+    # Policy that only allows 'planner' role
+    policy_file = tmp_path / "restricted.yaml"
+    policy_file.write_text("policy_version: '1.0'\nroles:\n  - planner\n")
+
+    class AlwaysFailPostAuth(EnforcementGate):
+        @property
+        def name(self):
+            return "always_fail_post_auth"
+
+        @property
+        def insertion_point(self):
+            return INSERTION_POST_AUTHORIZATION
+
+        def evaluate(self, invocation, policy, context):
+            return GateResult(
+                passed=False,
+                failures=[{"code": "custom_block", "message": "post-auth blocked",
+                            "field": None}],
+            )
+
+    aigc = AIGC(custom_gates=[AlwaysFailPostAuth()])
+    with pytest.raises(GovernanceViolationError) as exc_info:
+        aigc.enforce({
+            "policy_file": str(policy_file),
+            "model_provider": "openai",
+            "model_identifier": "gpt-4",
+            "role": "admin",          # unauthorized role — role_validation should catch this
+            "input": {"prompt": "x"},
+            "output": {"result": "y"},
+            "context": {},
+        })
+
+    artifact = exc_info.value.audit_artifact
+    # Role failure must be present — post-auth gate runs AFTER role validation
+    assert artifact["failure_gate"] == "role_validation"

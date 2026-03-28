@@ -110,10 +110,17 @@ Verified by `test_composition_semantics.py`.
 
 ### Plugin Isolation (v0.3)
 
-Custom gates must not suppress core failures. Failures must remain
-append-only.
+Custom gates must not suppress already-recorded core failures. Once a core
+gate failure is recorded (role, precondition, tool, schema, postcondition),
+no subsequent custom gate may remove it. Failures are append-only.
 
-Verified by `test_custom_gates.py`.
+Note: **Pre-authorization** custom gates run before role/precondition
+validation by design. A pre-auth gate failure means downstream core gates
+do not execute — this is intentional pipeline sequencing, not failure
+suppression. The non-suppression guarantee applies to gates running *after*
+a core gate has already evaluated and recorded a failure.
+
+Verified by `test_custom_gates.py::test_post_auth_gate_cannot_suppress_role_failure`.
 
 ---
 

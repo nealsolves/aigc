@@ -139,7 +139,7 @@ def _render_linear(guide: LabGuide) -> None:
         st.markdown(f"_{step.instruction}_")
 
         if is_active or completed:
-            st.caption(f"What to expect: {step.what_to_expect}")
+            st.markdown(f"**What to expect:**\n\n{step.what_to_expect}", help=None)
 
         if is_active and step.show_me:
             if st.button(f"Show Me", key=f"showme_{guide.lab_id}_{i}"):
@@ -205,7 +205,7 @@ def _render_iterative(guide: LabGuide) -> None:
     st.caption(f"{current} / {target} artifacts linked")
 
     if current >= target:
-        st.success("Milestone reached!")
+        st.success("Max chain links for this lab reached.")
 
     # Show cycle steps
     if guide.iterative_steps:

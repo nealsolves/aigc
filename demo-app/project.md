@@ -29,7 +29,7 @@ Every lab follows a consistent pattern:
 
 1. **Scenario selection** — User picks a mock scenario from `shared/ai_client.py` (preset prompts, outputs, and context dicts).
 2. **Invocation assembly** — `InvocationBuilder` from the AIGC SDK constructs a standardized invocation dict.
-3. **Enforcement** — `AIGC.enforce(invocation)` runs the full governance pipeline: guards → role validation → preconditions → tool constraints → schema validation → postconditions → risk scoring → custom gates → audit generation.
+3. **Enforcement** — `AIGC.enforce(invocation)` runs the full governance pipeline: custom gates (pre-auth) → guards → role validation → preconditions → tool constraints → custom gates (post-auth, pre-output) → schema validation → postconditions → custom gates (post-output) → risk scoring → audit generation.
 4. **Result display** — The audit artifact is rendered with PASS/FAIL badge, risk gauge, signal breakdown, and raw JSON.
 5. **Audit sink** — A `CallbackAuditSink` appends every artifact to `st.session_state.audit_history`, feeding the Compliance Dashboard (Lab 7).
 

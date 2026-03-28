@@ -65,7 +65,7 @@ No real API calls are ever made.
 Demonstrates factor-based risk scoring. Users pick from three preset scenarios (low/medium/high risk) and toggle between three risk modes:
 
 - **strict** — Score above threshold fails enforcement immediately.
-- **risk_scored** — Score is recorded and enforced; scores at or below threshold pass.
+- **risk_scored** — Score is recorded in the audit artifact; threshold exceedance does not block enforcement.
 - **warn_only** — Score is recorded but never blocks.
 
 The policy uses five medical risk factors: `no_output_schema`, `broad_roles`, `missing_guards`, `external_model`, `no_preconditions`. Renders a color-coded risk gauge and signal breakdown table.

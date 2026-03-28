@@ -16,7 +16,10 @@ export default function AppNav() {
         href="https://github.com/nealsolves/aigc"
         target="_blank"
         rel="noopener noreferrer"
-        className="text-text-2 hover:text-text-1 transition-colors"
+        className="transition-colors"
+        style={{ color: 'rgba(255,255,255,0.55)' }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.9)')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
         aria-label="GitHub repository"
       >
         <ExternalLink size={16} />

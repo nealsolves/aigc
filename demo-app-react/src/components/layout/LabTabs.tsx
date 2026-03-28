@@ -15,11 +15,11 @@ export default function LabTabs({ labs }: { labs: LabMeta[] }) {
           <Link
             key={lab.num}
             to={`/lab/${lab.num}`}
-            className="whitespace-nowrap rounded px-2.5 py-1 font-mono font-light text-[9px] tracking-wide transition-colors"
+            className="whitespace-nowrap rounded px-2.5 py-1 font-mono font-light text-[11px] tracking-wide transition-colors"
             style={
               active
                 ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
-                : { color: 'var(--text-secondary)', border: '1px solid transparent' }
+                : { color: 'rgba(255,255,255,0.55)', border: '1px solid transparent' }
             }
           >
             Lab {lab.num}: {lab.short}

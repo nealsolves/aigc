@@ -223,11 +223,11 @@ def _render_cli_equivalent() -> None:
     st.subheader("CLI Equivalent")
     st.caption("The same export can be run from the command line:")
     st.code(
-        "# Export last 7 days of audit artifacts as CSV\n"
-        "aigc audit export --format csv --days 7 --output report.csv\n\n"
-        "# Export signed artifacts only as JSON evidence bundle\n"
-        "aigc audit export --format json --signed-only --output evidence.json\n\n"
-        "# Print compliance summary for last 30 days\n"
-        "aigc audit summary --days 30",
+        "# Export compliance report from a JSONL audit artifact file\n"
+        "aigc compliance export --input /path/to/audit.jsonl\n\n"
+        "# Write report to a JSON file instead of stdout\n"
+        "aigc compliance export --input audit.jsonl --output report.json\n\n"
+        "# Include full artifact list in the report\n"
+        "aigc compliance export --input audit.jsonl --include-artifacts",
         language="bash",
     )

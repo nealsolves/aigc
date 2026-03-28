@@ -153,6 +153,11 @@ python -m build --no-isolation
 
 Both `aigc_sdk-<version>.tar.gz` (sdist) and `aigc_sdk-<version>-py3-none-any.whl` (wheel) must be produced. If only `--no-isolation` succeeds, document the reason in the release notes.
 
+**Alternatives for offline/enterprise environments:**
+
+* `python -m build --no-isolation` — skips isolated build environment; requires `setuptools` and `wheel` already installed in the active Python environment.
+* Custom index mirror — configure `pip` to use a local mirror or internal package index (`--index-url <mirror>`) so that the isolated build can resolve dependencies without public internet access.
+
 ### Concurrency Safety
 
 Enforcement must be safe across threads. Manual or local verification

@@ -304,35 +304,35 @@ def render() -> None:
 # Pipeline visualization
 # ---------------------------------------------------------------------------
 def _render_pipeline(custom_gate: EnforcementGate) -> None:
-    """Show the pipeline stages with the custom gate inserted."""
+    """Show the pipeline stages with the custom gate inserted at its actual position."""
     stages = [
         ("guard_evaluation", "core"),
         ("role_validation", "core"),
         ("precondition_validation", "core"),
-        ("risk_scoring", "core"),
         ("tool_constraint_validation", "core"),
+        ("schema_validation", "core"),
+        ("postcondition_validation", "core"),
+        ("risk_scoring", "core"),
     ]
 
-    # Insert custom gate at its position
-    if custom_gate.insertion_point in ("pre_authorization", "post_authorization"):
-        insert_after = "precondition_validation"
-    elif custom_gate.insertion_point == "pre_output":
-        insert_after = "tool_constraint_validation"
-    else:  # post_output
-        insert_after = "postcondition_validation"
+    # Build full pipeline with custom gate inserted at correct position
+    insertion = custom_gate.insertion_point
+    if insertion == "pre_authorization":
+        # pre_auth runs before all core gates
+        full_pipeline = [(custom_gate.name, "custom")] + stages
+    else:
+        if insertion == "post_authorization":
+            insert_after = "tool_constraint_validation"
+        elif insertion == "pre_output":
+            insert_after = "tool_constraint_validation"
+        else:  # post_output
+            insert_after = "postcondition_validation"
 
-    # Build full pipeline
-    full_pipeline = []
-    for stage_name, stage_type in stages:
-        full_pipeline.append((stage_name, stage_type))
-        if stage_name == insert_after:
-            full_pipeline.append((custom_gate.name, "custom"))
-
-    full_pipeline.append(("schema_validation", "core"))
-    full_pipeline.append(("postcondition_validation", "core"))
-    if insert_after == "postcondition_validation":
-        full_pipeline.append((custom_gate.name, "custom"))
-    full_pipeline.append(("audit_generation", "core"))
+        full_pipeline = []
+        for stage_name, stage_type in stages:
+            full_pipeline.append((stage_name, stage_type))
+            if stage_name == insert_after:
+                full_pipeline.append((custom_gate.name, "custom"))
 
     # Render
     for stage_name, stage_type in full_pipeline:

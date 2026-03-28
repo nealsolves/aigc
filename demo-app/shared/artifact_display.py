@@ -18,7 +18,7 @@ def render_artifact(artifact: dict[str, Any], expanded: bool = False) -> None:
     """
     result = artifact.get("enforcement_result", "UNKNOWN")
     policy = artifact.get("policy_file", "—")
-    role = artifact.get("invocation_summary", {}).get("role", "—")
+    role = artifact.get("role", "—")
     checksum = artifact.get("checksum", "—")
 
     # Badge colour
@@ -54,7 +54,7 @@ def render_artifact(artifact: dict[str, Any], expanded: bool = False) -> None:
         if failures:
             st.error("Failures:")
             for f in failures:
-                st.markdown(f"- **{f.get('gate', '?')}**: {f.get('message', '?')}")
+                st.markdown(f"- **{f.get('code', '?')}**: {f.get('message', '?')}")
 
         # -- Chain info (if present) ---------------------------------------
         chain_id = artifact.get("chain_id")

@@ -251,6 +251,51 @@ def _merge_policies(
     return merged
 
 
+def _validate_composition_restriction(
+    base: dict[str, Any],
+    merged: dict[str, Any],
+) -> None:
+    """Enforce monotonic restriction: child policies may not expand roles or
+    remove required postconditions relative to the base policy.
+
+    :param base: The resolved base policy dict (before overlay was applied).
+    :param merged: The merged policy dict (after overlay was applied).
+    :raises PolicyValidationError: If the merged policy escalates privileges or
+        weakens postconditions.
+    """
+    # Role escalation check: merged roles must be a subset of base roles
+    base_roles = set(base.get("roles") or [])
+    merged_roles = set(merged.get("roles") or [])
+    if base_roles and (escalated := sorted(merged_roles - base_roles)):
+        raise PolicyValidationError(
+            f"Composition escalation: child policy adds roles not present "
+            f"in base policy: {escalated}",
+            details={
+                "base_roles": sorted(base_roles),
+                "merged_roles": sorted(merged_roles),
+                "escalated_roles": escalated,
+            },
+        )
+
+    # Postcondition weakening check: merged must retain all base required postconditions
+    base_post = set(
+        base.get("post_conditions", {}).get("required") or []
+    )
+    merged_post = set(
+        merged.get("post_conditions", {}).get("required") or []
+    )
+    if base_post and (removed := sorted(base_post - merged_post)):
+        raise PolicyValidationError(
+            f"Composition weakening: child policy removes required "
+            f"postconditions from base policy: {removed}",
+            details={
+                "base_required": sorted(base_post),
+                "merged_required": sorted(merged_post),
+                "removed_postconditions": removed,
+            },
+        )
+
+
 # ── Policy version dates ─────────────────────────────────────────
 
 
@@ -395,6 +440,9 @@ def _resolve_extends(
 
     # Merge current policy into base (current overrides base)
     merged = _merge_policies(base_policy_dict, policy, strategy)
+
+    # Enforce monotonic restriction: child must not escalate privileges
+    _validate_composition_restriction(base_policy_dict, merged)
 
     # Remove extends and composition_strategy from merged policy
     merged.pop("extends", None)

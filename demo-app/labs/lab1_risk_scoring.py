@@ -2,7 +2,7 @@
 
 Demonstrates AIGC risk scoring with three modes:
   - strict:      threshold breach fails enforcement
-  - risk_scored: threshold recorded and enforced
+  - risk_scored: threshold breach recorded in audit artifact; does not block enforcement
   - warn_only:   warning recorded, never blocks
 
 Each scenario uses a different policy file and model provider so the
@@ -118,7 +118,7 @@ def get_guide() -> LabGuide:
             "Risk Factor": "A named condition (e.g. no_output_schema) with a weight. Triggered = contributes its weight to the total score.",
             "Threshold": "Score above this value triggers the mode's enforcement action.",
             "strict": "Score > threshold = FAIL. No tolerance.",
-            "risk_scored": "Score > threshold = FAIL with risk evidence. Scores at/below pass.",
+            "risk_scored": "Score > threshold is recorded in the audit artifact but does NOT block enforcement. Use strict mode to block.",
             "warn_only": "Score is recorded but never blocks enforcement.",
             "Policy check passed": "The governance pipeline ran all checks and the invocation met all policy requirements.",
             "Policy check failed": "A governance violation was detected and the invocation was blocked.",

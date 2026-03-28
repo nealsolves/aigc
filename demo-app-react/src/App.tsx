@@ -1,121 +1,44 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import AppNav from '@/components/layout/AppNav'
+import LabTabs from '@/components/layout/LabTabs'
+import LabHero from '@/components/layout/LabHero'
+import Lab1RiskScoring from '@/labs/Lab1RiskScoring'
+import Lab2Signing from '@/labs/Lab2Signing'
+import Lab3AuditChain from '@/labs/Lab3AuditChain'
+import Lab4Composition from '@/labs/Lab4Composition'
+import Lab5Loaders from '@/labs/Lab5Loaders'
+import Lab6CustomGates from '@/labs/Lab6CustomGates'
+import Lab7Compliance from '@/labs/Lab7Compliance'
 
-function App() {
-  const [count, setCount] = useState(0)
+const LABS = [
+  { num: 1, title: 'Risk Scoring',  short: 'Risk' },
+  { num: 2, title: 'Signing',       short: 'Sign' },
+  { num: 3, title: 'Audit Chain',   short: 'Chain' },
+  { num: 4, title: 'Composition',   short: 'Compose' },
+  { num: 5, title: 'Loaders',       short: 'Loaders' },
+  { num: 6, title: 'Custom Gates',  short: 'Gates' },
+  { num: 7, title: 'Compliance',    short: 'Comply' },
+]
 
+export default function App() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <HashRouter>
+      <div className="min-h-screen flex flex-col bg-base text-text-1">
+        <AppNav />
+        <LabTabs labs={LABS} />
+        <Routes>
+          <Route path="/" element={<Navigate to="/lab/1" replace />} />
+          <Route path="/lab/1" element={<><LabHero labNum={1} title="Risk Scoring" /><Lab1RiskScoring /></>} />
+          <Route path="/lab/2" element={<><LabHero labNum={2} title="Signing & Verification" /><Lab2Signing /></>} />
+          <Route path="/lab/3" element={<><LabHero labNum={3} title="Audit Chain" /><Lab3AuditChain /></>} />
+          <Route path="/lab/4" element={<><LabHero labNum={4} title="Policy Composition" /><Lab4Composition /></>} />
+          <Route path="/lab/5" element={<><LabHero labNum={5} title="Loaders & Versioning" /><Lab5Loaders /></>} />
+          <Route path="/lab/6" element={<><LabHero labNum={6} title="Custom Gates" /><Lab6CustomGates /></>} />
+          <Route path="/lab/7" element={<><LabHero labNum={7} title="Compliance Dashboard" /><Lab7Compliance /></>} />
+        </Routes>
+      </div>
+    </HashRouter>
   )
 }
 
-export default App
+export { LABS }

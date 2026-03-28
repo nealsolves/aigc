@@ -199,3 +199,18 @@ def test_compliance_export_partial_invalid_still_exits_zero(tmp_path):
         "--input", str(input_file),
     ])
     assert exit_code == 0
+
+
+def test_compliance_export_all_invalid_no_output_file_written(tmp_path):
+    """When all artifacts are invalid and --output is specified, no file is written."""
+    input_file = tmp_path / "bad.jsonl"
+    input_file.write_text(json.dumps({"not": "an artifact"}) + "\n")
+
+    output_file = tmp_path / "report.json"
+    exit_code = main([
+        "compliance", "export",
+        "--input", str(input_file),
+        "--output", str(output_file),
+    ])
+    assert exit_code == 1
+    assert not output_file.exists()

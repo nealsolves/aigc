@@ -1,11 +1,19 @@
 import { useTheme } from '@/theme/ThemeContext'
-import { LAB_COLORS } from '@/theme/tokens'
+import { LAB_COLORS, IBM_COLORS } from '@/theme/tokens'
+
+// Dark-mode overrides for labs whose base color is too dark on a navy bg
+const LAB_COLORS_DARK: Record<number, string> = {
+  1: IBM_COLORS.blue40,   // blue60 → blue40 (#78a9ff)
+  6: IBM_COLORS.teal30,   // teal60 → teal30 (#3ddbd9)
+}
 
 interface Props { labNum: number; title: string }
 
 export default function LabHero({ labNum, title }: Props) {
   const { theme } = useTheme()
-  const accentColor = LAB_COLORS[labNum] ?? 'var(--ibm-blue-60)'
+  const accentColor = theme === 'dark'
+    ? (LAB_COLORS_DARK[labNum] ?? LAB_COLORS[labNum] ?? 'var(--ibm-blue-40)')
+    : (LAB_COLORS[labNum] ?? 'var(--ibm-blue-60)')
 
   if (theme === 'dark') {
     return (

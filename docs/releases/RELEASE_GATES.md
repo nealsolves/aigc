@@ -135,6 +135,24 @@ Release must include updated documentation:
 * README
 * policy DSL specification
 
+### Packaging (Restricted-Environment Verification)
+
+Verify that both standard and no-network builds succeed before tagging.
+
+**Standard build** (requires internet access to fetch build-system deps):
+
+```bash
+python -m build
+```
+
+**No-isolation build** (works in offline/enterprise environments):
+
+```bash
+python -m build --no-isolation
+```
+
+Both `aigc_sdk-<version>.tar.gz` (sdist) and `aigc_sdk-<version>-py3-none-any.whl` (wheel) must be produced. If only `--no-isolation` succeeds, document the reason in the release notes.
+
 ### Concurrency Safety
 
 Enforcement must be safe across threads. Manual or local verification

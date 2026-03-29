@@ -49,4 +49,7 @@ body {
   font-family: 'IBM Plex Sans', sans-serif;
   background-color: var(--bg-base);
   color: var(--text-primary);
+  line-height: 1.6;
+  letter-spacing: 0.012em;
+  word-spacing: 0.016em;
 }

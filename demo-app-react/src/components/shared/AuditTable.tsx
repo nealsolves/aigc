@@ -68,10 +68,10 @@ export default function AuditTable({ records }: Props) {
             {visible.map((r, i) => (
               <tr
                 key={r.id}
+                className="text-sm"
                 style={{
                   background: i % 2 === 0 ? 'var(--bg-base)' : 'var(--bg-surface)',
                   borderBottom: '1px solid var(--border-ui)',
-                  fontSize: '0.875rem',
                 }}
               >
                 <td className="px-3 py-2" style={{ color: 'var(--ibm-cyan-30)' }}>{r.id}</td>

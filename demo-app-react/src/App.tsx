@@ -1,4 +1,5 @@
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useCallback, useState } from 'react'
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import AppNav from '@/components/layout/AppNav'
 import LabTabs from '@/components/layout/LabTabs'
 import LabHero from '@/components/layout/LabHero'
@@ -9,6 +10,8 @@ import Lab4Composition from '@/labs/Lab4Composition'
 import Lab5Loaders from '@/labs/Lab5Loaders'
 import Lab6CustomGates from '@/labs/Lab6CustomGates'
 import Lab7Compliance from '@/labs/Lab7Compliance'
+import HelpButton from '@/components/HelpButton'
+import HelpDrawer from '@/components/HelpDrawer'
 
 const LABS = [
   { num: 1, title: 'Risk Scoring',  short: 'Risk' },
@@ -20,23 +23,44 @@ const LABS = [
   { num: 7, title: 'Compliance',    short: 'Comply' },
 ]
 
+function AppContent() {
+  const location = useLocation()
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
+
+  const match = location.pathname.match(/\/lab\/(\d+)/)
+  const activeLabId = match ? parseInt(match[1], 10) : 1
+
+  const handleOpen = useCallback(() => setIsHelpOpen(true), [])
+  const handleClose = useCallback(() => setIsHelpOpen(false), [])
+
+  return (
+    <div className="min-h-screen flex flex-col bg-base text-text-1">
+      <AppNav />
+      <LabTabs labs={LABS} />
+      <Routes>
+        <Route path="/" element={<Navigate to="/lab/1" replace />} />
+        <Route path="/lab/1" element={<><LabHero labNum={1} title="Risk Scoring" /><Lab1RiskScoring /></>} />
+        <Route path="/lab/2" element={<><LabHero labNum={2} title="Signing & Verification" /><Lab2Signing /></>} />
+        <Route path="/lab/3" element={<><LabHero labNum={3} title="Audit Chain" /><Lab3AuditChain /></>} />
+        <Route path="/lab/4" element={<><LabHero labNum={4} title="Policy Composition" /><Lab4Composition /></>} />
+        <Route path="/lab/5" element={<><LabHero labNum={5} title="Loaders & Versioning" /><Lab5Loaders /></>} />
+        <Route path="/lab/6" element={<><LabHero labNum={6} title="Custom Gates" /><Lab6CustomGates /></>} />
+        <Route path="/lab/7" element={<><LabHero labNum={7} title="Compliance Dashboard" /><Lab7Compliance /></>} />
+      </Routes>
+      <HelpButton isOpen={isHelpOpen} onOpen={handleOpen} />
+      <HelpDrawer
+        labId={activeLabId}
+        isOpen={isHelpOpen}
+        onClose={handleClose}
+      />
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <HashRouter>
-      <div className="min-h-screen flex flex-col bg-base text-text-1">
-        <AppNav />
-        <LabTabs labs={LABS} />
-        <Routes>
-          <Route path="/" element={<Navigate to="/lab/1" replace />} />
-          <Route path="/lab/1" element={<><LabHero labNum={1} title="Risk Scoring" /><Lab1RiskScoring /></>} />
-          <Route path="/lab/2" element={<><LabHero labNum={2} title="Signing & Verification" /><Lab2Signing /></>} />
-          <Route path="/lab/3" element={<><LabHero labNum={3} title="Audit Chain" /><Lab3AuditChain /></>} />
-          <Route path="/lab/4" element={<><LabHero labNum={4} title="Policy Composition" /><Lab4Composition /></>} />
-          <Route path="/lab/5" element={<><LabHero labNum={5} title="Loaders & Versioning" /><Lab5Loaders /></>} />
-          <Route path="/lab/6" element={<><LabHero labNum={6} title="Custom Gates" /><Lab6CustomGates /></>} />
-          <Route path="/lab/7" element={<><LabHero labNum={7} title="Compliance Dashboard" /><Lab7Compliance /></>} />
-        </Routes>
-      </div>
+      <AppContent />
     </HashRouter>
   )
 }

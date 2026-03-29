@@ -223,7 +223,7 @@ invocation = {
 policy. It is the single entry point to the SDK.
 
 ```python
-from aigc.enforcement import enforce_invocation
+from aigc import enforce_invocation
 
 audit = enforce_invocation(invocation)
 ```
@@ -578,10 +578,10 @@ For integration patterns and compliance requirements, see the
 
 ### 10.2 Audit Sinks
 
-The SDK provides a pluggable audit sink interface. Import from `aigc.sinks`:
+The SDK provides a pluggable audit sink interface. Import from `aigc`:
 
 ```python
-from aigc.sinks import AuditSink, set_audit_sink
+from aigc import AuditSink, set_audit_sink
 
 class SQLiteAuditSink(AuditSink):
     def emit(self, artifact: dict) -> None:

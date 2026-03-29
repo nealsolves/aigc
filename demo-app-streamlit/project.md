@@ -205,7 +205,7 @@ The demo-app imports from the `aigc` public API (never from `aigc._internal`):
 ### Running the App in Development
 
 ```bash
-cd demo-app
+cd demo-app-streamlit
 streamlit run app.py --server.runOnSave true
 ```
 

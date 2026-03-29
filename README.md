@@ -100,8 +100,9 @@ If using an internal PyPI mirror or wheelhouse, ensure `pip`, `setuptools`, and
 Preferred imports:
 
 ```python
-from aigc import enforce_invocation, AIGC
-from aigc.errors import (
+from aigc import (
+    enforce_invocation,
+    AIGC,
     InvocationValidationError,
     PreconditionError,
     SchemaValidationError,
@@ -113,7 +114,7 @@ Instance-scoped enforcement (recommended for new code):
 
 ```python
 from aigc import AIGC
-from aigc.sinks import JsonFileAuditSink
+from aigc import JsonFileAuditSink
 
 engine = AIGC(sink=JsonFileAuditSink("audit.jsonl"))
 audit = engine.enforce(invocation)
@@ -154,7 +155,7 @@ audit = engine.enforce(invocation)
 
   ```python
   from aigc import AIGC
-  from aigc.sinks import JsonFileAuditSink
+  from aigc import JsonFileAuditSink
   engine = AIGC(sink=JsonFileAuditSink("audit.jsonl"))
   ```
 
@@ -168,7 +169,7 @@ audit = engine.enforce(invocation)
 - **`@governed` decorator** — wraps sync and async LLM call sites:
 
   ```python
-  from aigc.decorators import governed
+  from aigc import governed
 
   @governed(
       policy_file="policies/governance.yaml",

@@ -283,8 +283,7 @@ For simpler call sites that don't need instance-scoped configuration, the `@gove
 decorator wraps a function and runs enforcement transparently:
 
 ```python
-from aigc import governed, set_audit_sink
-from aigc.sinks import JsonFileAuditSink
+from aigc import governed, set_audit_sink, JsonFileAuditSink
 
 set_audit_sink(JsonFileAuditSink("audit/governance.jsonl"))
 
@@ -439,7 +438,7 @@ integration, see Section 2.
 Subclass `AuditSink` to send artifacts to any destination:
 
 ```python
-from aigc.sinks import AuditSink, set_audit_sink
+from aigc import AuditSink, set_audit_sink
 import json
 
 
@@ -953,8 +952,7 @@ was not called at all.
 **Fix**: Register the sink once at application startup, before any governed calls:
 
 ```python
-from aigc import set_audit_sink
-from aigc.sinks import JsonFileAuditSink
+from aigc import set_audit_sink, JsonFileAuditSink
 set_audit_sink(JsonFileAuditSink("audit.jsonl"))
 ```
 

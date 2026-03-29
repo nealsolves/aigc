@@ -443,7 +443,7 @@ _AUDIT_CMD_RE = re.compile(r"aigc\s+audit\s+(?:export|summary)", re.I)
 # Docs that describe live CLI behavior (not historical/archive docs)
 _CLI_BEHAVIOR_DOCS = [
     "README.md",
-    "demo-app/labs/lab7_compliance.py",
+    "demo-app-streamlit/labs/lab7_compliance.py",
     "docs/AIGC_FRAMEWORK.md",
 ]
 
@@ -451,7 +451,7 @@ _CLI_BEHAVIOR_DOCS = [
 _RISK_SEMANTICS_DOCS = [
     "README.md",
     "docs/AIGC_FRAMEWORK.md",
-    "demo-app/labs/lab1_risk_scoring.py",
+    "demo-app-streamlit/labs/lab1_risk_scoring.py",
 ]
 
 

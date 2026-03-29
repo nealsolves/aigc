@@ -8,7 +8,7 @@ export default function SignalBar({ name, contribution, color }: Props) {
   const pct = Math.min(100, contribution * 100)
   return (
     <div className="flex items-center gap-2 mb-1.5">
-      <span className="font-mono text-xs flex-1" style={{ color: 'var(--text-secondary)' }}>
+      <span className="font-mono text-sm flex-1" style={{ color: 'var(--text-secondary)' }}>
         {name}
       </span>
       <div
@@ -17,7 +17,7 @@ export default function SignalBar({ name, contribution, color }: Props) {
       >
         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
       </div>
-      <span className="font-mono text-xs w-8 text-right" style={{ color: 'var(--text-secondary)' }}>
+      <span className="font-mono text-sm w-10 text-right" style={{ color: 'var(--text-secondary)' }}>
         +{contribution.toFixed(2)}
       </span>
     </div>

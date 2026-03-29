@@ -7,10 +7,12 @@ const LAB_COLORS_DARK: Record<number, string> = {
   6: IBM_COLORS.teal30,   // teal60 → teal30 (#3ddbd9)
 }
 
-// Light-mode overrides for labs whose base color is too dark on a blue-60 hero bg
+// Light-mode overrides for labs whose base color has insufficient contrast on a blue-60 hero bg
 const LAB_COLORS_LIGHT: Record<number, string> = {
   1: '#ffffff',           // blue60 (same as bg) → white
+  5: '#ffffff',           // cyan30 (too similar to blue-60) → white
   6: IBM_COLORS.teal30,   // teal60 (too dark) → teal30 (#3ddbd9)
+  7: '#ffffff',           // blue40 (too similar to blue-60) → white
 }
 
 interface Props { labNum: number; title: string }

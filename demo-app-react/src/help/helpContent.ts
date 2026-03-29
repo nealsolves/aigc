@@ -158,14 +158,15 @@ export const helpContent: Record<number, LabHelp> = {
       {
         title: 'Choose a composition strategy',
         instruction:
-          'Select merge (union of fields), override (child wins on conflict), or strict ' +
-          '(child must not conflict with base). Each produces a different merged policy.',
-        tip: 'strict is useful for compliance-critical policies where overrides should be rejected.',
+          'Select intersect (only fields present in both policies), union (all fields from both, ' +
+          'child wins on conflict), or replace (child policy replaces the base entirely). ' +
+          'Each produces a different merged policy.',
+        tip: 'intersect is useful for compliance-critical policies where only shared, agreed-upon fields should survive.',
       },
       {
-        title: 'Compose and inspect the result',
+        title: 'Merge and inspect the result',
         instruction:
-          'Click Compose. The merged policy appears below. Each field shows whether it came ' +
+          'Click Merge. The merged policy appears below. Each field shows whether it came ' +
           'from the base, the child, or was merged from both.',
       },
     ],

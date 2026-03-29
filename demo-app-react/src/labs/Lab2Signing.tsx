@@ -61,7 +61,7 @@ export default function Lab2Signing() {
                   style={
                     tampered
                       ? { background: 'rgba(255,126,182,0.15)', color: 'var(--ibm-magenta-40)', border: '1px solid rgba(255,126,182,0.3)' }
-                      : { color: 'var(--text-secondary)', border: '1px solid var(--border-ui)' }
+                      : { color: 'var(--text-secondary)', border: '1px solid var(--border-ui)', background: 'var(--bg-surface)' }
                   }
                 >
                   {tampered ? '⚡ tampered' : 'tamper payload'}

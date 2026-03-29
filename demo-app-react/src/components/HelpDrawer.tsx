@@ -8,29 +8,52 @@ interface Props {
   onClose: () => void
 }
 
+const LABS_LABEL = [
+  '', 'Lab 1 — Risk Scoring', 'Lab 2 — Signing', 'Lab 3 — Audit Chain',
+  'Lab 4 — Composition', 'Lab 5 — Loaders', 'Lab 6 — Custom Gates', 'Lab 7 — Compliance',
+]
+
 export default function HelpDrawer({ labId, isOpen, onClose }: Props) {
   const { theme } = useTheme()
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const drawerRef = useRef<HTMLDivElement>(null)
+  const prevFocusRef = useRef<HTMLElement | null>(null)
   const [glossaryOpen, setGlossaryOpen] = useState(false)
 
   const lab = helpContent[labId] ?? helpContent[1]
   const isDark = theme === 'dark'
 
-  // Focus close button on open; handle Escape
+  // Focus close button on open; handle Escape and Tab focus trap
   useEffect(() => {
     if (!isOpen) return
 
-    const prevFocus = document.activeElement as HTMLElement | null
+    prevFocusRef.current = document.activeElement as HTMLElement | null
     closeButtonRef.current?.focus()
 
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (e.key === 'Tab') {
+        const focusable = drawerRef.current?.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        if (!focusable || focusable.length === 0) { e.preventDefault(); return }
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (e.shiftKey) {
+          if (document.activeElement === first) { e.preventDefault(); last.focus() }
+        } else {
+          if (document.activeElement === last) { e.preventDefault(); first.focus() }
+        }
+      }
     }
     document.addEventListener('keydown', handleKey)
 
     return () => {
       document.removeEventListener('keydown', handleKey)
-      prevFocus?.focus()
+      prevFocusRef.current?.focus()
     }
   }, [isOpen, onClose])
 
@@ -64,11 +87,7 @@ export default function HelpDrawer({ labId, isOpen, onClose }: Props) {
   const closeBtnBg = isDark ? 'rgba(255,255,255,0.06)' : '#ffffff'
   const closeBtnColor = isDark ? '#8d8d9e' : '#525252'
   const backdropBg = isDark ? 'rgba(0,0,0,0.55)' : 'rgba(22,22,22,0.45)'
-
-  const LABS_LABEL = [
-    '', 'Lab 1 — Risk Scoring', 'Lab 2 — Signing', 'Lab 3 — Audit Chain',
-    'Lab 4 — Composition', 'Lab 5 — Loaders', 'Lab 6 — Custom Gates', 'Lab 7 — Compliance',
-  ]
+  const stepsLabelColor = isDark ? '#6b7280' : '#525252'
 
   return (
     <>
@@ -86,6 +105,7 @@ export default function HelpDrawer({ labId, isOpen, onClose }: Props) {
 
       {/* Drawer */}
       <div
+        ref={drawerRef}
         role="dialog"
         aria-modal="true"
         aria-label="Lab guide"
@@ -191,7 +211,7 @@ export default function HelpDrawer({ labId, isOpen, onClose }: Props) {
               fontSize: '0.75rem',
               fontWeight: 600,
               letterSpacing: '0.1em',
-              color: '#6b7280',
+              color: stepsLabelColor,
               textTransform: 'uppercase',
               marginBottom: '1rem',
               fontFamily: "'IBM Plex Sans', sans-serif",
@@ -318,44 +338,45 @@ export default function HelpDrawer({ labId, isOpen, onClose }: Props) {
                     overflow: 'hidden',
                   }}
                 >
-                  {lab.glossary.map((item, i) => (
-                    <dl
-                      key={i}
-                      style={{
-                        padding: '0.875rem 1rem',
-                        borderBottom: i < lab.glossary!.length - 1 ? `1px solid ${borderColor}` : 'none',
-                        margin: 0,
-                        background: isDark ? 'rgba(255,255,255,0.02)' : '#ffffff',
-                      }}
-                    >
-                      <dt
+                  <dl style={{ margin: 0 }}>
+                    {lab.glossary.map((item, i) => (
+                      <div
+                        key={i}
                         style={{
-                          fontWeight: 600,
-                          color: glossaryTermColor,
-                          lineHeight: 1.5,
-                          marginBottom: '0.25rem',
-                          fontSize: '1rem',
-                          letterSpacing: '0.012em',
-                          fontFamily: "'IBM Plex Sans', sans-serif",
+                          padding: '0.875rem 1rem',
+                          borderBottom: i < lab.glossary!.length - 1 ? `1px solid ${borderColor}` : 'none',
+                          background: isDark ? 'rgba(255,255,255,0.02)' : '#ffffff',
                         }}
                       >
-                        {item.term}
-                      </dt>
-                      <dd
-                        style={{
-                          color: stepTextColor,
-                          lineHeight: 1.6,
-                          fontSize: '1rem',
-                          wordSpacing: '0.016em',
-                          letterSpacing: '0.012em',
-                          margin: 0,
-                          fontFamily: "'IBM Plex Sans', sans-serif",
-                        }}
-                      >
-                        {item.definition}
-                      </dd>
-                    </dl>
-                  ))}
+                        <dt
+                          style={{
+                            fontWeight: 600,
+                            color: glossaryTermColor,
+                            lineHeight: 1.5,
+                            marginBottom: '0.25rem',
+                            fontSize: '1rem',
+                            letterSpacing: '0.012em',
+                            fontFamily: "'IBM Plex Sans', sans-serif",
+                          }}
+                        >
+                          {item.term}
+                        </dt>
+                        <dd
+                          style={{
+                            color: stepTextColor,
+                            lineHeight: 1.6,
+                            fontSize: '1rem',
+                            wordSpacing: '0.016em',
+                            letterSpacing: '0.012em',
+                            margin: 0,
+                            fontFamily: "'IBM Plex Sans', sans-serif",
+                          }}
+                        >
+                          {item.definition}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
               )}
             </div>

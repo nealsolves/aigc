@@ -2,10 +2,10 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import HelpDrawer from './HelpDrawer'
 import { ThemeProvider } from '@/theme/ThemeContext'
 
-function renderDrawer(isOpen: boolean, onClose = vi.fn()) {
+function renderDrawer(isOpen: boolean, onClose = vi.fn(), labId = 1) {
   return render(
     <ThemeProvider>
-      <HelpDrawer labId={1} isOpen={isOpen} onClose={onClose} />
+      <HelpDrawer labId={labId} isOpen={isOpen} onClose={onClose} />
     </ThemeProvider>
   )
 }
@@ -55,5 +55,27 @@ describe('HelpDrawer', () => {
   it('renders a glossary toggle when helpContent has glossary', () => {
     renderDrawer(true)
     expect(screen.getByRole('button', { name: /glossary/i })).toBeInTheDocument()
+  })
+
+  it('shows a glossary term on toggle open and hides it on toggle close', () => {
+    renderDrawer(true)
+    const glossaryBtn = screen.getByRole('button', { name: /glossary/i })
+
+    // Term should not be visible before opening
+    expect(screen.queryByText('Risk Mode')).not.toBeInTheDocument()
+
+    // Click to open
+    fireEvent.click(glossaryBtn)
+    expect(screen.getByText('Risk Mode')).toBeInTheDocument()
+
+    // Click to close
+    fireEvent.click(glossaryBtn)
+    expect(screen.queryByText('Risk Mode')).not.toBeInTheDocument()
+  })
+
+  it('renders without crashing when given an invalid labId (falls back to Lab 1)', () => {
+    renderDrawer(true, vi.fn(), 99)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('Risk Scoring Guide')).toBeInTheDocument()
   })
 })

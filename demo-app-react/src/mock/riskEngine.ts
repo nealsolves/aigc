@@ -44,6 +44,23 @@ export function evaluateRisk(
   return { score, threshold, mode, factors: withContributions, breached, enforcement }
 }
 
+export function resultMessage(result: RiskResult): string {
+  const score = result.score.toFixed(2)
+  const threshold = result.threshold.toFixed(2)
+
+  if (!result.breached) {
+    return `risk score ${score} within threshold`
+  }
+  if (result.mode === 'strict') {
+    return `risk score ${score} exceeds threshold ${threshold} in strict mode`
+  }
+  if (result.mode === 'warn_only') {
+    return `risk score ${score} exceeds threshold ${threshold} (warn_only mode — logged, not blocked)`
+  }
+  // risk_scored
+  return `risk score ${score} exceeds threshold ${threshold} (non-blocking in risk_scored mode — recorded in audit artifact)`
+}
+
 // Pre-built factor sets matching Python source (demo-app-streamlit/labs/lab1_risk_scoring.py)
 export const MEDICAL_FACTORS: Record<string, RiskFactor[]> = {
   low_risk: [

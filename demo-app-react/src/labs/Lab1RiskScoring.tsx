@@ -4,7 +4,7 @@ import RiskGauge from '@/components/shared/RiskGauge'
 import SignalBar from '@/components/shared/SignalBar'
 import StatusBadge from '@/components/shared/StatusBadge'
 import { getScenario } from '@/mock/scenarios'
-import { evaluateRisk, MEDICAL_FACTORS, type RiskMode } from '@/mock/riskEngine'
+import { evaluateRisk, MEDICAL_FACTORS, type RiskMode, resultMessage } from '@/mock/riskEngine'
 import { IBM_COLORS } from '@/theme/tokens'
 
 const SCENARIOS = [
@@ -113,8 +113,8 @@ export default function Lab1RiskScoring() {
 
           <div className="flex items-center gap-2">
             <StatusBadge status={result.enforcement} />
-            <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
-              {result.enforcement === 'FAIL' ? '— governance violation detected' : '— all governance rules satisfied'}
+            <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
+              — {resultMessage(result)}
             </span>
           </div>
 

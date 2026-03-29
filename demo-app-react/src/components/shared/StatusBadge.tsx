@@ -10,7 +10,7 @@ export default function StatusBadge({ status }: { status: Status }) {
   const s = STYLES[status]
   return (
     <span
-      className="inline-flex items-center gap-1 font-mono font-light text-[9px] px-2 py-0.5 rounded"
+      className="inline-flex items-center gap-1 font-mono font-light text-xs px-2 py-0.5 rounded"
       style={{ background: s.bg, color: s.color }}
     >
       {s.label}

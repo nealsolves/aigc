@@ -58,7 +58,7 @@ export default function Lab3AuditChain() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
-      <p className="font-mono text-[9px] mb-4" style={{ color: 'var(--text-secondary)' }}>
+      <p className="font-mono text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
         // hash-linked audit chain — each entry commits to previous
       </p>
 
@@ -67,7 +67,7 @@ export default function Lab3AuditChain() {
           <button
             key={key}
             onClick={() => addEntry(key)}
-            className="font-mono text-[9px] px-3 py-1.5 rounded"
+            className="font-mono text-xs px-3 py-1.5 rounded"
             style={{ background: 'var(--ibm-blue-60)', color: '#fff' }}
           >
             + {key.replace('chain_entry_', 'Entry ')}
@@ -75,7 +75,7 @@ export default function Lab3AuditChain() {
         ))}
         <button
           onClick={reset}
-          className="font-mono text-[9px] px-3 py-1.5 rounded ml-auto"
+          className="font-mono text-xs px-3 py-1.5 rounded ml-auto"
           style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-ui)' }}
         >
           reset
@@ -83,7 +83,7 @@ export default function Lab3AuditChain() {
       </div>
 
       {entries.length === 0 && (
-        <div className="font-mono text-[9px] px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
+        <div className="font-mono text-xs px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
           // add entries to build the chain
         </div>
       )}
@@ -92,21 +92,21 @@ export default function Lab3AuditChain() {
         {entries.map((entry, i) => (
           <div key={entry.id} className="rounded p-3" style={{ border: `1px solid ${entry.valid ? 'var(--border-ui)' : 'rgba(255,126,182,0.4)'}`, background: 'var(--bg-surface)' }}>
             <div className="flex items-center gap-2 mb-2">
-              <span className="font-mono text-[9px]" style={{ color: 'var(--ibm-cyan-30)' }}>#{entry.index}</span>
+              <span className="font-mono text-xs" style={{ color: 'var(--ibm-cyan-30)' }}>#{entry.index}</span>
               <StatusBadge status={entry.valid ? 'PASS' : 'FAIL'} />
               {tamperIdx === null && (
-                <button onClick={() => tamper(i)} className="font-mono text-[8px] px-2 py-0.5 rounded ml-auto" style={{ color: 'var(--ibm-magenta-40)', border: '1px solid rgba(255,126,182,0.3)' }}>
+                <button onClick={() => tamper(i)} className="font-mono text-[11px] px-2 py-0.5 rounded ml-auto" style={{ color: 'var(--ibm-magenta-40)', border: '1px solid rgba(255,126,182,0.3)' }}>
                   tamper
                 </button>
               )}
             </div>
-            <div className="font-mono text-[9px] space-y-1">
+            <div className="font-mono text-xs space-y-1">
               <div><span style={{ color: 'var(--text-secondary)' }}>prompt: </span><span style={{ color: 'var(--text-primary)' }}>{entry.prompt}</span></div>
               <div><span style={{ color: 'var(--text-secondary)' }}>checksum: </span><span style={{ color: entry.valid ? 'var(--ibm-teal-30)' : 'var(--ibm-magenta-40)' }}>{entry.checksum}</span></div>
               <div><span style={{ color: 'var(--text-secondary)' }}>prev: </span><span style={{ color: 'var(--text-secondary)' }}>{entry.prevChecksum ?? 'genesis'}</span></div>
             </div>
             {i < entries.length - 1 && (
-              <div className="mt-2 font-mono text-[9px]" style={{ color: 'var(--ibm-blue-60)' }}>↓</div>
+              <div className="mt-2 font-mono text-xs" style={{ color: 'var(--ibm-blue-60)' }}>↓</div>
             )}
           </div>
         ))}

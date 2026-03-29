@@ -39,7 +39,7 @@ export default function Lab4Composition() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
-      <p className="font-mono text-[9px] mb-4" style={{ color: 'var(--text-secondary)' }}>
+      <p className="font-mono text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
         // compose parent + child policies with configurable merge strategy
       </p>
 
@@ -49,12 +49,12 @@ export default function Lab4Composition() {
       </div>
 
       <div className="flex items-center gap-2 mb-4">
-        <span className="font-mono text-[9px]" style={{ color: 'var(--text-secondary)' }}>↳ Strategy:</span>
+        <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>↳ Strategy:</span>
         {strategies.map(s => (
           <button
             key={s}
             onClick={() => { setStrategy(s); setMerged(null) }}
-            className="font-mono text-[9px] px-2.5 py-1 rounded"
+            className="font-mono text-xs px-2.5 py-1 rounded"
             style={
               strategy === s
                 ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
@@ -66,7 +66,7 @@ export default function Lab4Composition() {
         ))}
         <button
           onClick={() => setMerged(mergeYaml(parentYaml, childYaml, strategy))}
-          className="font-mono text-[11px] px-4 py-1.5 rounded ml-auto"
+          className="font-mono text-sm px-4 py-1.5 rounded ml-auto"
           style={{ background: 'var(--ibm-blue-60)', color: '#fff' }}
         >
           Merge →

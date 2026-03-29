@@ -7,13 +7,19 @@ const LAB_COLORS_DARK: Record<number, string> = {
   6: IBM_COLORS.teal30,   // teal60 → teal30 (#3ddbd9)
 }
 
+// Light-mode overrides for labs whose base color is too dark on a blue-60 hero bg
+const LAB_COLORS_LIGHT: Record<number, string> = {
+  1: '#ffffff',           // blue60 (same as bg) → white
+  6: IBM_COLORS.teal30,   // teal60 (too dark) → teal30 (#3ddbd9)
+}
+
 interface Props { labNum: number; title: string }
 
 export default function LabHero({ labNum, title }: Props) {
   const { theme } = useTheme()
   const accentColor = theme === 'dark'
     ? (LAB_COLORS_DARK[labNum] ?? LAB_COLORS[labNum] ?? 'var(--ibm-blue-40)')
-    : (LAB_COLORS[labNum] ?? 'var(--ibm-blue-60)')
+    : (LAB_COLORS_LIGHT[labNum] ?? LAB_COLORS[labNum] ?? 'var(--ibm-cyan-30)')
 
   if (theme === 'dark') {
     return (
@@ -52,7 +58,7 @@ export default function LabHero({ labNum, title }: Props) {
       <div className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-[70px] h-[70px] rounded-full pointer-events-none"
         style={{ background: 'rgba(130,207,255,0.15)' }} />
       <span className="relative z-10">
-        Lab {labNum} — <span style={{ color: 'var(--ibm-cyan-30)' }}>
+        Lab {labNum} — <span style={{ color: accentColor }}>
           {title}↓
         </span>
       </span>

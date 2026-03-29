@@ -37,20 +37,20 @@ export default function Lab1RiskScoring() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
-      <p className="font-mono text-[9px] mb-4" style={{ color: 'var(--text-secondary)' }}>
+      <p className="font-mono text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
         // evaluate invocation risk across signal dimensions
       </p>
 
       {/* controls */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <div className="font-mono text-[9px] mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Preset Scenario</div>
+          <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Preset Scenario</div>
           <div className="flex flex-col gap-1">
             {SCENARIOS.map((s, i) => (
               <button
                 key={s.key}
                 onClick={() => { setScenarioIdx(i); setResult(null) }}
-                className="text-left font-mono text-[10px] px-3 py-2 rounded transition-colors"
+                className="text-left font-mono text-[13px] px-3 py-2 rounded transition-colors"
                 style={
                   scenarioIdx === i
                     ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
@@ -64,13 +64,13 @@ export default function Lab1RiskScoring() {
         </div>
 
         <div>
-          <div className="font-mono text-[9px] mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Risk Mode</div>
+          <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Risk Mode</div>
           <div className="flex flex-col gap-1 mb-3">
             {MODES.map(m => (
               <button
                 key={m}
                 onClick={() => { setMode(m); setResult(null) }}
-                className="text-left font-mono text-[10px] px-3 py-2 rounded transition-colors"
+                className="text-left font-mono text-[13px] px-3 py-2 rounded transition-colors"
                 style={
                   mode === m
                     ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
@@ -83,7 +83,7 @@ export default function Lab1RiskScoring() {
           </div>
           <button
             onClick={run}
-            className="w-full font-mono text-[11px] py-2 rounded transition-colors"
+            className="w-full font-mono text-sm py-2 rounded transition-colors"
             style={{ background: 'var(--ibm-blue-60)', color: '#fff' }}
           >
             Run Enforcement →
@@ -92,12 +92,12 @@ export default function Lab1RiskScoring() {
       </div>
 
       {/* scenario description */}
-      <div className="font-mono text-[9px] px-3 py-2 rounded mb-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
+      <div className="font-mono text-xs px-3 py-2 rounded mb-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
         {selected.desc}
       </div>
 
       {/* prompt preview */}
-      <div className="font-mono text-[9px] mb-4" style={{ color: 'var(--text-secondary)' }}>
+      <div className="font-mono text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
         <span style={{ color: 'var(--ibm-blue-60)' }}>↳ prompt: </span>
         <span style={{ color: 'var(--text-primary)' }}>{scenario.prompt}</span>
       </div>
@@ -113,7 +113,7 @@ export default function Lab1RiskScoring() {
 
           <div className="flex items-center gap-2">
             <StatusBadge status={result.enforcement} />
-            <span className="font-mono text-[9px]" style={{ color: 'var(--text-secondary)' }}>
+            <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
               {result.enforcement === 'FAIL' ? '— governance violation detected' : '— all governance rules satisfied'}
             </span>
           </div>
@@ -121,7 +121,7 @@ export default function Lab1RiskScoring() {
           <RiskGauge score={result.score} threshold={result.threshold} />
 
           <div className="rounded p-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
-            <div className="font-mono text-[9px] mb-2" style={{ color: 'var(--text-secondary)' }}>// signal breakdown</div>
+            <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>// signal breakdown</div>
             {result.factors.map(f => (
               <SignalBar
                 key={f.name}
@@ -133,7 +133,7 @@ export default function Lab1RiskScoring() {
           </div>
         </div>
       ) : (
-        <div className="font-mono text-[9px] px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
+        <div className="font-mono text-xs px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
           // run enforcement to see results
         </div>
       )}

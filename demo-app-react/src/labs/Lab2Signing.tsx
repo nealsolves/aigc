@@ -26,23 +26,23 @@ export default function Lab2Signing() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
-      <p className="font-mono text-[9px] mb-4" style={{ color: 'var(--text-secondary)' }}>
+      <p className="font-mono text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
         // HMAC-SHA256 artifact signing and tamper detection
       </p>
 
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="space-y-3">
-          <div className="font-mono text-[9px]" style={{ color: 'var(--text-secondary)' }}>↳ Signing Key</div>
+          <div className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>↳ Signing Key</div>
           <input
             value={sigKey}
             onChange={e => { setSigKey(e.target.value); setSigned(false) }}
-            className="w-full font-mono text-[10px] px-3 py-2 rounded outline-none"
+            className="w-full font-mono text-[13px] px-3 py-2 rounded outline-none"
             style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-primary)' }}
           />
           <CodeBlock code={payload} label="payload" />
           <button
             onClick={() => setSigned(true)}
-            className="w-full font-mono text-[11px] py-2 rounded"
+            className="w-full font-mono text-sm py-2 rounded"
             style={{ background: 'var(--ibm-blue-60)', color: '#fff' }}
           >
             Sign Artifact →
@@ -50,14 +50,14 @@ export default function Lab2Signing() {
         </div>
 
         <div className="space-y-3">
-          <div className="font-mono text-[9px]" style={{ color: 'var(--text-secondary)' }}>↳ Verification</div>
+          <div className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>↳ Verification</div>
           {signed ? (
             <>
               <CodeBlock code={signature} label="signature (HMAC-SHA256)" />
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setTampered(t => !t)}
-                  className="font-mono text-[9px] px-3 py-1.5 rounded transition-colors"
+                  className="font-mono text-xs px-3 py-1.5 rounded transition-colors"
                   style={
                     tampered
                       ? { background: 'rgba(255,126,182,0.15)', color: 'var(--ibm-magenta-40)', border: '1px solid rgba(255,126,182,0.3)' }
@@ -73,13 +73,13 @@ export default function Lab2Signing() {
                 <MetricCard value={valid ? 'VALID' : 'INVALID'} label="SIGNATURE" color={valid ? 'var(--ibm-teal-30)' : 'var(--ibm-magenta-40)'} />
               </div>
               {!valid && (
-                <div className="font-mono text-[9px] px-3 py-2 rounded" style={{ background: 'rgba(255,126,182,0.08)', border: '1px solid rgba(255,126,182,0.2)', color: 'var(--ibm-magenta-40)' }}>
+                <div className="font-mono text-xs px-3 py-2 rounded" style={{ background: 'rgba(255,126,182,0.08)', border: '1px solid rgba(255,126,182,0.2)', color: 'var(--ibm-magenta-40)' }}>
                   // signature mismatch — payload was modified after signing
                 </div>
               )}
             </>
           ) : (
-            <div className="font-mono text-[9px] px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
+            <div className="font-mono text-xs px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
               // sign an artifact first
             </div>
           )}

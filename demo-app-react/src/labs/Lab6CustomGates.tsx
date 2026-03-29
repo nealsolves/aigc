@@ -52,7 +52,7 @@ export default function Lab6CustomGates() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
-      <p className="font-mono text-[9px] mb-4" style={{ color: 'var(--text-secondary)' }}>
+      <p className="font-mono text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
         // custom enforcement gate plugins — four insertion points in the pipeline
       </p>
 
@@ -61,7 +61,7 @@ export default function Lab6CustomGates() {
           <button
             key={s.key}
             onClick={() => { setScenarioKey(s.key); setGates(null) }}
-            className="font-mono text-[9px] px-3 py-1.5 rounded"
+            className="font-mono text-xs px-3 py-1.5 rounded"
             style={
               scenarioKey === s.key
                 ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
@@ -73,7 +73,7 @@ export default function Lab6CustomGates() {
         ))}
         <button
           onClick={run}
-          className="font-mono text-[11px] px-4 py-1.5 rounded ml-auto"
+          className="font-mono text-sm px-4 py-1.5 rounded ml-auto"
           style={{ background: 'var(--ibm-blue-60)', color: '#fff' }}
         >
           Run Gates →
@@ -84,7 +84,7 @@ export default function Lab6CustomGates() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             {overallStatus && <StatusBadge status={overallStatus} />}
-            <span className="font-mono text-[9px]" style={{ color: 'var(--text-secondary)' }}>
+            <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
               {gates.length} gates evaluated
             </span>
           </div>
@@ -95,14 +95,14 @@ export default function Lab6CustomGates() {
             if (!phaseGates.length) return null
             return (
               <div key={phase} className="rounded p-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
-                <div className="font-mono text-[8px] mb-2 tracking-widest" style={{ color: PHASE_COLORS[phase] }}>
+                <div className="font-mono text-[11px] mb-2 tracking-widest" style={{ color: PHASE_COLORS[phase] }}>
                   {phase.toUpperCase().replace('_', ' ')}
                 </div>
                 {phaseGates.map(g => (
                   <div key={g.name} className="flex items-center gap-2 mb-1.5">
                     <StatusBadge status={g.result} />
-                    <span className="font-mono text-[9px] flex-1" style={{ color: 'var(--text-primary)' }}>{g.name}</span>
-                    <span className="font-mono text-[8px]" style={{ color: 'var(--text-secondary)' }}>{g.detail}</span>
+                    <span className="font-mono text-xs flex-1" style={{ color: 'var(--text-primary)' }}>{g.name}</span>
+                    <span className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{g.detail}</span>
                   </div>
                 ))}
               </div>
@@ -111,7 +111,7 @@ export default function Lab6CustomGates() {
 
           {/* signal bars */}
           <div className="rounded p-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
-            <div className="font-mono text-[9px] mb-2" style={{ color: 'var(--text-secondary)' }}>// gate pass rate</div>
+            <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>// gate pass rate</div>
             {Object.entries(PHASE_COLORS).map(([phase, color]) => {
               const phaseGates = gates.filter(g => g.phase === phase)
               const passRate = phaseGates.length ? phaseGates.filter(g => g.result === 'PASS').length / phaseGates.length : 0
@@ -124,14 +124,14 @@ export default function Lab6CustomGates() {
       )}
 
       {!gates && (
-        <div className="font-mono text-[9px] px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
+        <div className="font-mono text-xs px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
           // run gates to see pipeline evaluation
         </div>
       )}
 
       {/* recipe example */}
       <div className="mt-4">
-        <div className="font-mono text-[9px] mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Gate Recipe (Python SDK)</div>
+        <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Gate Recipe (Python SDK)</div>
         <CodeBlock
           label="custom_gate.py"
           code={`from aigc import EnforcementGate

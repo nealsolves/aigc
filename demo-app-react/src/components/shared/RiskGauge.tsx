@@ -12,7 +12,7 @@ export default function RiskGauge({ score, threshold }: Props) {
       className="rounded p-2.5"
       style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}
     >
-      <div className="font-mono text-[9px] mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+      <div className="font-mono text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>
         // risk_score vs threshold
       </div>
       <div
@@ -33,7 +33,7 @@ export default function RiskGauge({ score, threshold }: Props) {
           style={{ left: `${threshPct}%`, background: 'var(--text-primary)', opacity: 0.8 }}
         />
       </div>
-      <div className="flex justify-between font-mono text-[8px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+      <div className="flex justify-between font-mono text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>
         <span>0.0</span>
         <span>threshold: {threshold.toFixed(2)}</span>
         <span>1.0</span>

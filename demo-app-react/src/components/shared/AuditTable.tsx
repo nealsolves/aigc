@@ -35,7 +35,7 @@ export default function AuditTable({ records }: Props) {
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className="font-mono text-[9px] px-2.5 py-1 rounded transition-colors"
+            className="font-mono text-xs px-2.5 py-1 rounded transition-colors"
             style={
               filter === f
                 ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
@@ -46,17 +46,17 @@ export default function AuditTable({ records }: Props) {
           </button>
         ))}
         <div className="flex-1" />
-        <button onClick={exportJSON} className="font-mono text-[9px] px-2.5 py-1 rounded" style={{ color: 'var(--ibm-blue-40)', border: '1px solid var(--border-ui)' }}>
+        <button onClick={exportJSON} className="font-mono text-xs px-2.5 py-1 rounded" style={{ color: 'var(--ibm-blue-40)', border: '1px solid var(--border-ui)' }}>
           ↓ JSON
         </button>
-        <button onClick={exportCSV} className="font-mono text-[9px] px-2.5 py-1 rounded" style={{ color: 'var(--ibm-teal-30)', border: '1px solid var(--border-ui)' }}>
+        <button onClick={exportCSV} className="font-mono text-xs px-2.5 py-1 rounded" style={{ color: 'var(--ibm-teal-30)', border: '1px solid var(--border-ui)' }}>
           ↓ CSV
         </button>
       </div>
 
       {/* table */}
       <div className="overflow-x-auto rounded" style={{ border: '1px solid var(--border-ui)' }}>
-        <table className="w-full text-[9px] font-mono">
+        <table className="w-full text-xs font-mono">
           <thead>
             <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-ui)' }}>
               {['ID', 'Timestamp', 'Policy', 'Role', 'Provider', 'Result', 'Risk', 'Signed'].map(h => (

@@ -10,7 +10,7 @@ export default function Lab7Compliance() {
 
   return (
     <div className="p-4 max-w-5xl mx-auto">
-      <p className="font-mono text-[9px] mb-4" style={{ color: 'var(--text-secondary)' }}>
+      <p className="font-mono text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
         // full audit trail — filter, inspect, and export governance records
       </p>
 

@@ -24,7 +24,7 @@ export default function Lab5Loaders() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
-      <p className="font-mono text-[9px] mb-4" style={{ color: 'var(--text-secondary)' }}>
+      <p className="font-mono text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
         // policy loading strategies and version history
       </p>
 
@@ -33,7 +33,7 @@ export default function Lab5Loaders() {
           <button
             key={t}
             onClick={() => setLoaderType(t)}
-            className="font-mono text-[9px] px-3 py-1.5 rounded"
+            className="font-mono text-xs px-3 py-1.5 rounded"
             style={
               loaderType === t
                 ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
@@ -45,7 +45,7 @@ export default function Lab5Loaders() {
         ))}
       </div>
 
-      <div className="font-mono text-[9px] px-3 py-2 rounded mb-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
+      <div className="font-mono text-xs px-3 py-2 rounded mb-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
         {loaderType === 'filesystem'
           ? '// FileSystem: loads YAML from disk, watches for changes, caches parsed policy'
           : '// InMemory: policy registered programmatically, no file I/O, ideal for testing'}
@@ -54,7 +54,7 @@ export default function Lab5Loaders() {
       <div className="grid grid-cols-2 gap-4">
         {/* version timeline */}
         <div>
-          <div className="font-mono text-[9px] mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Version Timeline</div>
+          <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Version Timeline</div>
           <div className="space-y-1">
             {VERSIONS.map(v => (
               <button
@@ -67,11 +67,11 @@ export default function Lab5Loaders() {
                 }}
               >
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="font-mono text-[9px]" style={{ color: 'var(--ibm-cyan-30)' }}>v{v.version}</span>
-                  <span className="font-mono text-[8px]" style={{ color: 'var(--text-secondary)' }}>{v.date}</span>
+                  <span className="font-mono text-xs" style={{ color: 'var(--ibm-cyan-30)' }}>v{v.version}</span>
+                  <span className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{v.date}</span>
                   {v.version === '2.1' && <StatusBadge status="PASS" />}
                 </div>
-                <div className="font-mono text-[8px]" style={{ color: 'var(--text-secondary)' }}>{v.changes}</div>
+                <div className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{v.changes}</div>
               </button>
             ))}
           </div>
@@ -79,7 +79,7 @@ export default function Lab5Loaders() {
 
         {/* policy view */}
         <div>
-          <div className="font-mono text-[9px] mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Policy v{selectedVersion}</div>
+          <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Policy v{selectedVersion}</div>
           <CodeBlock code={POLICY_SAMPLES[selectedVersion]} label={`medical_ai_v${selectedVersion}.yaml`} />
         </div>
       </div>

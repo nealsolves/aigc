@@ -13,7 +13,7 @@ export default function MetricCard({ value, label, color }: Props) {
       <div className="font-mono font-light text-lg leading-none" style={{ color }}>
         {value}
       </div>
-      <div className="font-mono text-[8px] tracking-widest mt-1" style={{ color: 'var(--text-secondary)' }}>
+      <div className="font-mono text-[11px] tracking-widest mt-1" style={{ color: 'var(--text-secondary)' }}>
         {label}
       </div>
     </div>

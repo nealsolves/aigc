@@ -1,7 +1,7 @@
 """AIGC Governance Lab — Milestone 2 Demo App.
 
 Entry point and navigation shell.  Run with:
-    cd demo-app && streamlit run app.py
+    cd demo-app-streamlit && streamlit run app.py
 """
 
 from __future__ import annotations

@@ -34,7 +34,6 @@ logger = logging.getLogger("aigc.policy_loader")
 _PKG_SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "schemas"
 _REPO_SCHEMAS_DIR = Path(__file__).resolve().parent.parent.parent / "schemas"
 SCHEMAS_DIR = _PKG_SCHEMAS_DIR if _PKG_SCHEMAS_DIR.is_dir() else _REPO_SCHEMAS_DIR
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 LEGACY_POLICY_SCHEMA_PATH = SCHEMAS_DIR / "invocation_policy.schema.json"
 POLICY_DSL_SCHEMA_PATH = SCHEMAS_DIR / "policy_dsl.schema.json"
 POLICY_SCHEMA_DRAFT_07 = "http://json-schema.org/draft-07/schema#"
@@ -138,15 +137,10 @@ def _resolve_policy_schema_path() -> Path:
 def _resolve_policy_path(policy_file: str) -> Path:
     candidate = Path(policy_file)
     if not candidate.is_absolute():
-        # Relative paths are resolved against REPO_ROOT and must stay within it.
-        candidate = (REPO_ROOT / candidate).resolve()
-        try:
-            candidate.relative_to(REPO_ROOT)
-        except ValueError:
-            raise PolicyLoadError(
-                "Policy path escapes repository root",
-                details={"policy_file": policy_file},
-            )
+        # Relative paths are resolved against the caller's working directory
+        # so that pip-installed users can pass paths like "policies/my_policy.yaml"
+        # relative to their project root.  See ADR-0005.
+        candidate = (Path.cwd() / candidate).resolve()
     else:
         # Absolute paths are accepted as-is.  The caller is responsible for
         # ensuring the path is intentional (e.g. a consumer project's own

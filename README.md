@@ -43,6 +43,30 @@ designed to satisfy all five conditions or fail closed.
 
 ---
 
+## Interactive Demo
+
+An interactive companion to the SDK is deployed at:
+
+**[https://nealsolves.github.io/aigc/](https://nealsolves.github.io/aigc/)**
+
+The demo is a React application with seven hands-on labs, each exercising a specific
+governance capability from v0.3.0. No installation required — runs entirely in the browser.
+
+| Lab | Topic | What it demonstrates |
+| --- | ----- | -------------------- |
+| 1 | Risk Scoring | `strict`, `risk_scored`, and `warn_only` modes; threshold behavior |
+| 2 | Signing & Verification | HMAC-SHA256 artifact signing; tamper detection |
+| 3 | Audit Chain | Hash-chained audit artifacts; chain continuity verification |
+| 4 | Policy Composition | `intersect`, `union`, and `replace` composition strategies |
+| 5 | Loaders & Versioning | Pluggable `PolicyLoader`; `effective_date` / `expiration_date` enforcement |
+| 6 | Custom Gates | `EnforcementGate` plugins at all four pipeline insertion points |
+| 7 | Compliance Dashboard | `aigc compliance export`-style report from a JSONL audit trail |
+
+The demo deploys automatically on every push to `main` that touches `demo-app-react/`
+via `.github/workflows/deploy-demo-react.yml`.
+
+---
+
 ## Installation
 
 ```bash

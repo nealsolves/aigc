@@ -24,7 +24,7 @@ pip install -e .[dev]
 ## Example 1: Simple Enforcement
 
 ```python
-from aigc.enforcement import enforce_invocation
+from aigc import enforce_invocation
 
 invocation = {
     "policy_file": "policies/base_policy.yaml",
@@ -49,7 +49,7 @@ Precondition validation raises `PreconditionError` when required conditions are
 missing.
 
 ```python
-from aigc.enforcement import enforce_invocation
+from aigc import enforce_invocation
 from aigc.errors import PreconditionError
 
 try:
@@ -71,7 +71,7 @@ except PreconditionError as err:
 ## Example 3: Integrating an External LLM Call
 
 ```python
-from aigc.enforcement import enforce_invocation
+from aigc import enforce_invocation
 import openai
 
 task_input = {"task": "Draft API design"}

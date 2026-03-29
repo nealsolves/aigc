@@ -60,14 +60,12 @@ def test_load_policy_non_yaml_extension():
 def test_load_policy_directory_path(tmp_path):
     """Policy path pointing to a directory is rejected (line 72).
 
-    The directory must exist, have a .yaml extension, and be within the
-    mocked REPO_ROOT so that the path-escape check passes first.
+    Uses an absolute path so path resolution reaches the is_file() check.
     """
     yaml_dir = tmp_path / "policy_dir.yaml"
     yaml_dir.mkdir()
-    with patch("aigc._internal.policy_loader.REPO_ROOT", tmp_path):
-        with pytest.raises(PolicyLoadError) as exc_info:
-            load_policy(str(yaml_dir))
+    with pytest.raises(PolicyLoadError) as exc_info:
+        load_policy(str(yaml_dir))
     assert exc_info.value.code == "POLICY_LOAD_ERROR"
     assert "file" in str(exc_info.value).lower()
 

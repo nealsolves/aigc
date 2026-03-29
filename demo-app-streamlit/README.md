@@ -12,7 +12,7 @@ Interactive Streamlit application for exploring the AIGC SDK's governance pipeli
 A virtual environment is recommended to avoid dependency conflicts with your system Python.
 
 ```bash
-# Navigate to the project root (parent of demo-app/)
+# Navigate to the project root (parent of demo-app-streamlit/)
 cd /path/to/aigc
 
 # Create and activate a virtual environment
@@ -23,8 +23,8 @@ source .venv/bin/activate        # macOS / Linux
 # Install the AIGC SDK in dev mode
 pip install -e .
 
-# Install demo-app dependencies
-pip install -r demo-app/requirements.txt
+# Install demo-app-streamlit dependencies
+pip install -r demo-app-streamlit/requirements.txt
 ```
 
 This installs four packages: the `aigc` SDK (from source), Streamlit ≥ 1.30, PyYAML ≥ 6.0, and jsonschema ≥ 4.0.
@@ -34,7 +34,7 @@ This installs four packages: the `aigc` SDK (from source), Streamlit ≥ 1.30, P
 ## Quick Start
 
 ```bash
-cd demo-app
+cd demo-app-streamlit
 streamlit run app.py
 ```
 
@@ -55,7 +55,7 @@ The app opens at `http://localhost:8501`. No API keys are required — every lab
 ## Directory Structure
 
 ```
-demo-app/
+demo-app-streamlit/
 ├── app.py                  # Entry point and sidebar navigation
 ├── requirements.txt        # Python dependencies
 ├── labs/

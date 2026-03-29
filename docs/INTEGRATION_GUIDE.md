@@ -40,7 +40,7 @@ The SDK enforces this boundary:
 ### Direct enforcement
 
 ```python
-from aigc.enforcement import enforce_invocation
+from aigc import enforce_invocation
 
 response = llm.generate(messages)
 
@@ -62,7 +62,7 @@ audit = enforce_invocation({
 ### Decorator pattern
 
 ```python
-from aigc.decorators import governed
+from aigc import governed
 
 @governed(
     policy_file="policies/planner.yaml",
@@ -79,7 +79,7 @@ async def plan_investigation(input_data: dict, context: dict) -> dict:
 For async applications (FastAPI, agentic frameworks):
 
 ```python
-from aigc.enforcement import enforce_invocation_async
+from aigc import enforce_invocation_async
 
 audit = await enforce_invocation_async(invocation)
 ```
@@ -163,7 +163,7 @@ The SDK generates audit artifacts. You choose where they go.
 ### Built-in sinks
 
 ```python
-from aigc.sinks import JsonFileAuditSink, CallbackAuditSink, set_audit_sink
+from aigc import JsonFileAuditSink, CallbackAuditSink, set_audit_sink
 
 # File sink — append one JSON line per enforcement
 set_audit_sink(JsonFileAuditSink("audit.jsonl"))
@@ -178,7 +178,7 @@ Subclass `AuditSink` for domain-specific storage (SQLite, DynamoDB,
 message queues):
 
 ```python
-from aigc.sinks import AuditSink
+from aigc import AuditSink
 
 class MyDatabaseSink(AuditSink):
     def emit(self, artifact: dict) -> None:

@@ -17,7 +17,7 @@ from aigc import AIGC, AuditChain, HMACSigner, CallbackAuditSink
 DEMO_APP_DIR = Path(__file__).resolve().parent.parent
 SAMPLE_POLICIES_DIR = DEMO_APP_DIR / "sample_policies"
 
-# Ensure the aigc package is importable when running from demo-app/
+# Ensure the aigc package is importable when running from demo-app-streamlit/
 _project_root = DEMO_APP_DIR.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))

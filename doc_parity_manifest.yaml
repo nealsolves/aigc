@@ -61,4 +61,4 @@ internal_docs:
   - docs/GOLDEN_REPLAYS_CI_GUIDE.md
   - docs/releases/*
   - docs/demo_app/*
-  - demo-app/docs/*
+  - demo-app-streamlit/docs/*

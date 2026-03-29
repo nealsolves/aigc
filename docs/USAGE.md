@@ -50,7 +50,7 @@ missing.
 
 ```python
 from aigc import enforce_invocation
-from aigc.errors import PreconditionError
+from aigc import PreconditionError
 
 try:
     enforce_invocation(

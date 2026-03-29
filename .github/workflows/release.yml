@@ -58,7 +58,7 @@ jobs:
       - name: React demo — install, test, and build
         run: |
           npm --prefix demo-app-react ci
-          npm --prefix demo-app-react test -- --watchAll=false --ci
+          npm --prefix demo-app-react test
           npm --prefix demo-app-react run build
 
   publish:

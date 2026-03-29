@@ -56,11 +56,11 @@ export default function AuditTable({ records }: Props) {
 
       {/* table */}
       <div className="overflow-x-auto rounded" style={{ border: '1px solid var(--border-ui)' }}>
-        <table className="w-full text-xs font-mono">
+        <table className="w-full font-mono">
           <thead>
             <tr style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-ui)' }}>
               {['ID', 'Timestamp', 'Policy', 'Role', 'Provider', 'Result', 'Risk', 'Signed'].map(h => (
-                <th key={h} className="text-left px-3 py-2 font-light tracking-wide" style={{ color: 'var(--text-secondary)' }}>{h}</th>
+                <th key={h} className="text-left px-3 py-2 font-light text-xs tracking-wide" style={{ color: 'var(--text-secondary)' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -71,6 +71,7 @@ export default function AuditTable({ records }: Props) {
                 style={{
                   background: i % 2 === 0 ? 'var(--bg-base)' : 'var(--bg-surface)',
                   borderBottom: '1px solid var(--border-ui)',
+                  fontSize: '0.875rem',
                 }}
               >
                 <td className="px-3 py-2" style={{ color: 'var(--ibm-cyan-30)' }}>{r.id}</td>

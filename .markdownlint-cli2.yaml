@@ -9,6 +9,8 @@ ignores:
   - ".git/**"
   - ".claude/**"
   - "demo-app/**"
+  - "demo-app-streamlit/**"
+  - "demo-app-react/**"
   - "docs/research/**"
   - "docs/audits/**"
   - "docs/superpowers/**"

@@ -10,7 +10,7 @@ version = "0.3.0"
 description = "Deterministic, fail-closed governance enforcement for AI model invocations."
 readme = "README.md"
 requires-python = ">=3.10"
-license = "MIT"
+license = {text = "MIT"}
 authors = [{ name = "Neal Adams", email = "neal@nealsolves.com" }]
 keywords = [
   "governance",

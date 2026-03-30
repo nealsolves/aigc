@@ -1,0 +1,52 @@
+policy_version: "1.5"
+description: "Finance AI governance — conservative risk posture"
+effective_date: "2026-01-01"
+expiration_date: "2026-12-31"
+
+roles:
+  - analyst
+  - auditor
+  - compliance_officer
+
+risk:
+  mode: "strict"
+  threshold: 0.5
+  factors:
+    - name: "no_output_schema"
+      weight: 0.25
+      condition: "no_output_schema"
+    - name: "missing_guards"
+      weight: 0.25
+      condition: "missing_guards"
+    - name: "external_model"
+      weight: 0.3
+      condition: "external_model"
+    - name: "broad_roles"
+      weight: 0.2
+      condition: "broad_roles"
+
+pre_conditions:
+  required:
+    role_declared:
+      type: "boolean"
+    schema_exists:
+      type: "boolean"
+
+post_conditions:
+  required:
+    - output_schema_valid
+
+output_schema:
+  type: object
+  properties:
+    result:
+      type: string
+  required:
+    - result
+
+tools:
+  allowed_tools:
+    - name: "query_market_data"
+      max_calls: 10
+    - name: "run_valuation_model"
+      max_calls: 3

@@ -1,0 +1,19 @@
+policy_version: "1.0"
+description: "Base policy for composition testing"
+roles:
+  - planner
+  - verifier
+pre_conditions:
+  required:
+    role_declared:
+      type: boolean
+post_conditions:
+  required:
+    - output_schema_valid
+output_schema:
+  type: object
+  properties:
+    result:
+      type: string
+  required:
+    - result

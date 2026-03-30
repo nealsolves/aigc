@@ -250,6 +250,51 @@ git tag v<version>
 git push origin v<version>
 ```
 
+## CLI Reference
+
+The `aigc` console script exposes three command groups:
+
+### `aigc policy lint <file...>`
+
+Checks one or more policy YAML files for syntax errors and JSON Schema compliance.
+Exits non-zero if any file fails.
+
+```bash
+aigc policy lint policies/my_policy.yaml
+# OK    policies/my_policy.yaml
+
+aigc policy lint policies/*.yaml
+```
+
+### `aigc policy validate <file...>`
+
+Runs lint plus full semantic validation, including `extends` composition and cycle
+detection. Use this before deploying a new policy.
+
+```bash
+aigc policy validate policies/my_policy.yaml
+# OK    policies/my_policy.yaml
+```
+
+### `aigc compliance export --input <audit.jsonl> [--output <report.json>]`
+
+Reads a JSONL audit trail produced by the SDK and generates a structured JSON
+compliance report (pass/fail counts, compliance rate, failure-gate breakdown,
+per-policy summary).
+
+```bash
+# Print report to stdout
+aigc compliance export --input audit.jsonl
+
+# Write report to a file
+aigc compliance export --input audit.jsonl --output report.json
+
+# Include individual artifact records in the report
+aigc compliance export --input audit.jsonl --output report.json --include-artifacts
+```
+
+---
+
 ## Documentation
 
 | Document | Purpose |

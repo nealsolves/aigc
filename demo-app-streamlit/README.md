@@ -1,4 +1,10 @@
-# AIGC Governance Lab — Demo App
+# AIGC Governance Lab — Demo App (Internal / Offline Lab)
+
+> **Status: internal offline lab tool — not part of the official v0.3.0 release.**
+> The official interactive demo for v0.3.0 is the React app deployed at
+> [https://nealsolves.github.io/aigc/](https://nealsolves.github.io/aigc/).
+> This Streamlit app is retained for local offline exploration and is not
+> distributed in the SDK source package.
 
 Interactive Streamlit application for exploring the AIGC SDK's governance pipeline. Seven hands-on labs walk you through risk scoring, artifact signing, audit chains, policy composition, pluggable loaders, custom gates, and compliance reporting — all without spending API tokens.
 

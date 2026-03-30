@@ -19,9 +19,6 @@ include docs/PUBLIC_INTEGRATION_CONTRACT.md
 include docs/INTEGRATION_GUIDE.md
 include docs/USAGE.md
 include docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md
-include docs/GOLDEN_REPLAYS_README.md
-include docs/GOLDEN_REPLAYS_CI_GUIDE.md
-include docs/GOLDEN_REPLAYS_CHECKLIST.md
 
 # ── Schemas and policies (human-facing; runtime copies live in aigc/schemas/) ─
 recursive-include schemas *.json *.md
@@ -38,6 +35,12 @@ prune demo-app-react/dist
 # ── Exclusions ───────────────────────────────────────────────────────────────
 # Tests excluded: ship complete (with golden_replays + fixtures) or not at all.
 prune tests
+
+# Golden-replay developer docs reference tests/ paths not shipped in sdist;
+# exclude to avoid broken doc paths. Ship as a separate maintainer artifact if needed.
+exclude docs/GOLDEN_REPLAYS_README.md
+exclude docs/GOLDEN_REPLAYS_CI_GUIDE.md
+exclude docs/GOLDEN_REPLAYS_CHECKLIST.md
 
 # Internal / generated artifacts — never ship these
 prune demo-app-streamlit

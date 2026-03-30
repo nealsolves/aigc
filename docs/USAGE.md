@@ -72,17 +72,18 @@ except PreconditionError as err:
 
 ```python
 from aigc import enforce_invocation
-import openai
+from openai import OpenAI  # openai >= 1.0
 
+client = OpenAI()
 task_input = {"task": "Draft API design"}
 
-response = openai.ChatCompletion.create(
+response = client.chat.completions.create(
     model="gpt-4.1",
     messages=[{"role": "user", "content": str(task_input)}],
 )
 
 wrapped_output = {
-    "result": response["choices"][0]["message"]["content"],
+    "result": response.choices[0].message.content,
 }
 
 invocation = {

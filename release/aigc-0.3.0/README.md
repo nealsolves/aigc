@@ -90,4 +90,4 @@ See [CHANGELOG.md](CHANGELOG.md) for the full list. Highlights:
 
 ## Source
 
-Repository: https://github.com/nealsolves/aigc
+Repository: [github.com/nealsolves/aigc](https://github.com/nealsolves/aigc)

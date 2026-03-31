@@ -1,0 +1,30 @@
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#1e2a4a',
+    'primaryTextColor': '#e8e8ed',
+    'primaryBorderColor': '#3a4a7a',
+    'lineColor': '#4a5a8a',
+    'secondaryColor': '#1a1a2e',
+    'tertiaryColor': '#12121e',
+    'fontFamily': 'IBM Plex Sans, sans-serif',
+    'fontSize': '13px'
+  }
+}}%%
+flowchart LR
+    Start(["Invocation\nreceived"])
+    Load["Validation +\npolicy load"]
+    PreAuth["Custom gates\npre_authorization"]
+    Guards["Guard\nevaluation"]
+    Role["Role\nvalidation"]
+    Preconditions["Precondition\nvalidation"]
+    Tools["Tool constraint\nvalidation"]
+    PostAuth["Custom gates\npost_authorization"]
+    PreOutput["Custom gates\npre_output"]
+    SchemaV["Output schema\nvalidation"]
+    Postconditions["Postcondition\nvalidation"]
+    PostOutput["Custom gates\npost_output"]
+    Risk["Risk\nscoring"]
+    Audit(["PASS / FAIL\naudit artifact"])
+
+    Start --> Load --> PreAuth --> Guards --> Role --> Preconditions --> Tools --> PostAuth --> PreOutput --> SchemaV --> Postconditions --> PostOutput --> Risk --> Audit

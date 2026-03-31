@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIGC v0.3.0 Architecture</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: #0a0a0f;
+    color: #e8e8ed;
+    min-height: 100vh;
+  }
+
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 48px 40px;
+  }
+
+  .page-title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6b8afd;
+    margin-bottom: 8px;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: #64647a;
+    font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 56px;
+  }
+
+  .diagram-section {
+    margin-bottom: 72px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid #1e1e2e;
+    padding-bottom: 16px;
+  }
+
+  .section-number {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: #6b8afd;
+    font-family: 'IBM Plex Mono', monospace;
+    min-width: 24px;
+  }
+
+  .section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #e8e8ed;
+  }
+
+  .section-desc {
+    font-size: 13px;
+    color: #64647a;
+    margin-left: 40px;
+  }
+
+  .diagram-container {
+    background: #111118;
+    border: 1px solid #1e1e2e;
+    border-radius: 12px;
+    padding: 40px 32px;
+    overflow-x: auto;
+    margin-bottom: 24px;
+  }
+
+  .diagram-container .mermaid {
+    display: flex;
+    justify-content: center;
+  }
+
+  .notes-section {
+    margin-top: 48px;
+  }
+
+  .notes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .note-card {
+    background: #111118;
+    border: 1px solid #1e1e2e;
+    border-radius: 8px;
+    padding: 20px 24px;
+  }
+
+  .note-card .note-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6b8afd;
+    margin-bottom: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .note-card p {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #9898a8;
+  }
+
+  .note-card code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: #8ba4fd;
+    background: #1a1a28;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  .watermark {
+    text-align: center;
+    margin-top: 64px;
+    padding-top: 32px;
+    border-top: 1px solid #1e1e2e;
+    font-size: 12px;
+    color: #3a3a4a;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+
+  /* Override Mermaid styles for dark theme consistency */
+  .mermaid svg {
+    max-width: 100%;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-title">AIGC v0.3.0</div>
+  <div class="page-subtitle">Runtime Architecture — Component View + Enforcement Pipeline</div>
+
+  <!-- COMPONENT VIEW -->
+  <div class="diagram-section">
+    <div class="section-header">
+      <span class="section-number">01</span>
+      <span class="section-title">Component View</span>
+    </div>
+    <p class="section-desc" style="margin-bottom: 24px;">
+      How the host application, SDK enforcement core, policy layer, and operational utilities connect at runtime.
+    </p>
+    <div class="diagram-container">
+      <pre class="mermaid">
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#1e2a4a',
+    'primaryTextColor': '#e8e8ed',
+    'primaryBorderColor': '#3a4a7a',
+    'lineColor': '#4a5a8a',
+    'secondaryColor': '#1a1a2e',
+    'tertiaryColor': '#12121e',
+    'fontFamily': 'IBM Plex Sans',
+    'fontSize': '13px',
+    'nodeTextColor': '#e8e8ed',
+    'mainBkg': '#1e2a4a',
+    'clusterBkg': '#0e0e18',
+    'clusterBorder': '#2a2a4a',
+    'edgeLabelBackground': '#0a0a0f'
+  }
+}}%%
+flowchart TB
+    subgraph Host["HOST APPLICATION"]
+        direction LR
+        App["App / Agent /<br/>Orchestrator"]
+        Gov["@governed<br/>post-call wrapper"]
+        Provider["Model Provider<br/>OpenAI · Anthropic · local"]
+
+        App -->|"decorated call"| Gov
+        Gov -->|"calls wrapped fn"| Provider
+        Provider -->|"model output"| Gov
+    end
+
+    subgraph SDK["AIGC SDK v0.3.0"]
+        direction TB
+
+        subgraph Entry["INVOCATION BOUNDARY"]
+            direction LR
+            E1["enforce_invocation()"]
+            E2["AIGC.enforce()"]
+        end
+
+        subgraph Policy["POLICY LAYER"]
+            direction LR
+            PolicyFile["Policy YAML"]
+            Loader["FilePolicyLoader /<br/>PolicyLoaderBase"]
+            Cache["PolicyCache<br/>LRU · thread-safe"]
+            Schema["JSON Schemas"]
+            Rules["Dates + Composition<br/>effective / expiration<br/>intersect · union · replace"]
+        end
+
+        subgraph Core["DETERMINISTIC ENFORCEMENT CORE"]
+            direction LR
+            G0["pre_authorization<br/>custom gates"]
+            G1["Guard<br/>Evaluation"]
+            G2["Role<br/>Validation"]
+            G3["Precondition<br/>Validation"]
+            G4["Tool Constraint<br/>Validation"]
+            G5["post_authorization<br/>custom gates"]
+            G6["pre_output<br/>custom gates"]
+            G7["Output Schema<br/>Validation"]
+            G8["Postcondition<br/>Validation"]
+            G9["post_output<br/>custom gates"]
+            G10["Risk Scoring<br/>strict · risk_scored · warn_only"]
+        end
+
+        Artifact["Audit Artifact<br/>PASS or FAIL"]
+        Sign["ArtifactSigner / HMACSigner<br/>optional"]
+        Sink["AuditSink<br/>JSONL · callback · custom"]
+        Telemetry["OpenTelemetry<br/>spans + gate events"]
+    end
+
+    subgraph Ops["OPERATIONAL UTILITIES"]
+        direction LR
+        Chain["AuditChain.append()<br/>opt-in · host-managed"]
+        CLI["aigc compliance export<br/>reads stored audit trails"]
+    end
+
+    App -->|"direct"| E1
+    App -->|"instance"| E2
+    Gov -->|"assembles invocation"| E1
+
+    E1 --> Loader
+    E2 --> Cache --> Loader
+    PolicyFile --> Loader
+    Schema --> Loader
+    Loader --> Rules
+    Rules --> G0
+    G0 --> G1 --> G2 --> G3 --> G4 --> G5 --> G6 --> G7 --> G8 --> G9 --> G10 --> Artifact
+    Telemetry -.-> G0
+    Telemetry -.-> Artifact
+
+    Artifact -->|"unsigned"| Sink
+    Artifact -->|"sign if configured"| Sign --> Sink
+    Artifact --> App
+
+    Artifact -.->|"optional chaining"| Chain
+    Sink -->|"stored trail"| CLI
+      </pre>
+    </div>
+  </div>
+
+  <!-- PIPELINE VIEW -->
+  <div class="diagram-section">
+    <div class="section-header">
+      <span class="section-number">02</span>
+      <span class="section-title">Enforcement Pipeline</span>
+    </div>
+    <p class="section-desc" style="margin-bottom: 24px;">
+      The sequential gate order for every governed invocation. Every gate is fail-closed. Custom gates run at four fixed insertion points.
+    </p>
+    <div class="diagram-container">
+      <pre class="mermaid">
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#1e2a4a',
+    'primaryTextColor': '#e8e8ed',
+    'primaryBorderColor': '#3a4a7a',
+    'lineColor': '#4a5a8a',
+    'secondaryColor': '#1a1a2e',
+    'tertiaryColor': '#12121e',
+    'fontFamily': 'IBM Plex Sans',
+    'fontSize': '13px',
+    'nodeTextColor': '#e8e8ed',
+    'mainBkg': '#1e2a4a',
+    'clusterBkg': '#0e0e18',
+    'clusterBorder': '#2a2a4a',
+    'edgeLabelBackground': '#0a0a0f'
+  }
+}}%%
+flowchart LR
+    Start(["Invocation<br/>received"])
+    Load["Validation +<br/>policy load"]
+    PreAuth["Custom gates<br/>pre_authorization"]
+    Guards["Guard<br/>evaluation"]
+    Role["Role<br/>validation"]
+    Preconditions["Precondition<br/>validation"]
+    Tools["Tool constraint<br/>validation"]
+    PostAuth["Custom gates<br/>post_authorization"]
+    PreOutput["Custom gates<br/>pre_output"]
+    SchemaV["Output schema<br/>validation"]
+    Postconditions["Postcondition<br/>validation"]
+    PostOutput["Custom gates<br/>post_output"]
+    Risk["Risk<br/>scoring"]
+    Audit(["PASS / FAIL<br/>audit artifact"])
+
+    Start --> Load --> PreAuth --> Guards --> Role --> Preconditions --> Tools --> PostAuth --> PreOutput --> SchemaV --> Postconditions --> PostOutput --> Risk --> Audit
+      </pre>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="notes-section">
+    <div class="section-header">
+      <span class="section-number">03</span>
+      <span class="section-title">Key Boundaries</span>
+    </div>
+    <div class="notes-grid">
+      <div class="note-card">
+        <div class="note-label">Post-Call Governance</div>
+        <p><code>@governed</code> is post-call. The wrapped function runs first, then AIGC assembles the invocation and enforces policy on the result.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Audit Chain</div>
+        <p><code>AuditChain</code> is not part of the automatic enforcement pipeline. It is an opt-in utility the host applies to artifacts after enforcement.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Compliance Export</div>
+        <p><code>aigc compliance export</code> is an offline analysis step over stored audit artifacts, not a live runtime gate.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Pre-Pipeline Failures</div>
+        <p>Pre-pipeline failures produce schema-valid FAIL artifacts with <code>policy_version: "unknown"</code>, but bypass the core gate sequence.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="watermark">AIGC v0.3.0 · github.com/nealsolves/aigc · MIT License</div>
+
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    flowchart: {
+      useMaxWidth: true,
+      htmlLabels: true,
+      curve: 'basis',
+      padding: 16,
+      nodeSpacing: 30,
+      rankSpacing: 40
+    },
+    themeVariables: {
+      darkMode: true,
+      background: '#0a0a0f',
+      primaryColor: '#1e2a4a',
+      primaryTextColor: '#e8e8ed',
+      primaryBorderColor: '#3a4a7a',
+      lineColor: '#4a5a8a',
+      fontFamily: 'IBM Plex Sans'
+    }
+  });
+</script>
+</body>
+</html>

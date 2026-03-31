@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;1,300&family=IBM+Plex+Sans:wght@400;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* IBM color tokens — identical in both themes */
+  --ibm-blue-60:    #0f62fe;
+  --ibm-blue-40:    #78a9ff;
+  --ibm-cyan-30:    #82cfff;
+  --ibm-teal-30:    #3ddbd9;
+  --ibm-teal-60:    #007d79;
+  --ibm-magenta-40: #ff7eb6;
+  --ibm-purple-40:  #be95ff;
+
+  /* Light theme surfaces (default) */
+  --bg-base:        #f2f4f8;
+  --bg-surface:     #ffffff;
+  --bg-nav:         #161616;
+  --bg-hero:        #0f62fe;
+  --bg-hero-end:    #0f62fe;
+  --border-ui:      #c1c7cd;
+  --text-primary:   #161616;
+  --text-secondary: #393939;
+  --text-tertiary:  #393939;
+  --text-on-nav:    #82cfff;
+  --text-on-hero:   #ffffff;
+  --hero-accent:    #82cfff;
+  --gauge-track:    #e5f6ff;
+}
+
+[data-theme="dark"] {
+  --bg-base:        #08080f;
+  --bg-surface:     rgba(255,255,255,0.03);
+  --bg-nav:         #0d0d14;
+  --bg-hero:        #0a0f1e;
+  --bg-hero-end:    #081428;
+  --border-ui:      rgba(255,255,255,0.07);
+  --text-primary:   #f2f4f8;
+  --text-secondary: #8d8d9e;
+  --text-tertiary:  #8d8d9e;
+  --text-on-nav:    #82cfff;
+  --text-on-hero:   #f2f4f8;
+  --hero-accent:    #78a9ff;
+  --gauge-track:    rgba(255,255,255,0.05);
+}
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  line-height: 1.6;
+  letter-spacing: 0.12em;
+  word-spacing: 0.16em;
+}

@@ -429,6 +429,69 @@ def check_parity_docs_exist(manifest: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Check H: Semantic behavioral claims
+# ---------------------------------------------------------------------------
+
+_RISK_SCORED_BLOCKING_RE = re.compile(
+    r"risk_scored[^\n]{0,80}(?:threshold[^\n]{0,40}(?:FAIL|block|enforc)"
+    r"|(?:FAIL|block|enforc)[^\n]{0,40}threshold)",
+    re.I,
+)
+
+_AUDIT_CMD_RE = re.compile(r"aigc\s+audit\s+(?:export|summary)", re.I)
+
+# Docs that describe live CLI behavior (not historical/archive docs)
+_CLI_BEHAVIOR_DOCS = [
+    "README.md",
+    "demo-app-streamlit/labs/lab7_compliance.py",
+    "docs/AIGC_FRAMEWORK.md",
+]
+
+# Docs that describe live risk-mode semantics
+_RISK_SEMANTICS_DOCS = [
+    "README.md",
+    "docs/AIGC_FRAMEWORK.md",
+    "demo-app-streamlit/labs/lab1_risk_scoring.py",
+]
+
+
+def check_semantic_claims() -> list[str]:
+    """Check that docs don't contain known false semantic claims.
+
+    H1: risk_scored must not be described as blocking on threshold exceedance.
+    H2: aigc audit commands must not appear in active CLI-behavior docs.
+    """
+    errors: list[str] = []
+
+    for rel in _RISK_SEMANTICS_DOCS:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for m in _RISK_SCORED_BLOCKING_RE.finditer(text):
+            line = text[: m.start()].count("\n") + 1
+            errors.append(
+                f"[semantic-H1] {rel}:{line}: describes risk_scored as blocking "
+                f"on threshold exceedance — only strict mode blocks; "
+                f"matched: {m.group()!r}"
+            )
+
+    for rel in _CLI_BEHAVIOR_DOCS:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for m in _AUDIT_CMD_RE.finditer(text):
+            line = text[: m.start()].count("\n") + 1
+            errors.append(
+                f"[semantic-H2] {rel}:{line}: references 'aigc audit' which does "
+                f"not exist in the CLI; use 'aigc compliance export' instead"
+            )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -447,6 +510,7 @@ def main() -> int:
         ("E. Archive hygiene", check_archive_hygiene),
         ("F. Gate-ID consistency", lambda: check_gate_id_consistency(manifest)),
         ("G. Parity-set docs exist", lambda: check_parity_docs_exist(manifest)),
+        ("H. Semantic behavioral claims", check_semantic_claims),
     ]
 
     for name, check_fn in checks:

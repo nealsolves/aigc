@@ -84,7 +84,11 @@ class AuditChain:
         artifact["previous_audit_checksum"] = self._last_checksum
 
         # Compute checksum of the complete artifact (including chain fields)
-        self._last_checksum = self._compute_artifact_checksum(artifact)
+        # and store it IN the artifact so verify() can detect tampering
+        # of any link — including the last one.
+        artifact_checksum = self._compute_artifact_checksum(artifact)
+        artifact["checksum"] = artifact_checksum
+        self._last_checksum = artifact_checksum
         self._artifacts.append(artifact)
 
         logger.debug(
@@ -96,6 +100,11 @@ class AuditChain:
 
     def verify(self) -> tuple[bool, list[str]]:
         """Verify the integrity of the entire chain.
+
+        Checks three things per artifact:
+        1. Structural: chain_index and chain_id match expectations
+        2. Self-integrity: recomputed checksum matches stored checksum
+        3. Link integrity: previous_audit_checksum matches prior artifact
 
         :return: (valid, errors) where valid is True if chain is intact
         """
@@ -133,8 +142,25 @@ class AuditChain:
                     f"(broken link)"
                 )
 
-            # Compute this artifact's checksum for next link
-            prev_checksum = self._compute_artifact_checksum(artifact)
+            # Verify self-integrity: recompute checksum and compare to
+            # the stored checksum.  Strip the checksum field before
+            # hashing because it was added after the hash was computed.
+            stored_checksum = artifact.get("checksum")
+            if stored_checksum is not None:
+                artifact_copy = {
+                    k: v for k, v in artifact.items() if k != "checksum"
+                }
+                recomputed = self._compute_artifact_checksum(artifact_copy)
+                if recomputed != stored_checksum:
+                    errors.append(
+                        f"Chain index {i}: artifact checksum mismatch "
+                        f"(artifact was modified)"
+                    )
+                prev_checksum = stored_checksum
+            else:
+                # Legacy artifact without checksum field — recompute
+                # from the full artifact for link continuity.
+                prev_checksum = self._compute_artifact_checksum(artifact)
 
         valid = len(errors) == 0
         if not valid:
@@ -178,8 +204,25 @@ def verify_chain(artifacts: list[dict[str, Any]]) -> tuple[bool, list[str]]:
                 f"Index {i}: previous_audit_checksum mismatch (broken link)"
             )
 
-        prev_checksum = hashlib.sha256(
-            canonical_json_bytes(artifact)
-        ).hexdigest()
+        # Self-integrity check
+        stored_checksum = artifact.get("checksum")
+        if stored_checksum is not None:
+            artifact_copy = {
+                k: v for k, v in artifact.items() if k != "checksum"
+            }
+            recomputed = hashlib.sha256(
+                canonical_json_bytes(artifact_copy)
+            ).hexdigest()
+            if recomputed != stored_checksum:
+                errors.append(
+                    f"Index {i}: artifact checksum mismatch "
+                    f"(artifact was modified)"
+                )
+            prev_checksum = stored_checksum
+        else:
+            # Legacy artifact without checksum field
+            prev_checksum = hashlib.sha256(
+                canonical_json_bytes(artifact)
+            ).hexdigest()
 
     return len(errors) == 0, errors

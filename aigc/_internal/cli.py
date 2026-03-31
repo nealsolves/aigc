@@ -246,6 +246,14 @@ def _cmd_compliance_export(args: argparse.Namespace) -> int:
     if args.include_artifacts:
         report["artifacts"] = artifacts
 
+    if invalid_count > 0 and len(artifacts) == 0:
+        print(
+            f"ERROR: all {invalid_count} artifact(s) were schema-invalid; "
+            f"nothing exported.",
+            file=sys.stderr,
+        )
+        return 1
+
     output = json.dumps(report, indent=2, sort_keys=True)
 
     if args.output:

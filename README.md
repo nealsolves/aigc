@@ -14,7 +14,7 @@ Governance is not documentation. It is runtime enforcement.
 
 **SDK Implementation:** Reference implementation of constitutional governance for AI-assisted systems.
 
-**Status:** v0.3.0 — 585 tests, 95% coverage. M2: risk scoring, signing (HMAC-SHA256), audit chain (opt-in), composition semantics, pluggable PolicyLoader, policy dates, OTel, policy testing, compliance export CLI, custom gates. Audit schema v1.2.
+**Status:** v0.3.0 — 597 tests, 95% coverage. M2: risk scoring, signing (HMAC-SHA256), audit chain (opt-in), composition semantics, pluggable PolicyLoader, policy dates, OTel, policy testing, compliance export CLI, custom gates. Audit schema v1.2.
 
 ---
 
@@ -40,6 +40,30 @@ designed to satisfy all five conditions or fail closed.
 | Observability | Structured, persistent artifacts | SHA-256 checksummed audit records per invocation |
 | Replay & Audit | Replayable execution paths | Golden replays + deterministic artifact generation |
 | Model-Independent Governance | Provider-agnostic control | Roles, schemas, and policies — not prompts |
+
+---
+
+## Interactive Demo
+
+An interactive companion to the SDK is deployed at:
+
+**[https://nealsolves.github.io/aigc/](https://nealsolves.github.io/aigc/)**
+
+The demo is a React application with seven hands-on labs, each exercising a specific
+governance capability from v0.3.0. No installation required — runs entirely in the browser.
+
+| Lab | Topic | What it demonstrates |
+| --- | ----- | -------------------- |
+| 1 | Risk Scoring | `strict`, `risk_scored`, and `warn_only` modes; threshold behavior |
+| 2 | Signing & Verification | HMAC-SHA256 artifact signing; tamper detection |
+| 3 | Audit Chain | Hash-chained audit artifacts; chain continuity verification |
+| 4 | Policy Composition | `intersect`, `union`, and `replace` composition strategies |
+| 5 | Loaders & Versioning | Pluggable `PolicyLoader`; `effective_date` / `expiration_date` enforcement |
+| 6 | Custom Gates | `EnforcementGate` plugins at all four pipeline insertion points |
+| 7 | Compliance Dashboard | `aigc compliance export`-style report from a JSONL audit trail |
+
+The demo deploys automatically on every push to `main` that touches `demo-app-react/`
+via `.github/workflows/deploy-demo-react.yml`.
 
 ---
 
@@ -76,8 +100,9 @@ If using an internal PyPI mirror or wheelhouse, ensure `pip`, `setuptools`, and
 Preferred imports:
 
 ```python
-from aigc import enforce_invocation, AIGC
-from aigc.errors import (
+from aigc import (
+    enforce_invocation,
+    AIGC,
     InvocationValidationError,
     PreconditionError,
     SchemaValidationError,
@@ -89,7 +114,7 @@ Instance-scoped enforcement (recommended for new code):
 
 ```python
 from aigc import AIGC
-from aigc.sinks import JsonFileAuditSink
+from aigc import JsonFileAuditSink
 
 engine = AIGC(sink=JsonFileAuditSink("audit.jsonl"))
 audit = engine.enforce(invocation)
@@ -130,7 +155,7 @@ audit = engine.enforce(invocation)
 
   ```python
   from aigc import AIGC
-  from aigc.sinks import JsonFileAuditSink
+  from aigc import JsonFileAuditSink
   engine = AIGC(sink=JsonFileAuditSink("audit.jsonl"))
   ```
 
@@ -144,7 +169,7 @@ audit = engine.enforce(invocation)
 - **`@governed` decorator** — wraps sync and async LLM call sites:
 
   ```python
-  from aigc.decorators import governed
+  from aigc import governed
 
   @governed(
       policy_file="policies/governance.yaml",
@@ -224,6 +249,51 @@ Then tag and push to trigger CI + PyPI publish:
 git tag v<version>
 git push origin v<version>
 ```
+
+## CLI Reference
+
+The `aigc` console script exposes three command groups:
+
+### `aigc policy lint <file...>`
+
+Checks one or more policy YAML files for syntax errors and JSON Schema compliance.
+Exits non-zero if any file fails.
+
+```bash
+aigc policy lint policies/my_policy.yaml
+# OK    policies/my_policy.yaml
+
+aigc policy lint policies/*.yaml
+```
+
+### `aigc policy validate <file...>`
+
+Runs lint plus full semantic validation, including `extends` composition and cycle
+detection. Use this before deploying a new policy.
+
+```bash
+aigc policy validate policies/my_policy.yaml
+# OK    policies/my_policy.yaml
+```
+
+### `aigc compliance export --input <audit.jsonl> [--output <report.json>]`
+
+Reads a JSONL audit trail produced by the SDK and generates a structured JSON
+compliance report (pass/fail counts, compliance rate, failure-gate breakdown,
+per-policy summary).
+
+```bash
+# Print report to stdout
+aigc compliance export --input audit.jsonl
+
+# Write report to a file
+aigc compliance export --input audit.jsonl --output report.json
+
+# Include individual artifact records in the report
+aigc compliance export --input audit.jsonl --output report.json --include-artifacts
+```
+
+---
 
 ## Documentation
 

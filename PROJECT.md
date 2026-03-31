@@ -365,7 +365,7 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ### Test Coverage
 
-- **585 tests** (all passing)
+- **597 tests** (all passing)
 - **95% coverage** across all `aigc` modules
 - All DSL features have golden replay regression fixtures
 
@@ -398,7 +398,7 @@ and are not part of this SDK.
 
 ### Phase 3 Test Coverage
 
-- **585 tests** (all passing)
+- **597 tests** (all passing)
 - **95% coverage** across all `aigc` modules
 - Phase 3 runtime features have dedicated test files:
   `test_async_enforcement.py`, `test_audit_sinks.py`, `test_decorators.py`
@@ -419,7 +419,7 @@ and are not part of this SDK.
 | -------- | ------- |
 | [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | High-level design, core abstractions, enforcement pipeline |
 | [Integration Guide](docs/INTEGRATION_GUIDE.md) | Host system integration patterns and compliance checklist |
-| [Architecture Decisions](docs/decisions/) | ADRs documenting significant architectural choices |
+| Architecture Decisions (`docs/decisions/`) | ADRs documenting significant architectural choices (full repo only) |
 | [Policy DSL Spec](policies/policy_dsl_spec.md) | Full specification of the policy YAML format |
 | [Usage Guide](docs/USAGE.md) | Code examples and best practices |
 | [Golden Replays Guide](docs/GOLDEN_REPLAYS_README.md) | How to author and maintain golden replay fixtures |

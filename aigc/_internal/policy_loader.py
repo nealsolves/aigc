@@ -34,7 +34,6 @@ logger = logging.getLogger("aigc.policy_loader")
 _PKG_SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "schemas"
 _REPO_SCHEMAS_DIR = Path(__file__).resolve().parent.parent.parent / "schemas"
 SCHEMAS_DIR = _PKG_SCHEMAS_DIR if _PKG_SCHEMAS_DIR.is_dir() else _REPO_SCHEMAS_DIR
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 LEGACY_POLICY_SCHEMA_PATH = SCHEMAS_DIR / "invocation_policy.schema.json"
 POLICY_DSL_SCHEMA_PATH = SCHEMAS_DIR / "policy_dsl.schema.json"
 POLICY_SCHEMA_DRAFT_07 = "http://json-schema.org/draft-07/schema#"
@@ -138,15 +137,10 @@ def _resolve_policy_schema_path() -> Path:
 def _resolve_policy_path(policy_file: str) -> Path:
     candidate = Path(policy_file)
     if not candidate.is_absolute():
-        # Relative paths are resolved against REPO_ROOT and must stay within it.
-        candidate = (REPO_ROOT / candidate).resolve()
-        try:
-            candidate.relative_to(REPO_ROOT)
-        except ValueError:
-            raise PolicyLoadError(
-                "Policy path escapes repository root",
-                details={"policy_file": policy_file},
-            )
+        # Relative paths are resolved against the caller's working directory
+        # so that pip-installed users can pass paths like "policies/my_policy.yaml"
+        # relative to their project root.  See ADR-0005.
+        candidate = (Path.cwd() / candidate).resolve()
     else:
         # Absolute paths are accepted as-is.  The caller is responsible for
         # ensuring the path is intentional (e.g. a consumer project's own
@@ -249,6 +243,51 @@ def _merge_policies(
             merged[key] = copy.deepcopy(value)
 
     return merged
+
+
+def _validate_composition_restriction(
+    base: dict[str, Any],
+    merged: dict[str, Any],
+) -> None:
+    """Enforce monotonic restriction: child policies may not expand roles or
+    remove required postconditions relative to the base policy.
+
+    :param base: The resolved base policy dict (before overlay was applied).
+    :param merged: The merged policy dict (after overlay was applied).
+    :raises PolicyValidationError: If the merged policy escalates privileges or
+        weakens postconditions.
+    """
+    # Role escalation check: merged roles must be a subset of base roles
+    base_roles = set(base.get("roles") or [])
+    merged_roles = set(merged.get("roles") or [])
+    if base_roles and (escalated := sorted(merged_roles - base_roles)):
+        raise PolicyValidationError(
+            f"Composition escalation: child policy adds roles not present "
+            f"in base policy: {escalated}",
+            details={
+                "base_roles": sorted(base_roles),
+                "merged_roles": sorted(merged_roles),
+                "escalated_roles": escalated,
+            },
+        )
+
+    # Postcondition weakening check: merged must retain all base required postconditions
+    base_post = set(
+        base.get("post_conditions", {}).get("required") or []
+    )
+    merged_post = set(
+        merged.get("post_conditions", {}).get("required") or []
+    )
+    if base_post and (removed := sorted(base_post - merged_post)):
+        raise PolicyValidationError(
+            f"Composition weakening: child policy removes required "
+            f"postconditions from base policy: {removed}",
+            details={
+                "base_required": sorted(base_post),
+                "merged_required": sorted(merged_post),
+                "removed_postconditions": removed,
+            },
+        )
 
 
 # ── Policy version dates ─────────────────────────────────────────
@@ -395,6 +434,9 @@ def _resolve_extends(
 
     # Merge current policy into base (current overrides base)
     merged = _merge_policies(base_policy_dict, policy, strategy)
+
+    # Enforce monotonic restriction: child must not escalate privileges
+    _validate_composition_restriction(base_policy_dict, merged)
 
     # Remove extends and composition_strategy from merged policy
     merged.pop("extends", None)

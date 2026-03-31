@@ -12,7 +12,7 @@
 # --- Current-state values ---
 
 version: "0.3.0"
-test_count: 585
+test_count: 597
 coverage_threshold: 90
 audit_schema_version: "1.2"
 
@@ -61,4 +61,4 @@ internal_docs:
   - docs/GOLDEN_REPLAYS_CI_GUIDE.md
   - docs/releases/*
   - docs/demo_app/*
-  - demo-app/docs/*
+  - demo-app-streamlit/docs/*

@@ -51,9 +51,10 @@ v0.3.0 introduces two explicitly configured non-blocking behaviors in defined sc
 - **Risk scoring `warn_only` mode.** When a policy declares
   `risk.mode: "warn_only"`, risk threshold exceedances are logged and
   recorded in the audit artifact without blocking enforcement. Core
-  governance gates remain fail-closed regardless of risk mode. The
-  `strict` and `risk_scored` modes retain blocking behavior for risk
-  thresholds.
+  governance gates remain fail-closed regardless of risk mode.
+  Only `strict` mode blocks enforcement on threshold exceedance.
+  `risk_scored` records the exceedance in the audit artifact and continues
+  without blocking; `warn_only` records without blocking.
 - **Sink failure `log` mode.** When `on_sink_failure` is set to `"log"`
   (the default), audit sink emission failures are logged as warnings
   without blocking the enforcement result. The `"raise"` mode propagates

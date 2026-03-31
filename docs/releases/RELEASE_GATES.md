@@ -110,10 +110,17 @@ Verified by `test_composition_semantics.py`.
 
 ### Plugin Isolation (v0.3)
 
-Custom gates must not suppress core failures. Failures must remain
-append-only.
+Custom gates must not suppress already-recorded core failures. Once a core
+gate failure is recorded (role, precondition, tool, schema, postcondition),
+no subsequent custom gate may remove it. Failures are append-only.
 
-Verified by `test_custom_gates.py`.
+Note: **Pre-authorization** custom gates run before role/precondition
+validation by design. A pre-auth gate failure means downstream core gates
+do not execute — this is intentional pipeline sequencing, not failure
+suppression. The non-suppression guarantee applies to gates running *after*
+a core gate has already evaluated and recorded a failure.
+
+Verified by `test_custom_gates.py::test_post_auth_gate_cannot_suppress_role_failure`.
 
 ---
 
@@ -127,6 +134,29 @@ Release must include updated documentation:
 
 * README
 * policy DSL specification
+
+### Packaging (Restricted-Environment Verification)
+
+Verify that both standard and no-network builds succeed before tagging.
+
+**Standard build** (requires internet access to fetch build-system deps):
+
+```bash
+python -m build
+```
+
+**No-isolation build** (works in offline/enterprise environments):
+
+```bash
+python -m build --no-isolation
+```
+
+Both `aigc_sdk-<version>.tar.gz` (sdist) and `aigc_sdk-<version>-py3-none-any.whl` (wheel) must be produced. If only `--no-isolation` succeeds, document the reason in the release notes.
+
+**Alternatives for offline/enterprise environments:**
+
+* `python -m build --no-isolation` — skips isolated build environment; requires `setuptools` and `wheel` already installed in the active Python environment.
+* Custom index mirror — configure `pip` to use a local mirror or internal package index (`--index-url <mirror>`) so that the isolated build can resolve dependencies without public internet access.
 
 ### Concurrency Safety
 

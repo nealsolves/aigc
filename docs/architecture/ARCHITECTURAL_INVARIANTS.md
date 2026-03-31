@@ -56,7 +56,12 @@ enforcement to complete. The enforcement pipeline itself is always fail-closed.
 
 The system must never degrade into permissive mode for governance gates.
 
-There is no "warn and continue" for policy enforcement.
+Core governance gates (role, precondition, tool, schema, postcondition) are
+always fail-closed. Risk scoring has two explicitly configured non-blocking
+modes: `risk_scored` (records exceedance in artifact, does not block) and
+`warn_only` (records without blocking). Only `strict` mode blocks on risk
+threshold exceedance. Sink failures are configurable and do not affect the
+governance decision.
 
 ---
 
@@ -82,13 +87,18 @@ All enforcement must route through the governance engine.
 
 The enforcement pipeline executes in a fixed order.
 
-1. guard evaluation
-2. role validation
-3. precondition validation
-4. tool constraint validation
-5. schema validation
-6. postcondition validation
-7. audit artifact generation
+1. custom gates (pre_authorization)
+2. guard evaluation
+3. role validation
+4. precondition validation
+5. tool constraint validation
+6. custom gates (post_authorization)
+7. custom gates (pre_output)
+8. schema validation
+9. postcondition validation
+10. custom gates (post_output)
+11. risk scoring (mode-dependent: strict blocks; risk_scored and warn_only record only)
+12. audit artifact generation
 
 Tool validation must occur before schema validation.
 
@@ -144,7 +154,15 @@ Failures may be added by:
 
 Failures may never be removed.
 
-Plugins cannot suppress governance violations.
+Plugins cannot suppress already-recorded governance violations. Once a core
+gate records a failure, no subsequent plugin gate may remove or override it.
+Failures are append-only within a pipeline execution.
+
+Pre-authorization custom gates execute before core validation gates. A
+pre-auth gate failure halts the pipeline before core gates run; this is
+intentional pipeline sequencing. Their failures are classified as
+`custom_gate_violation`, not a suppression of a recorded core failure,
+because no core gate has yet evaluated.
 
 ---
 

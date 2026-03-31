@@ -1,0 +1,66 @@
+# MANIFEST.in — controls what goes into the sdist (source distribution)
+#
+# Strategy: runtime package only in wheel (pyproject.toml handles that).
+# sdist carries the full public surface: docs, schemas, policies, graphics,
+# and the React demo. Tests are intentionally excluded — ship them complete
+# or not at all, and partial test shipping (test files without fixtures) is
+# worse than no tests.
+
+# ── Required metadata ────────────────────────────────────────────────────────
+include README.md
+include LICENSE
+include CHANGELOG.md
+include SECURITY.md
+include PROJECT.md
+include pyproject.toml
+
+# ── Public documentation ─────────────────────────────────────────────────────
+include docs/PUBLIC_INTEGRATION_CONTRACT.md
+include docs/INTEGRATION_GUIDE.md
+include docs/USAGE.md
+include docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md
+
+# ── Schemas and policies (human-facing; runtime copies live in aigc/schemas/) ─
+recursive-include schemas *.json *.md
+recursive-include policies *.yaml *.md
+
+# ── README image assets ──────────────────────────────────────────────────────
+recursive-include graphics *
+
+# ── React demo (official educational artifact) ───────────────────────────────
+recursive-include demo-app-react *
+prune demo-app-react/node_modules
+prune demo-app-react/dist
+
+# ── Exclusions ───────────────────────────────────────────────────────────────
+# Tests excluded: ship complete (with golden_replays + fixtures) or not at all.
+prune tests
+
+# Golden-replay developer docs reference tests/ paths not shipped in sdist;
+# exclude to avoid broken doc paths. Ship as a separate maintainer artifact if needed.
+exclude docs/GOLDEN_REPLAYS_README.md
+exclude docs/GOLDEN_REPLAYS_CI_GUIDE.md
+exclude docs/GOLDEN_REPLAYS_CHECKLIST.md
+
+# Internal / generated artifacts — never ship these
+prune demo-app-streamlit
+prune docs/audits
+prune docs/dev
+prune docs/plans
+prune docs/prs
+prune docs/superpowers
+prune docs/decisions
+prune docs/demo_app
+prune build
+prune dist
+global-exclude *.egg-info
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.tsbuildinfo
+global-exclude .DS_Store
+global-exclude .coverage
+global-exclude coverage.*
+global-exclude CLAUDE.md
+exclude implementation_plan.md
+exclude implementation_status.md
+exclude ARCHITECTURAL_INVARIANTS.md

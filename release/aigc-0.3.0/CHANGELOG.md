@@ -87,8 +87,9 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   on metadata and context; truncation with logging (WS-7, D-13)
 - **Strict mode** — `AIGC(strict_mode=True)` rejects policies without roles,
   preconditions, or typed preconditions (WS-13)
-- **Internal import deprecation** — `from aigc._internal import X` emits
-  `DeprecationWarning`; public imports unaffected (WS-14)
+- **Internal import deprecation** — `from aigc._internal import X` (internal
+  implementation detail, not public API) emits `DeprecationWarning`; public
+  imports unaffected (WS-14)
 - **Audit schema v1.2** — `risk_score` (null) and `signature` (null)
   forward-compatibility placeholders (WS-15)
 - **InvocationBuilder** — fluent builder API for constructing invocation

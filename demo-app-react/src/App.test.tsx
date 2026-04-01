@@ -23,4 +23,9 @@ describe('App routing', () => {
     expect(screen.getAllByText(/Lab 1/).length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText(/Lab 7/).length).toBeGreaterThanOrEqual(1)
   })
+
+  it('renders Architecture tab before lab tabs', () => {
+    renderWithTheme()
+    expect(screen.getByRole('link', { name: 'Architecture' })).toBeInTheDocument()
+  })
 })

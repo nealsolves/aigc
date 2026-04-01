@@ -1,0 +1,428 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 820">
+  <defs>
+    <style>
+      svg {
+        font-family: 'IBM Plex Sans', Arial, sans-serif;
+      }
+
+      .mono {
+        font-family: 'IBM Plex Mono', 'IBM Plex Sans', Arial, sans-serif;
+      }
+
+      .title {
+        fill: #0f62fe;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+      }
+
+      .subtitle {
+        fill: #878d96;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+      }
+
+      .section {
+        fill: #878d96;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 1.2px;
+      }
+
+      .section-blue {
+        fill: #0f62fe;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+      }
+
+      .group-label {
+        fill: #878d96;
+        font-size: 8px;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+      }
+
+      .caption {
+        fill: #878d96;
+        font-size: 8px;
+      }
+
+      .tiny {
+        fill: #878d96;
+        font-size: 7px;
+      }
+
+      .label {
+        fill: #161616;
+        font-size: 11px;
+        font-weight: 500;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+
+      .label-mid {
+        fill: #161616;
+        font-size: 10px;
+        font-weight: 500;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+
+      .detail {
+        fill: #525252;
+        font-size: 8px;
+        dominant-baseline: middle;
+      }
+
+      .detail-mid {
+        fill: #878d96;
+        font-size: 8px;
+        dominant-baseline: middle;
+      }
+
+      .note {
+        fill: #c1c7cd;
+        font-size: 8px;
+        letter-spacing: 0.5px;
+      }
+
+      .host-wrap {
+        fill: #f2f4f8;
+        stroke: #c1c7cd;
+        stroke-width: 1;
+      }
+
+      .host-box,
+      .sink-box,
+      .signer-box,
+      .ops-box,
+      .legend-box {
+        fill: #ffffff;
+        stroke: #c1c7cd;
+        stroke-width: 1;
+      }
+
+      .sdk-wrap {
+        fill: none;
+        stroke: #c1c7cd;
+        stroke-width: 1.2;
+      }
+
+      .inv-wrap,
+      .policy-wrap {
+        fill: #e5f6ff;
+        stroke: #82cfff;
+        stroke-width: 1;
+      }
+
+      .inv-box,
+      .policy-box {
+        fill: #ffffff;
+        stroke: #82cfff;
+        stroke-width: 0.8;
+      }
+
+      .core-wrap {
+        fill: #ffffff;
+        stroke: #82cfff;
+        stroke-width: 1.15;
+      }
+
+      .otel-box {
+        fill: #e5f6ff;
+        stroke: #82cfff;
+        stroke-width: 0.8;
+      }
+
+      .custom-box {
+        fill: #f6f2ff;
+        stroke: #be95ff;
+        stroke-width: 0.8;
+      }
+
+      .risk-box {
+        fill: #defbe6;
+        stroke: #42be65;
+        stroke-width: 0.8;
+      }
+
+      .artifact-box {
+        fill: #defbe6;
+        stroke: #42be65;
+        stroke-width: 1.2;
+      }
+
+      .ops-wrap {
+        fill: #f2f4f8;
+        stroke: #c1c7cd;
+        stroke-width: 1;
+      }
+
+      .legend-wrap {
+        fill: #ffffff;
+        stroke: #c1c7cd;
+        stroke-width: 0.5;
+      }
+
+      .purple {
+        fill: #8a3ffc;
+        font-size: 9px;
+        font-weight: 500;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+
+      .purple-sub {
+        fill: #8a3ffc;
+        font-size: 8px;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+
+      .green {
+        fill: #198038;
+        font-size: 11px;
+        font-weight: 600;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+
+      .green-mid {
+        fill: #198038;
+        font-size: 9px;
+        font-weight: 500;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+
+      .green-sub {
+        fill: #198038;
+        font-size: 9px;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+
+      .green-detail {
+        fill: #198038;
+        font-size: 8px;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+
+      .conn {
+        fill: none;
+        stroke: #0f62fe;
+        stroke-width: 1;
+      }
+
+      .conn-dim {
+        fill: none;
+        stroke: #c1c7cd;
+        stroke-width: 0.8;
+        stroke-dasharray: 4 3;
+      }
+
+      .legend-purple {
+        stroke: #be95ff;
+        stroke-width: 3;
+      }
+
+      .legend-dim {
+        stroke: #c1c7cd;
+        stroke-width: 1;
+        stroke-dasharray: 4 3;
+      }
+
+      .legend-green {
+        stroke: #42be65;
+        stroke-width: 3;
+      }
+
+      .watermark {
+        fill: #c1c7cd;
+        font-size: 10px;
+        letter-spacing: 0.5px;
+      }
+    </style>
+
+    <marker id="arrow" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0 0 L10 3.5 L0 7 z" fill="#0f62fe"/>
+    </marker>
+
+    <marker id="arrow-dim" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto">
+      <path d="M0 0 L10 3.5 L0 7 z" fill="#c1c7cd"/>
+    </marker>
+  </defs>
+
+  <rect width="1100" height="820" fill="#ffffff" rx="8"/>
+
+  <text class="title mono" x="54" y="40">AIGC v0.3.0</text>
+  <text class="subtitle mono" x="54" y="58">Runtime Architecture - Component View</text>
+
+  <rect class="host-wrap" x="52" y="82" width="996" height="74" rx="6"/>
+  <rect class="sdk-wrap" x="42" y="178" width="1006" height="470" rx="6"/>
+  <rect class="inv-wrap" x="70" y="206" width="382" height="48" rx="4"/>
+  <rect class="policy-wrap" x="488" y="206" width="516" height="92" rx="4"/>
+  <rect class="core-wrap" x="72" y="318" width="932" height="188" rx="4"/>
+  <rect class="otel-box" x="80" y="526" width="170" height="38" rx="4"/>
+  <rect class="artifact-box" x="612" y="518" width="190" height="42" rx="5"/>
+  <rect class="signer-box" x="842" y="518" width="165" height="42" rx="4"/>
+  <rect class="sink-box" x="613" y="584" width="188" height="36" rx="4"/>
+  <rect class="ops-wrap" x="52" y="672" width="996" height="74" rx="6"/>
+  <rect class="host-box" x="80" y="110" width="155" height="36" rx="4"/>
+  <rect class="host-box" x="320" y="110" width="175" height="36" rx="4"/>
+  <rect class="host-box" x="580" y="110" width="190" height="36" rx="4"/>
+  <rect class="inv-box" x="86" y="228" width="162" height="18" rx="3"/>
+  <rect class="inv-box" x="262" y="228" width="162" height="18" rx="3"/>
+  <rect class="policy-box" x="504" y="228" width="96" height="20" rx="3"/>
+  <rect class="policy-box" x="612" y="228" width="128" height="20" rx="3"/>
+  <rect class="policy-box" x="752" y="228" width="110" height="20" rx="3"/>
+  <rect class="policy-box" x="874" y="228" width="112" height="20" rx="3"/>
+  <rect class="policy-box" x="504" y="258" width="236" height="24" rx="3"/>
+  <rect class="policy-box" x="754" y="258" width="232" height="24" rx="3"/>
+  <rect class="custom-box" x="88" y="356" width="124" height="36" rx="4"/>
+  <rect class="inv-box" x="228" y="356" width="116" height="36" rx="4"/>
+  <rect class="inv-box" x="360" y="356" width="116" height="36" rx="4"/>
+  <rect class="inv-box" x="492" y="356" width="118" height="36" rx="4"/>
+  <rect class="inv-box" x="626" y="356" width="122" height="36" rx="4"/>
+  <rect class="custom-box" x="764" y="356" width="134" height="36" rx="4"/>
+  <rect class="custom-box" x="96" y="436" width="112" height="36" rx="4"/>
+  <rect class="inv-box" x="224" y="436" width="122" height="36" rx="4"/>
+  <rect class="inv-box" x="362" y="436" width="124" height="36" rx="4"/>
+  <rect class="custom-box" x="502" y="436" width="122" height="36" rx="4"/>
+  <rect class="risk-box" x="640" y="436" width="154" height="36" rx="4"/>
+  <rect class="ops-box" x="82" y="700" width="210" height="34" rx="4"/>
+  <rect class="ops-box" x="336" y="700" width="220" height="34" rx="4"/>
+  <rect class="legend-wrap" x="680" y="700" width="328" height="34" rx="4"/>
+
+  <g>
+    <line class="conn" x1="235" y1="128" x2="320" y2="128" marker-end="url(#arrow)"/>
+    <line class="conn" x1="495" y1="118" x2="580" y2="118" marker-end="url(#arrow)"/>
+    <line class="conn" x1="580" y1="136" x2="495" y2="136" marker-end="url(#arrow)"/>
+
+    <polyline class="conn" points="80,136 48,136 48,237 86,237" marker-end="url(#arrow)"/>
+    <polyline class="conn" points="190,146 190,184 343,184 343,228" marker-end="url(#arrow)"/>
+    <polyline class="conn" points="408,146 408,160 232,160 232,228" marker-end="url(#arrow)"/>
+
+    <line class="conn" x1="452" y1="237" x2="488" y2="237" marker-end="url(#arrow)"/>
+
+    <line class="conn" x1="212" y1="374" x2="228" y2="374" marker-end="url(#arrow)"/>
+    <line class="conn" x1="344" y1="374" x2="360" y2="374" marker-end="url(#arrow)"/>
+    <line class="conn" x1="476" y1="374" x2="492" y2="374" marker-end="url(#arrow)"/>
+    <line class="conn" x1="610" y1="374" x2="626" y2="374" marker-end="url(#arrow)"/>
+    <line class="conn" x1="748" y1="374" x2="764" y2="374" marker-end="url(#arrow)"/>
+
+    <polyline class="conn" points="898,374 930,374 930,414 182,414 182,436" marker-end="url(#arrow)"/>
+
+    <line class="conn" x1="208" y1="454" x2="224" y2="454" marker-end="url(#arrow)"/>
+    <line class="conn" x1="346" y1="454" x2="362" y2="454" marker-end="url(#arrow)"/>
+    <line class="conn" x1="486" y1="454" x2="502" y2="454" marker-end="url(#arrow)"/>
+    <line class="conn" x1="624" y1="454" x2="640" y2="454" marker-end="url(#arrow)"/>
+
+    <line class="conn" x1="717" y1="472" x2="717" y2="518" marker-end="url(#arrow)"/>
+    <line class="conn" x1="802" y1="539" x2="842" y2="539" marker-end="url(#arrow)"/>
+    <line class="conn" x1="707" y1="560" x2="707" y2="584" marker-end="url(#arrow)"/>
+    <polyline class="conn" points="925,560 925,602 801,602" marker-end="url(#arrow)"/>
+
+    <polyline class="conn" points="612,539 258,539 258,590 24,590 24,128 80,128" marker-end="url(#arrow)"/>
+
+    <polyline class="conn-dim" points="165,526 165,514 600,514 600,518 612,518" marker-end="url(#arrow-dim)"/>
+    <polyline class="conn-dim" points="707,560 604,560 604,656 187,656 187,717" marker-end="url(#arrow-dim)"/>
+    <polyline class="conn-dim" points="790,620 790,662 446,662 446,700" marker-end="url(#arrow-dim)"/>
+  </g>
+
+  <g>
+    <text class="section mono" x="68" y="96">HOST APPLICATION</text>
+    <text class="label" x="157.5" y="132" text-anchor="middle">App / Orchestrator</text>
+    <text class="label mono" x="407.5" y="124" text-anchor="middle">@governed</text>
+    <text class="detail" x="407.5" y="137" text-anchor="middle">post-call wrapper</text>
+    <text class="label" x="675" y="124" text-anchor="middle">Model Provider</text>
+    <text class="detail" x="675" y="137" text-anchor="middle">OpenAI / Anthropic / local</text>
+    <text class="tiny" x="278" y="120" text-anchor="middle">decorated call</text>
+    <text class="tiny" x="538" y="110" text-anchor="middle">calls wrapped function</text>
+    <text class="tiny" x="538" y="149" text-anchor="middle">model output</text>
+
+    <text class="section-blue mono" x="56" y="194">AIGC SDK v0.3.0</text>
+    <text class="tiny" x="120" y="154">direct integration</text>
+    <text class="tiny" x="256" y="176">instance integration</text>
+    <text class="tiny" x="328" y="154">assembles invocation after wrapped call returns</text>
+
+    <text class="section-blue mono" x="86" y="221">INVOCATION BOUNDARY</text>
+    <text class="label-mid mono" x="167" y="241" text-anchor="middle">enforce_invocation()</text>
+    <text class="label-mid mono" x="343" y="241" text-anchor="middle">AIGC.enforce()</text>
+
+    <text class="section-blue mono" x="504" y="221">POLICY LAYER</text>
+    <text class="detail" x="552" y="241" text-anchor="middle">Policy YAML</text>
+    <text class="detail" x="676" y="237" text-anchor="middle">PolicyLoaderBase</text>
+    <text class="tiny" x="676" y="245" text-anchor="middle">or FilePolicyLoader</text>
+    <text class="detail" x="807" y="241" text-anchor="middle">PolicyCache</text>
+    <text class="detail" x="930" y="241" text-anchor="middle">JSON Schemas</text>
+    <text class="detail mono" x="622" y="267" text-anchor="middle">effective_date / expiration_date</text>
+    <text class="tiny" x="622" y="277" text-anchor="middle">policy lifecycle dates</text>
+    <text class="detail mono" x="870" y="267" text-anchor="middle">intersect / union / replace</text>
+    <text class="tiny" x="870" y="277" text-anchor="middle">composition / restriction semantics</text>
+
+    <text class="section-blue mono" x="88" y="334">DETERMINISTIC ENFORCEMENT CORE</text>
+    <text class="note" x="538" y="334" text-anchor="middle">core gates fail-closed; risk mode may be non-blocking</text>
+    <text class="group-label mono" x="88" y="348">AUTHORIZATION PHASE</text>
+    <text class="group-label mono" x="88" y="428">OUTPUT PHASE</text>
+
+    <text class="purple mono" x="150" y="372" text-anchor="middle">pre_authorization</text>
+    <text class="purple-sub" x="150" y="384" text-anchor="middle">custom gates</text>
+    <text class="detail" x="286" y="372" text-anchor="middle">Guard</text>
+    <text class="detail-mid" x="286" y="384" text-anchor="middle">evaluation</text>
+    <text class="detail" x="418" y="372" text-anchor="middle">Role</text>
+    <text class="detail-mid" x="418" y="384" text-anchor="middle">validation</text>
+    <text class="detail" x="551" y="372" text-anchor="middle">Precondition</text>
+    <text class="detail-mid" x="551" y="384" text-anchor="middle">validation</text>
+    <text class="detail" x="687" y="372" text-anchor="middle">Tool Constraint</text>
+    <text class="detail-mid" x="687" y="384" text-anchor="middle">validation</text>
+    <text class="purple mono" x="831" y="372" text-anchor="middle">post_authorization</text>
+    <text class="purple-sub" x="831" y="384" text-anchor="middle">custom gates</text>
+
+    <text class="purple mono" x="152" y="452" text-anchor="middle">pre_output</text>
+    <text class="purple-sub" x="152" y="464" text-anchor="middle">custom gates</text>
+    <text class="detail" x="285" y="452" text-anchor="middle">Output Schema</text>
+    <text class="detail-mid" x="285" y="464" text-anchor="middle">validation</text>
+    <text class="detail" x="424" y="452" text-anchor="middle">Postcondition</text>
+    <text class="detail-mid" x="424" y="464" text-anchor="middle">validation</text>
+    <text class="purple mono" x="563" y="452" text-anchor="middle">post_output</text>
+    <text class="purple-sub" x="563" y="464" text-anchor="middle">custom gates</text>
+    <text class="green-mid" x="717" y="452" text-anchor="middle">Risk Scoring</text>
+    <text class="green-detail" x="717" y="464" text-anchor="middle">strict / risk_scored / warn_only</text>
+
+    <text class="label-mid" x="165" y="542" text-anchor="middle">OpenTelemetry</text>
+    <text class="detail" x="165" y="554" text-anchor="middle">spans + gate events / optional</text>
+
+    <text class="green" x="707" y="534" text-anchor="middle">Audit Artifact</text>
+    <text class="green-sub" x="707" y="548" text-anchor="middle">PASS or FAIL</text>
+
+    <text class="label-mid" x="924.5" y="534" text-anchor="middle">ArtifactSigner</text>
+    <text class="detail mono" x="924.5" y="548" text-anchor="middle">HMAC-SHA256 / optional</text>
+    <text class="tiny" x="822" y="532">sign</text>
+
+    <text class="label-mid" x="707" y="603" text-anchor="middle">AuditSink</text>
+    <text class="detail" x="707" y="615" text-anchor="middle">JSONL / callback / custom</text>
+
+    <text class="caption" x="96" y="584">artifact returned to caller</text>
+    <text class="caption" x="240" y="666">optional chaining by host</text>
+    <text class="caption" x="564" y="670">stored audit trail</text>
+
+    <text class="section mono" x="68" y="686">OPERATIONAL UTILITIES</text>
+    <text class="note" x="258" y="686">outside the enforcement pipeline</text>
+    <text class="label-mid mono" x="187" y="714" text-anchor="middle">AuditChain.append()</text>
+    <text class="detail" x="187" y="726" text-anchor="middle">opt-in / host-managed</text>
+    <text class="label-mid mono" x="446" y="714" text-anchor="middle">aigc compliance export</text>
+    <text class="detail" x="446" y="726" text-anchor="middle">reads stored audit trails</text>
+
+    <line class="legend-purple" x1="700" y1="711" x2="716" y2="711"/>
+    <text class="detail" x="724" y="711">custom gate insertion point</text>
+    <line class="legend-dim" x1="865" y1="711" x2="890" y2="711"/>
+    <text class="detail" x="898" y="711">optional / host-managed</text>
+    <line class="legend-green" x1="700" y1="723" x2="716" y2="723"/>
+    <text class="detail" x="724" y="723">audit artifact boundary</text>
+
+    <text class="watermark mono" x="550" y="790" text-anchor="middle">github.com/nealsolves/aigc / MIT License</text>
+  </g>
+</svg>

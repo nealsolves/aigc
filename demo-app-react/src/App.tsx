@@ -29,7 +29,7 @@ function AppContent() {
   const [isHelpOpen, setIsHelpOpen] = useState(false)
 
   const match = location.pathname.match(/\/lab\/(\d+)/)
-  const activeLabId = match ? parseInt(match[1], 10) : 1
+  const activeLabId = location.pathname === '/architecture' ? 0 : (match ? parseInt(match[1], 10) : 1)
 
   const handleOpen = useCallback(() => setIsHelpOpen(true), [])
   const handleClose = useCallback(() => setIsHelpOpen(false), [])

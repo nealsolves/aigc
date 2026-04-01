@@ -8,10 +8,16 @@ interface Props {
   onClose: () => void
 }
 
-const LABS_LABEL = [
-  '', 'Lab 1 — Risk Scoring', 'Lab 2 — Signing', 'Lab 3 — Audit Chain',
-  'Lab 4 — Composition', 'Lab 5 — Loaders', 'Lab 6 — Custom Gates', 'Lab 7 — Compliance',
-]
+const LABS_LABEL: Record<number, string> = {
+  0: 'Architecture',
+  1: 'Lab 1 — Risk Scoring',
+  2: 'Lab 2 — Signing',
+  3: 'Lab 3 — Audit Chain',
+  4: 'Lab 4 — Composition',
+  5: 'Lab 5 — Loaders',
+  6: 'Lab 6 — Custom Gates',
+  7: 'Lab 7 — Compliance',
+}
 
 export default function HelpDrawer({ labId, isOpen, onClose }: Props) {
   const { theme } = useTheme()

@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTheme } from '@/theme/ThemeContext'
 
 export default function ArchitecturePage() {
@@ -78,6 +78,8 @@ function DiagramSection({ num, title, description, src, alt }: {
   src: string
   alt: string
 }) {
+  const [imgError, setImgError] = useState(false)
+
   return (
     <div className="mb-16">
       <SectionHeader num={num} title={title} />
@@ -96,20 +98,28 @@ function DiagramSection({ num, title, description, src, alt }: {
           overflowX: 'auto',
         }}
       >
-        <img
-          src={src}
-          alt={alt}
-          style={{ width: '100%', height: 'auto', display: 'block' }}
-          onError={(e) => {
-            const target = e.currentTarget
-            target.style.display = 'none'
-            const fallback = document.createElement('div')
-            fallback.textContent = `${alt} unavailable`
-            fallback.style.cssText =
-              'padding:32px;text-align:center;color:var(--text-secondary);font-family:"IBM Plex Mono",monospace;font-size:12px;border:1px dashed var(--border-ui);border-radius:8px'
-            target.parentNode?.insertBefore(fallback, target.nextSibling)
-          }}
-        />
+        {imgError ? (
+          <div
+            style={{
+              padding: 32,
+              textAlign: 'center',
+              color: 'var(--text-secondary)',
+              fontFamily: '"IBM Plex Mono", monospace',
+              fontSize: 12,
+              border: '1px dashed var(--border-ui)',
+              borderRadius: 8,
+            }}
+          >
+            {alt} unavailable
+          </div>
+        ) : (
+          <img
+            src={src}
+            alt={alt}
+            style={{ width: '100%', height: 'auto', display: 'block' }}
+            onError={() => setImgError(true)}
+          />
+        )}
       </div>
     </div>
   )

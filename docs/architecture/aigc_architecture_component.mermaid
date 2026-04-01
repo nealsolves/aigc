@@ -1,0 +1,90 @@
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#1e2a4a',
+    'primaryTextColor': '#e8e8ed',
+    'primaryBorderColor': '#3a4a7a',
+    'lineColor': '#4a5a8a',
+    'secondaryColor': '#1a1a2e',
+    'tertiaryColor': '#12121e',
+    'fontFamily': 'IBM Plex Sans, sans-serif',
+    'fontSize': '13px'
+  }
+}}%%
+flowchart TB
+    subgraph Host["HOST APPLICATION"]
+        direction LR
+        App["App / Agent / Orchestrator"]
+        Gov["@governed decorator\npost-call wrapper"]
+        Provider["Model Provider\nOpenAI · Anthropic · local"]
+
+        App -->|"decorated call"| Gov
+        Gov -->|"calls wrapped fn"| Provider
+        Provider -->|"model output"| Gov
+    end
+
+    subgraph SDK["AIGC SDK v0.3.0"]
+        direction TB
+
+        subgraph Entry["INVOCATION BOUNDARY"]
+            direction LR
+            E1["enforce_invocation()"]
+            E2["AIGC.enforce()"]
+        end
+
+        subgraph Policy["POLICY LAYER"]
+            direction LR
+            PolicyFile["Policy YAML"]
+            Loader["FilePolicyLoader /\nPolicyLoaderBase"]
+            Cache["PolicyCache\nLRU · thread-safe"]
+            Schema["JSON Schemas"]
+            Rules["Dates + Composition\neffective / expiration\nintersect · union · replace"]
+        end
+
+        subgraph Core["DETERMINISTIC ENFORCEMENT CORE"]
+            direction LR
+            G0["pre_authorization\ncustom gates"]
+            G1["Guard\nEvaluation"]
+            G2["Role\nValidation"]
+            G3["Precondition\nValidation"]
+            G4["Tool Constraint\nValidation"]
+            G5["post_authorization\ncustom gates"]
+            G6["pre_output\ncustom gates"]
+            G7["Output Schema\nValidation"]
+            G8["Postcondition\nValidation"]
+            G9["post_output\ncustom gates"]
+            G10["Risk Scoring\nstrict · risk_scored · warn_only"]
+        end
+
+        Artifact["Audit Artifact\nPASS or FAIL"]
+        Sign["ArtifactSigner / HMACSigner\noptional"]
+        Sink["AuditSink\nJSONL · callback · custom"]
+        Telemetry["OpenTelemetry\nspans + gate events"]
+    end
+
+    subgraph Ops["OPERATIONAL UTILITIES"]
+        direction LR
+        Chain["AuditChain.append()\nopt-in · host-managed"]
+        CLI["aigc compliance export\nreads stored audit trails"]
+    end
+
+    App -->|"direct"| E1
+    App -->|"instance"| E2
+    Gov -->|"assembles invocation"| E1
+
+    E1 --> Loader
+    E2 --> Cache --> Loader
+    PolicyFile --> Loader
+    Schema --> Loader
+    Loader --> Rules
+    Rules --> G0
+    G0 --> G1 --> G2 --> G3 --> G4 --> G5 --> G6 --> G7 --> G8 --> G9 --> G10 --> Artifact
+    Telemetry -.-> G0
+    Telemetry -.-> Artifact
+
+    Artifact -->|"unsigned"| Sink
+    Artifact -->|"sign if configured"| Sign --> Sink
+    Artifact --> App
+
+    Artifact -.->|"optional chaining"| Chain
+    Sink -->|"stored trail"| CLI

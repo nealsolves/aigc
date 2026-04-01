@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-d
 import AppNav from '@/components/layout/AppNav'
 import LabTabs from '@/components/layout/LabTabs'
 import LabHero from '@/components/layout/LabHero'
+import ArchitecturePage from '@/pages/ArchitecturePage'
 import Lab1RiskScoring from '@/labs/Lab1RiskScoring'
 import Lab2Signing from '@/labs/Lab2Signing'
 import Lab3AuditChain from '@/labs/Lab3AuditChain'
@@ -38,7 +39,8 @@ function AppContent() {
       <AppNav />
       <LabTabs labs={LABS} />
       <Routes>
-        <Route path="/" element={<Navigate to="/lab/1" replace />} />
+        <Route path="/" element={<Navigate to="/architecture" replace />} />
+        <Route path="/architecture" element={<ArchitecturePage />} />
         <Route path="/lab/1" element={<><LabHero labNum={1} title="Risk Scoring" /><Lab1RiskScoring /></>} />
         <Route path="/lab/2" element={<><LabHero labNum={2} title="Signing & Verification" /><Lab2Signing /></>} />
         <Route path="/lab/3" element={<><LabHero labNum={3} title="Audit Chain" /><Lab3AuditChain /></>} />

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIGC v0.3.0 Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: #08080e;
+    color: #e8e8ed;
+    min-height: 100vh;
+  }
+
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 48px 40px;
+  }
+
+  .page-title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6b8afd;
+    margin-bottom: 8px;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: #64647a;
+    font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 56px;
+  }
+
+  .diagram-section {
+    margin-bottom: 64px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #1e1e2e;
+    padding-bottom: 16px;
+  }
+
+  .section-number {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: #6b8afd;
+    font-family: 'IBM Plex Mono', monospace;
+    min-width: 24px;
+  }
+
+  .section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #e8e8ed;
+  }
+
+  .section-desc {
+    font-size: 13px;
+    color: #64647a;
+    margin-left: 40px;
+    margin-bottom: 20px;
+  }
+
+  .diagram-container {
+    background: #08080e;
+    border: 1px solid #1e1e2e;
+    border-radius: 12px;
+    padding: 16px;
+    overflow-x: auto;
+  }
+
+  .diagram-container img,
+  .diagram-container object {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .notes-section {
+    margin-top: 48px;
+  }
+
+  .notes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .note-card {
+    background: #111118;
+    border: 1px solid #1e1e2e;
+    border-radius: 8px;
+    padding: 20px 24px;
+  }
+
+  .note-card .note-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6b8afd;
+    margin-bottom: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .note-card p {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #9898a8;
+  }
+
+  .note-card code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: #8ba4fd;
+    background: #1a1a28;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  .watermark {
+    text-align: center;
+    margin-top: 64px;
+    padding-top: 32px;
+    border-top: 1px solid #1e1e2e;
+    font-size: 12px;
+    color: #3a3a4a;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+
+  @media (max-width: 840px) {
+    .notes-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-title">AIGC v0.3.0</div>
+  <div class="page-subtitle">Runtime Architecture Diagrams</div>
+
+  <!-- COMPONENT VIEW -->
+  <div class="diagram-section">
+    <div class="section-header">
+      <span class="section-number">01</span>
+      <span class="section-title">Component View</span>
+    </div>
+    <p class="section-desc">
+      How the host application, SDK enforcement core, policy layer, and operational utilities connect at runtime.
+    </p>
+    <div class="diagram-container">
+      <object type="image/svg+xml" data="aigc_architecture_component.svg?v=20260401f">
+        <img src="aigc_architecture_component.svg?v=20260401f" alt="AIGC Component View"/>
+      </object>
+    </div>
+  </div>
+
+  <!-- PIPELINE VIEW -->
+  <div class="diagram-section">
+    <div class="section-header">
+      <span class="section-number">02</span>
+      <span class="section-title">Enforcement Pipeline</span>
+    </div>
+    <p class="section-desc">
+      The sequential gate order for the core enforcement pipeline. Core governance gates are fail-closed; risk scoring may be blocking or audit-only depending on mode.
+    </p>
+    <div class="diagram-container">
+      <object type="image/svg+xml" data="aigc_architecture_pipeline.svg?v=20260401f">
+        <img src="aigc_architecture_pipeline.svg?v=20260401f" alt="AIGC Enforcement Pipeline"/>
+      </object>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="notes-section">
+    <div class="section-header">
+      <span class="section-number">03</span>
+      <span class="section-title">Key Boundaries</span>
+    </div>
+    <div class="notes-grid">
+      <div class="note-card">
+        <div class="note-label">Post-Call Governance</div>
+        <p><code>@governed</code> is post-call. The wrapped function runs first, then AIGC assembles the invocation and enforces policy on the result.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Audit Chain</div>
+        <p><code>AuditChain</code> is not part of the automatic enforcement pipeline. It is an opt-in utility the host applies to artifacts after enforcement.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Compliance Export</div>
+        <p><code>aigc compliance export</code> is an offline analysis step over stored audit artifacts, not a live runtime gate.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Pre-Pipeline Failures</div>
+        <p>Pre-pipeline failures produce schema-valid FAIL artifacts with <code>policy_version: "unknown"</code>, but bypass the core gate sequence.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Signing Semantics</div>
+        <p>If signing is configured, the same audit artifact is signed before sink emission and before it is returned to the caller. PASS and FAIL artifacts can both carry signatures.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Async Entry Points</div>
+        <p>The component view highlights the main synchronous boundary for readability. AIGC v0.3.0 also ships <code>enforce_invocation_async()</code> and <code>AIGC.enforce_async()</code>.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="watermark">AIGC v0.3.0 · github.com/nealsolves/aigc · MIT License</div>
+
+</div>
+</body>
+</html>

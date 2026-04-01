@@ -57,22 +57,28 @@
         fill: #161616;
         font-size: 11px;
         font-weight: 500;
+        text-anchor: middle;
+        dominant-baseline: middle;
       }
 
       .label-mid {
         fill: #161616;
         font-size: 10px;
         font-weight: 500;
+        text-anchor: middle;
+        dominant-baseline: middle;
       }
 
       .detail {
         fill: #525252;
         font-size: 8px;
+        dominant-baseline: middle;
       }
 
       .detail-mid {
         fill: #878d96;
         font-size: 8px;
+        dominant-baseline: middle;
       }
 
       .note {
@@ -119,7 +125,7 @@
 
       .core-wrap {
         fill: #ffffff;
-        stroke: #0f62fe;
+        stroke: #82cfff;
         stroke-width: 1.15;
       }
 
@@ -163,33 +169,45 @@
         fill: #8a3ffc;
         font-size: 9px;
         font-weight: 500;
+        text-anchor: middle;
+        dominant-baseline: middle;
       }
 
       .purple-sub {
         fill: #8a3ffc;
         font-size: 8px;
+        text-anchor: middle;
+        dominant-baseline: middle;
       }
 
       .green {
         fill: #198038;
         font-size: 11px;
         font-weight: 600;
+        text-anchor: middle;
+        dominant-baseline: middle;
       }
 
       .green-mid {
         fill: #198038;
         font-size: 9px;
         font-weight: 500;
+        text-anchor: middle;
+        dominant-baseline: middle;
       }
 
       .green-sub {
         fill: #198038;
         font-size: 9px;
+        text-anchor: middle;
+        dominant-baseline: middle;
       }
 
       .green-detail {
         fill: #198038;
         font-size: 8px;
+        text-anchor: middle;
+        dominant-baseline: middle;
       }
 
       .conn {
@@ -283,9 +301,9 @@
     <line class="conn" x1="495" y1="118" x2="580" y2="118" marker-end="url(#arrow)"/>
     <line class="conn" x1="580" y1="136" x2="495" y2="136" marker-end="url(#arrow)"/>
 
-    <polyline class="conn" points="158,146 158,188 168,188 168,228" marker-end="url(#arrow)"/>
-    <polyline class="conn" points="190,146 190,198 343,198 343,228" marker-end="url(#arrow)"/>
-    <polyline class="conn" points="408,146 408,170 248,170 248,228" marker-end="url(#arrow)"/>
+    <polyline class="conn" points="80,136 48,136 48,237 86,237" marker-end="url(#arrow)"/>
+    <polyline class="conn" points="190,146 190,184 343,184 343,228" marker-end="url(#arrow)"/>
+    <polyline class="conn" points="408,146 408,160 232,160 232,228" marker-end="url(#arrow)"/>
 
     <line class="conn" x1="452" y1="237" x2="488" y2="237" marker-end="url(#arrow)"/>
 
@@ -295,7 +313,7 @@
     <line class="conn" x1="610" y1="374" x2="626" y2="374" marker-end="url(#arrow)"/>
     <line class="conn" x1="748" y1="374" x2="764" y2="374" marker-end="url(#arrow)"/>
 
-    <polyline class="conn" points="898,374 930,374 930,454 208,454" marker-end="url(#arrow)"/>
+    <polyline class="conn" points="898,374 930,374 930,414 182,414 182,436" marker-end="url(#arrow)"/>
 
     <line class="conn" x1="208" y1="454" x2="224" y2="454" marker-end="url(#arrow)"/>
     <line class="conn" x1="346" y1="454" x2="362" y2="454" marker-end="url(#arrow)"/>
@@ -309,9 +327,9 @@
 
     <polyline class="conn" points="612,539 258,539 258,590 24,590 24,128 80,128" marker-end="url(#arrow)"/>
 
-    <polyline class="conn-dim" points="250,545 250,584 600,584 600,539 612,539" marker-end="url(#arrow-dim)"/>
-    <polyline class="conn-dim" points="642,560 642,642 187,642 187,700" marker-end="url(#arrow-dim)"/>
-    <polyline class="conn-dim" points="707,620 707,650 446,650 446,700" marker-end="url(#arrow-dim)"/>
+    <polyline class="conn-dim" points="165,526 165,514 600,514 600,518 612,518" marker-end="url(#arrow-dim)"/>
+    <polyline class="conn-dim" points="707,560 604,560 604,656 187,656 187,717" marker-end="url(#arrow-dim)"/>
+    <polyline class="conn-dim" points="790,620 790,662 446,662 446,700" marker-end="url(#arrow-dim)"/>
   </g>
 
   <g>
@@ -326,9 +344,9 @@
     <text class="tiny" x="538" y="149" text-anchor="middle">model output</text>
 
     <text class="section-blue mono" x="56" y="194">AIGC SDK v0.3.0</text>
-    <text class="tiny" x="176" y="180">direct integration</text>
-    <text class="tiny" x="250" y="192">instance integration</text>
-    <text class="tiny" x="292" y="164">assembles invocation after wrapped call returns</text>
+    <text class="tiny" x="120" y="154">direct integration</text>
+    <text class="tiny" x="256" y="176">instance integration</text>
+    <text class="tiny" x="328" y="154">assembles invocation after wrapped call returns</text>
 
     <text class="section-blue mono" x="86" y="221">INVOCATION BOUNDARY</text>
     <text class="label-mid mono" x="167" y="241" text-anchor="middle">enforce_invocation()</text>
@@ -346,7 +364,7 @@
     <text class="tiny" x="870" y="277" text-anchor="middle">composition / restriction semantics</text>
 
     <text class="section-blue mono" x="88" y="334">DETERMINISTIC ENFORCEMENT CORE</text>
-    <text class="note" x="348" y="334">core gates fail-closed; risk mode may be non-blocking</text>
+    <text class="note" x="538" y="334" text-anchor="middle">core gates fail-closed; risk mode may be non-blocking</text>
     <text class="group-label mono" x="88" y="348">AUTHORIZATION PHASE</text>
     <text class="group-label mono" x="88" y="428">OUTPUT PHASE</text>
 
@@ -377,33 +395,33 @@
     <text class="label-mid" x="165" y="542" text-anchor="middle">OpenTelemetry</text>
     <text class="detail" x="165" y="554" text-anchor="middle">spans + gate events / optional</text>
 
-    <text class="green" x="707" y="543" text-anchor="middle">Audit Artifact</text>
-    <text class="green-sub" x="707" y="556" text-anchor="middle">PASS or FAIL</text>
+    <text class="green" x="707" y="534" text-anchor="middle">Audit Artifact</text>
+    <text class="green-sub" x="707" y="548" text-anchor="middle">PASS or FAIL</text>
 
-    <text class="label-mid" x="924.5" y="543" text-anchor="middle">ArtifactSigner</text>
-    <text class="detail mono" x="924.5" y="556" text-anchor="middle">HMAC-SHA256 / optional</text>
+    <text class="label-mid" x="924.5" y="534" text-anchor="middle">ArtifactSigner</text>
+    <text class="detail mono" x="924.5" y="548" text-anchor="middle">HMAC-SHA256 / optional</text>
     <text class="tiny" x="822" y="532">sign</text>
 
     <text class="label-mid" x="707" y="603" text-anchor="middle">AuditSink</text>
     <text class="detail" x="707" y="615" text-anchor="middle">JSONL / callback / custom</text>
 
     <text class="caption" x="96" y="584">artifact returned to caller</text>
-    <text class="caption" x="240" y="636">optional chaining by host</text>
-    <text class="caption" x="562" y="648">stored audit trail</text>
+    <text class="caption" x="240" y="666">optional chaining by host</text>
+    <text class="caption" x="564" y="670">stored audit trail</text>
 
     <text class="section mono" x="68" y="686">OPERATIONAL UTILITIES</text>
     <text class="note" x="258" y="686">outside the enforcement pipeline</text>
-    <text class="label-mid mono" x="187" y="721" text-anchor="middle">AuditChain.append()</text>
-    <text class="detail" x="187" y="732" text-anchor="middle">opt-in / host-managed</text>
-    <text class="label-mid mono" x="446" y="721" text-anchor="middle">aigc compliance export</text>
-    <text class="detail" x="446" y="732" text-anchor="middle">reads stored audit trails</text>
+    <text class="label-mid mono" x="187" y="714" text-anchor="middle">AuditChain.append()</text>
+    <text class="detail" x="187" y="726" text-anchor="middle">opt-in / host-managed</text>
+    <text class="label-mid mono" x="446" y="714" text-anchor="middle">aigc compliance export</text>
+    <text class="detail" x="446" y="726" text-anchor="middle">reads stored audit trails</text>
 
-    <line class="legend-purple" x1="700" y1="712" x2="716" y2="712"/>
-    <text class="detail" x="724" y="715">custom gate insertion point</text>
-    <line class="legend-dim" x1="865" y1="712" x2="890" y2="712"/>
-    <text class="detail" x="898" y="715">optional / host-managed</text>
-    <line class="legend-green" x1="700" y1="724" x2="716" y2="724"/>
-    <text class="detail" x="724" y="727">audit artifact boundary</text>
+    <line class="legend-purple" x1="700" y1="711" x2="716" y2="711"/>
+    <text class="detail" x="724" y="711">custom gate insertion point</text>
+    <line class="legend-dim" x1="865" y1="711" x2="890" y2="711"/>
+    <text class="detail" x="898" y="711">optional / host-managed</text>
+    <line class="legend-green" x1="700" y1="723" x2="716" y2="723"/>
+    <text class="detail" x="724" y="723">audit artifact boundary</text>
 
     <text class="watermark mono" x="550" y="790" text-anchor="middle">github.com/nealsolves/aigc / MIT License</text>
   </g>

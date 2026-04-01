@@ -140,6 +140,12 @@
     font-family: 'IBM Plex Mono', monospace;
     letter-spacing: 0.05em;
   }
+
+  @media (max-width: 840px) {
+    .notes-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 </head>
 <body>
@@ -158,8 +164,8 @@
       How the host application, SDK enforcement core, policy layer, and operational utilities connect at runtime.
     </p>
     <div class="diagram-container">
-      <object type="image/svg+xml" data="aigc_architecture_component.svg?v=20260331b">
-        <img src="aigc_architecture_component.svg?v=20260331b" alt="AIGC Component View"/>
+      <object type="image/svg+xml" data="aigc_architecture_component.svg?v=20260401f">
+        <img src="aigc_architecture_component.svg?v=20260401f" alt="AIGC Component View"/>
       </object>
     </div>
   </div>
@@ -174,8 +180,8 @@
       The sequential gate order for the core enforcement pipeline. Core governance gates are fail-closed; risk scoring may be blocking or audit-only depending on mode.
     </p>
     <div class="diagram-container">
-      <object type="image/svg+xml" data="aigc_architecture_pipeline.svg?v=20260331b">
-        <img src="aigc_architecture_pipeline.svg?v=20260331b" alt="AIGC Enforcement Pipeline"/>
+      <object type="image/svg+xml" data="aigc_architecture_pipeline.svg?v=20260401f">
+        <img src="aigc_architecture_pipeline.svg?v=20260401f" alt="AIGC Enforcement Pipeline"/>
       </object>
     </div>
   </div>
@@ -202,6 +208,14 @@
       <div class="note-card">
         <div class="note-label">Pre-Pipeline Failures</div>
         <p>Pre-pipeline failures produce schema-valid FAIL artifacts with <code>policy_version: "unknown"</code>, but bypass the core gate sequence.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Signing Semantics</div>
+        <p>If signing is configured, the same audit artifact is signed before sink emission and before it is returned to the caller. PASS and FAIL artifacts can both carry signatures.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Async Entry Points</div>
+        <p>The component view highlights the main synchronous boundary for readability. AIGC v0.3.0 also ships <code>enforce_invocation_async()</code> and <code>AIGC.enforce_async()</code>.</p>
       </div>
     </div>
   </div>

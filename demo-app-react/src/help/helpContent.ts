@@ -12,6 +12,54 @@ export interface LabHelp {
 }
 
 export const helpContent: Record<number, LabHelp> = {
+  0: {
+    title: 'Architecture Guide',
+    overview:
+      'The AIGC SDK sits between your app and any AI model call. Every time your code invokes a model, ' +
+      'the SDK checks the invocation against a policy — before the output reaches your app — and produces ' +
+      'a signed audit record regardless of outcome.',
+    steps: [
+      {
+        title: 'Component View — what connects to what',
+        instruction:
+          'Your app (or an agent) calls a model through the SDK. The SDK loads your policy file, ' +
+          'runs it through the enforcement core, then hands the result back to your app along with ' +
+          'an audit artifact. The model provider (OpenAI, Anthropic, etc.) is called in the middle — ' +
+          'the SDK wraps it, it does not replace it.',
+        tip: 'The @governed decorator is post-call: the model runs first, then the SDK checks the output.',
+      },
+      {
+        title: 'Enforcement Pipeline — the gate sequence',
+        instruction:
+          'Every invocation passes through a fixed sequence of gates, left to right: ' +
+          'custom pre-auth gates → guard evaluation → role check → precondition check → tool constraints → ' +
+          'custom post-auth gates → output schema validation → postcondition check → custom post-output gates → risk scoring → audit artifact. ' +
+          'The gates are fail-closed — any failure stops the pipeline and produces a FAIL artifact.',
+      },
+      {
+        title: 'Risk scoring is the last gate',
+        instruction:
+          'Risk scoring runs after all structural checks pass. Depending on the mode, a high score ' +
+          'either blocks the call (strict), annotates the artifact (risk_scored), or just logs a warning (warn_only). ' +
+          'The audit artifact is always produced — pass or fail.',
+        tip: 'See Lab 1 to explore how the five risk factors combine into a score.',
+      },
+      {
+        title: 'Key Boundaries — what is not in the pipeline',
+        instruction:
+          'AuditChain, the compliance export CLI, and artifact signing are all opt-in utilities ' +
+          'that operate on artifacts after enforcement. They are not gates — they do not block calls. ' +
+          'See the Key Boundaries section below the diagrams for the full list.',
+      },
+    ],
+    glossary: [
+      { term: 'enforce_invocation()', definition: 'The SDK entry point. Accepts a dict with policy_file, input, output, context, model_provider, model_identifier, and role.' },
+      { term: 'Audit artifact', definition: 'The immutable record produced after each enforcement run. Contains checksums, risk score, policy metadata, and a PASS or FAIL result.' },
+      { term: '@governed', definition: 'A decorator that wraps a function call. The model runs first; then the SDK assembles the invocation from the inputs and outputs and runs enforcement.' },
+      { term: 'Fail-closed', definition: 'If any gate fails, the pipeline stops and returns FAIL. No gate is skipped on error.' },
+    ],
+  },
+
   1: {
     title: 'Risk Scoring Guide',
     overview:

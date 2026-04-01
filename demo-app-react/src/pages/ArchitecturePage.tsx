@@ -4,13 +4,14 @@ import { useTheme } from '@/theme/ThemeContext'
 export default function ArchitecturePage() {
   const { theme } = useTheme()
 
+  const base = import.meta.env.BASE_URL
   const componentSvg = theme === 'dark'
-    ? '/diagrams/aigc_architecture_component.svg'
-    : '/diagrams/aigc_architecture_component_light.svg'
+    ? `${base}diagrams/aigc_architecture_component.svg`
+    : `${base}diagrams/aigc_architecture_component_light.svg`
 
   const pipelineSvg = theme === 'dark'
-    ? '/diagrams/aigc_architecture_pipeline.svg'
-    : '/diagrams/aigc_architecture_pipeline_light.svg'
+    ? `${base}diagrams/aigc_architecture_pipeline.svg`
+    : `${base}diagrams/aigc_architecture_pipeline_light.svg`
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 40px' }}>

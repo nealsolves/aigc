@@ -13,7 +13,7 @@ function renderWithTheme() {
 describe('App routing', () => {
   it('renders AppNav', () => {
     renderWithTheme()
-    expect(screen.getByText(/aigc/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/aigc/i).length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders all 7 lab tabs', () => {

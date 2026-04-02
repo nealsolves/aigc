@@ -204,3 +204,49 @@ def test_compose_detects_escalation():
     })
     data = r.json()
     assert any("nurse" in v for v in data["escalations"])
+
+
+def test_policy_load():
+    r = client.post("/api/policy/load", json={"policy_name": "medical_ai.yaml"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["error"] is None
+    assert data["policy"]["policy_version"] == "2.0"
+    assert "yaml_text" in data
+
+
+def test_policy_load_not_found():
+    r = client.post("/api/policy/load", json={"policy_name": "nonexistent.yaml"})
+    assert r.json()["error"] is not None
+
+
+def test_validate_dates_in_range():
+    r = client.post("/api/policy/validate-dates", json={
+        "effective_date": "2020-01-01",
+        "expiration_date": "2030-12-31",
+        "reference_date": "2026-04-01",
+    })
+    assert r.status_code == 200
+    assert r.json()["in_range"] is True
+
+
+def test_validate_dates_expired():
+    r = client.post("/api/policy/validate-dates", json={
+        "effective_date": "2020-01-01",
+        "expiration_date": "2022-01-01",
+        "reference_date": "2026-04-01",
+    })
+    assert r.json()["in_range"] is False
+
+
+def test_policy_test_suite():
+    r = client.post("/api/policy/test", json={"policy_name": "medical_ai.yaml"})
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert len(results) == 3
+    # Case 1: valid role should pass
+    assert results[0]["name"] == "valid role passes"
+    assert results[0]["enforcement_result"] == "PASS"
+    # Case 2: unauthorized role should fail
+    assert results[1]["name"] == "unauthorized role fails"
+    assert results[1]["enforcement_result"] == "FAIL"

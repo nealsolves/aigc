@@ -3,19 +3,24 @@ import hashlib
 import json
 import secrets
 import uuid
+from datetime import date
 from pathlib import Path
 from typing import Literal
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from scenarios import SCENARIOS
-from aigc import AIGC, InvocationBuilder, AIGCError, HMACSigner, verify_artifact, verify_chain
+from aigc import (
+    AIGC, InvocationBuilder, AIGCError, HMACSigner, verify_artifact, verify_chain,
+    validate_policy_dates, PolicyTestCase, PolicyTestSuite,
+)
 from aigc.policy_loader import (
     merge_policies,
     COMPOSITION_INTERSECT,
     COMPOSITION_UNION,
     COMPOSITION_REPLACE,
 )
+from aigc._internal.errors import PolicyValidationError
 import yaml as yaml_lib
 
 app = FastAPI(title="AIGC Demo API", version="0.3.0")
@@ -290,3 +295,126 @@ def chain_tamper(req: ChainTamperRequest):
     artifact["enforcement_result"] = "FAIL" if current == "PASS" else "PASS"
     # Intentionally do NOT recompute checksum — that's what makes it tampered
     return {"artifacts": artifacts}
+
+
+class LoadPolicyRequest(BaseModel):
+    policy_name: str
+
+
+@app.post("/api/policy/load")
+def load_policy_endpoint(req: LoadPolicyRequest):
+    path = SAMPLE_POLICIES_DIR / req.policy_name
+    if not path.exists():
+        return {"policy": None, "yaml_text": None, "error": f"Not found: {req.policy_name}"}
+    try:
+        text = path.read_text()
+        policy = yaml_lib.safe_load(text)
+        return {"policy": policy, "yaml_text": text, "error": None}
+    except Exception as exc:
+        return {"policy": None, "yaml_text": None, "error": str(exc)}
+
+
+class ValidateDatesRequest(BaseModel):
+    effective_date: str | None = None
+    expiration_date: str | None = None
+    reference_date: str | None = None
+
+
+@app.post("/api/policy/validate-dates")
+def validate_dates_endpoint(req: ValidateDatesRequest):
+    policy: dict = {}
+    if req.effective_date:
+        policy["effective_date"] = req.effective_date
+    if req.expiration_date:
+        policy["expiration_date"] = req.expiration_date
+
+    ref = date.fromisoformat(req.reference_date) if req.reference_date else date.today()
+
+    try:
+        evidence = validate_policy_dates(policy, clock=lambda: ref)
+        return {
+            "in_range": evidence.get("active", True),
+            "evidence": evidence,
+            "error": None,
+        }
+    except PolicyValidationError as exc:
+        return {"in_range": False, "evidence": {}, "error": str(exc)}
+
+
+class PolicyTestRequest(BaseModel):
+    policy_name: str
+
+
+@app.post("/api/policy/test")
+def run_policy_tests(req: PolicyTestRequest):
+    policy_path = str(SAMPLE_POLICIES_DIR / req.policy_name)
+    if not (SAMPLE_POLICIES_DIR / req.policy_name).exists():
+        return {"results": [], "error": f"Not found: {req.policy_name}"}
+
+    cases = [
+        (PolicyTestCase(
+            name="valid role passes",
+            policy_file=policy_path,
+            role="doctor",
+            model_provider="mock",
+            model_identifier="mock-model",
+            input_data={"query": "What is the dosage?"},
+            output_data={"result": "500mg"},
+            context={
+                "domain": "medical",
+                "role_declared": True,
+                "schema_exists": True,
+                "human_review_required": True,
+            },
+        ), "pass"),
+        (PolicyTestCase(
+            name="unauthorized role fails",
+            policy_file=policy_path,
+            role="unknown_role",
+            model_provider="mock",
+            model_identifier="mock-model",
+            input_data={"query": "What is the dosage?"},
+            output_data={"result": "500mg"},
+            context={
+                "domain": "medical",
+                "role_declared": True,
+                "schema_exists": True,
+                "human_review_required": True,
+            },
+        ), "fail"),
+        (PolicyTestCase(
+            name="missing precondition fails",
+            policy_file=policy_path,
+            role="doctor",
+            model_provider="mock",
+            model_identifier="mock-model",
+            input_data={"query": "What is the dosage?"},
+            output_data={"result": "500mg"},
+            context={
+                "domain": "medical",
+                "role_declared": False,
+                "schema_exists": True,
+                "human_review_required": True,
+            },
+        ), "fail"),
+    ]
+
+    suite = PolicyTestSuite(f"{req.policy_name} test suite")
+    for case, expected in cases:
+        suite.add(case, expected)
+
+    raw_results = suite.run_all()
+
+    return {
+        "results": [
+            {
+                "name": r.name,
+                "enforcement_result": r.enforcement_result,
+                "passed": r.passed,
+                "failure_reason": r.failure_reason,
+            }
+            for r in raw_results
+        ],
+        "all_met_expectations": suite.all_passed(raw_results),
+        "error": None,
+    }

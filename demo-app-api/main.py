@@ -10,6 +10,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from scenarios import SCENARIOS
 from aigc import AIGC, InvocationBuilder, AIGCError, HMACSigner, verify_artifact, verify_chain
+from aigc.policy_loader import (
+    merge_policies,
+    COMPOSITION_INTERSECT,
+    COMPOSITION_UNION,
+    COMPOSITION_REPLACE,
+)
+import yaml as yaml_lib
 
 app = FastAPI(title="AIGC Demo API", version="0.3.0")
 
@@ -208,6 +215,69 @@ def chain_verify(req: ChainVerifyRequest):
 class ChainTamperRequest(BaseModel):
     artifacts: list[dict]
     index: int
+
+
+class ComposeRequest(BaseModel):
+    parent_yaml: str
+    child_yaml: str
+    strategy: str = "intersect"
+
+
+_STRATEGY_MAP = {
+    "intersect": COMPOSITION_INTERSECT,
+    "union": COMPOSITION_UNION,
+    "replace": COMPOSITION_REPLACE,
+}
+
+
+@app.post("/api/compose")
+def compose_policies(req: ComposeRequest):
+    try:
+        base = yaml_lib.safe_load(req.parent_yaml) or {}
+        child = yaml_lib.safe_load(req.child_yaml) or {}
+    except yaml_lib.YAMLError as exc:
+        return {"merged_yaml": None, "escalations": [], "diff": {}, "error": str(exc)}
+
+    strategy = _STRATEGY_MAP.get(req.strategy, COMPOSITION_INTERSECT)
+
+    try:
+        merged = merge_policies(base, child, composition_strategy=strategy)
+        merged.pop("extends", None)
+        merged.pop("composition_strategy", None)
+    except Exception as exc:
+        return {"merged_yaml": None, "escalations": [], "diff": {}, "error": str(exc)}
+
+    # Escalation detection
+    base_roles = set(base.get("roles", []))
+    merged_roles = set(merged.get("roles", []))
+    base_tools = {t["name"] for t in base.get("tools", {}).get("allowed_tools", [])}
+    merged_tools = {t["name"] for t in merged.get("tools", {}).get("allowed_tools", [])}
+    base_post = set(base.get("post_conditions", {}).get("required", []))
+    merged_post = set(merged.get("post_conditions", {}).get("required", []))
+
+    escalations: list[str] = []
+    new_roles = merged_roles - base_roles
+    if new_roles:
+        escalations.append(f"New roles not in base: {sorted(new_roles)}")
+    new_tools = merged_tools - base_tools
+    if new_tools:
+        escalations.append(f"New tools not in base: {sorted(new_tools)}")
+    removed_post = base_post - merged_post
+    if removed_post:
+        escalations.append(f"Postconditions removed: {sorted(removed_post)}")
+
+    diff = {
+        "kept_roles": sorted(base_roles & merged_roles),
+        "removed_roles": sorted(base_roles - merged_roles),
+        "added_roles": sorted(new_roles),
+    }
+
+    return {
+        "merged_yaml": yaml_lib.dump(merged, default_flow_style=False),
+        "escalations": escalations,
+        "diff": diff,
+        "error": None,
+    }
 
 
 @app.post("/api/chain/tamper")

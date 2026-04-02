@@ -176,3 +176,31 @@ def test_chain_tamper_breaks_verify():
     r_verify = client.post("/api/chain/verify", json={"artifacts": tampered})
     assert r_verify.json()["valid"] is False
     assert len(r_verify.json()["errors"]) > 0
+
+
+def test_compose_intersect():
+    parent = "policy_version: \"1.0\"\nroles: [doctor, nurse]\n"
+    child  = "policy_version: \"1.0\"\nroles: [doctor]\n"
+    r = client.post("/api/compose", json={
+        "parent_yaml": parent,
+        "child_yaml": child,
+        "strategy": "intersect",
+    })
+    assert r.status_code == 200
+    data = r.json()
+    assert data["error"] is None
+    assert "doctor" in data["merged_yaml"]
+    # intersect of [doctor,nurse] with [doctor] = [doctor]
+    assert "nurse" not in data["merged_yaml"]
+
+
+def test_compose_detects_escalation():
+    parent = "policy_version: \"1.0\"\nroles: [doctor]\n"
+    child  = "policy_version: \"1.0\"\nroles: [doctor, nurse]\n"  # adds nurse
+    r = client.post("/api/compose", json={
+        "parent_yaml": parent,
+        "child_yaml": child,
+        "strategy": "union",
+    })
+    data = r.json()
+    assert any("nurse" in v for v in data["escalations"])

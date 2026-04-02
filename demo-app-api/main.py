@@ -213,8 +213,8 @@ class ChainTamperRequest(BaseModel):
 @app.post("/api/chain/tamper")
 def chain_tamper(req: ChainTamperRequest):
     artifacts = copy.deepcopy(req.artifacts)
-    if req.index >= len(artifacts):
-        return {"error": f"Index {req.index} out of range", "artifacts": artifacts}
+    if not (0 <= req.index < len(artifacts)):
+        raise HTTPException(status_code=422, detail=f"Index {req.index} out of range")
     artifact = artifacts[req.index]
     current = artifact.get("enforcement_result", "PASS")
     artifact["enforcement_result"] = "FAIL" if current == "PASS" else "PASS"

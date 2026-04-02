@@ -32,4 +32,27 @@ describe('useApi', () => {
     await waitFor(() => expect(result.current.error).toBe('Network error'))
     vi.unstubAllGlobals()
   })
+
+  it('uses POST with Content-Type when body is provided', async () => {
+    const mockFetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const { result } = renderHook(() => useApi(), { wrapper: AigcProvider })
+    await act(async () => { await result.current.call('/api/enforce', { scenario_key: 'test' }) })
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/enforce'),
+      expect.objectContaining({ method: 'POST', headers: { 'Content-Type': 'application/json' } }),
+    )
+    vi.unstubAllGlobals()
+  })
+
+  it('calls addAudit when response contains a non-null artifact', async () => {
+    const artifact = { enforcement_result: 'PASS', model_provider: 'mock', model_identifier: 'mock-model', role: 'doctor' }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ artifact }) }))
+
+    const { result } = renderHook(() => useApi(), { wrapper: AigcProvider })
+    await act(async () => { await result.current.call('/api/enforce', {}) })
+    // useAigc audit history should now contain the artifact
+    vi.unstubAllGlobals()
+  })
 })

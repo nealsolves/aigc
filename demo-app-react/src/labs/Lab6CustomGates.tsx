@@ -1,38 +1,38 @@
 import { useState } from 'react'
 import StatusBadge from '@/components/shared/StatusBadge'
-import SignalBar from '@/components/shared/SignalBar'
 import CodeBlock from '@/components/shared/CodeBlock'
-import { getScenario } from '@/mock/scenarios'
+import { useApi } from '@/hooks/useApi'
 import { IBM_COLORS } from '@/theme/tokens'
+import type { Artifact } from '@/types/artifact'
 
-interface Gate {
+interface GateInfo {
   name: string
-  phase: 'pre_authorization' | 'post_authorization' | 'pre_output' | 'post_output'
-  result: 'PASS' | 'FAIL' | 'WARN'
-  detail: string
+  insertion_point: string
+  description: string
+  source: string
 }
 
-function evaluateGates(scenarioKey: string): Gate[] {
-  const s = getScenario(scenarioKey)
-  const hasPii = s.output.result.includes('SSN') || s.output.result.includes('@')
-  const confidence = (s.output as { confidence?: number }).confidence ?? 1
-  return [
-    { name: 'RoleAuthGate',       phase: 'pre_authorization',  result: 'PASS', detail: 'role=doctor, authorized' },
-    { name: 'PreconditionGate',   phase: 'pre_authorization',  result: 'PASS', detail: 'all preconditions met' },
-    { name: 'SchemaGate',         phase: 'post_authorization', result: 'PASS', detail: 'output schema validated' },
-    { name: 'PiiDetectionGate',   phase: 'pre_output',         result: hasPii ? 'FAIL' : 'PASS', detail: hasPii ? 'PII detected — SSN/email found' : 'no PII detected' },
-    { name: 'ConfidenceGate',     phase: 'pre_output',         result: confidence < 0.5 ? 'WARN' : 'PASS', detail: `confidence=${confidence.toFixed(2)}` },
-    { name: 'AuditRecorderGate',  phase: 'post_output',        result: 'PASS', detail: 'audit artifact persisted' },
-  ]
+interface GateResult {
+  name: string
+  insertion_point: string
+  passed: boolean
+  failures: Array<{ gate: string; message: string }>
+  metadata: Record<string, unknown>
 }
 
+interface GateRunResponse {
+  artifact: Artifact | null
+  gate_result: GateResult | null
+  error: string | null
+}
+
+const GATE_NAMES = ['confidence_gate', 'pii_detection_gate', 'response_length_gate', 'audit_metadata_gate']
 const GATE_SCENARIOS = [
   { key: 'gate_high_confidence', label: 'High Confidence' },
-  { key: 'gate_low_confidence',  label: 'Low Confidence' },
-  { key: 'gate_pii_present',     label: 'PII Present' },
-  { key: 'gate_clean_output',    label: 'Clean Output' },
+  { key: 'gate_low_confidence',  label: 'Low Confidence'  },
+  { key: 'gate_pii_present',     label: 'PII Present'     },
+  { key: 'gate_clean_output',    label: 'Clean Output'    },
 ]
-
 const PHASE_COLORS: Record<string, string> = {
   pre_authorization:  IBM_COLORS.blue40,
   post_authorization: IBM_COLORS.purple40,
@@ -41,14 +41,30 @@ const PHASE_COLORS: Record<string, string> = {
 }
 
 export default function Lab6CustomGates() {
+  const [gateName,    setGateName]    = useState('confidence_gate')
   const [scenarioKey, setScenarioKey] = useState('gate_high_confidence')
-  const [gates, setGates] = useState<Gate[] | null>(null)
+  const [gateInfo,    setGateInfo]    = useState<GateInfo | null>(null)
+  const [showSource,  setShowSource]  = useState(false)
+  const [runResult,   setRunResult]   = useState<GateRunResponse | null>(null)
 
-  const run = () => setGates(evaluateGates(scenarioKey))
+  const { call: callInfo } = useApi<GateInfo>()
+  const { call: callRun,  loading: loadingRun  } = useApi<GateRunResponse>()
 
-  const overallStatus = gates
-    ? gates.some(g => g.result === 'FAIL') ? 'FAIL' : gates.some(g => g.result === 'WARN') ? 'WARN' : 'PASS'
-    : null
+  const loadGateInfo = async (name: string) => {
+    const res = await callInfo(`/api/gate/${name}`)
+    if (res) setGateInfo(res)
+  }
+
+  const run = async () => {
+    const res = await callRun('/api/gate/run', { gate_name: gateName, scenario_key: scenarioKey })
+    if (res) setRunResult(res)
+  }
+
+  const selectGate = (name: string) => {
+    setGateName(name)
+    setRunResult(null)
+    loadGateInfo(name)
+  }
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -56,11 +72,54 @@ export default function Lab6CustomGates() {
         // custom enforcement gate plugins — four insertion points in the pipeline
       </p>
 
+      {/* Gate selector */}
+      <div className="mb-3">
+        <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Select Gate</div>
+        <div className="flex gap-2 flex-wrap">
+          {GATE_NAMES.map(name => (
+            <button
+              key={name}
+              onClick={() => selectGate(name)}
+              className="font-mono text-xs px-3 py-1.5 rounded"
+              style={
+                gateName === name
+                  ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
+                  : { color: 'var(--text-secondary)', border: '1px solid var(--border-ui)' }
+              }
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Gate info */}
+      {gateInfo && (
+        <div className="rounded p-3 mb-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-mono text-xs" style={{ color: 'var(--ibm-cyan-30)' }}>{gateInfo.name}</span>
+            <span className="font-mono text-[11px] px-2 py-0.5 rounded" style={{ background: 'rgba(15,98,254,0.1)', color: PHASE_COLORS[gateInfo.insertion_point] ?? 'var(--text-secondary)' }}>
+              {gateInfo.insertion_point}
+            </span>
+          </div>
+          <div className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{gateInfo.description}</div>
+          <button
+            onClick={() => setShowSource(s => !s)}
+            className="font-mono text-[11px] mt-2"
+            style={{ color: 'var(--ibm-blue-60)' }}
+          >
+            {showSource ? '▲ hide source' : '▼ show source'}
+          </button>
+          {showSource && <div className="mt-2"><CodeBlock code={gateInfo.source} label={`${gateInfo.name}.py`} /></div>}
+        </div>
+      )}
+
+      {/* Scenario selector + run */}
       <div className="flex gap-2 mb-4 flex-wrap">
         {GATE_SCENARIOS.map(s => (
           <button
             key={s.key}
-            onClick={() => { setScenarioKey(s.key); setGates(null) }}
+            onClick={() => { setScenarioKey(s.key); setRunResult(null) }}
             className="font-mono text-xs px-3 py-1.5 rounded"
             style={
               scenarioKey === s.key
@@ -73,80 +132,50 @@ export default function Lab6CustomGates() {
         ))}
         <button
           onClick={run}
+          disabled={loadingRun}
           className="font-mono text-sm px-4 py-1.5 rounded ml-auto"
-          style={{ background: 'var(--ibm-blue-60)', color: '#fff' }}
+          style={{ background: 'var(--ibm-blue-60)', color: '#fff', opacity: loadingRun ? 0.7 : 1 }}
         >
-          Run Gates →
+          {loadingRun ? 'Running…' : 'Run Gate →'}
         </button>
       </div>
 
-      {gates && (
+      {runResult && runResult.gate_result && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            {overallStatus && <StatusBadge status={overallStatus} />}
+            <StatusBadge status={runResult.gate_result.passed ? 'PASS' : 'FAIL'} />
             <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
-              {gates.length} gates evaluated
+              {runResult.gate_result.name} @ {runResult.gate_result.insertion_point}
             </span>
           </div>
 
-          {/* pipeline visualization */}
-          {(['pre_authorization', 'post_authorization', 'pre_output', 'post_output'] as const).map(phase => {
-            const phaseGates = gates.filter(g => g.phase === phase)
-            if (!phaseGates.length) return null
-            return (
-              <div key={phase} className="rounded p-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
-                <div className="font-mono text-[11px] mb-2 tracking-widest" style={{ color: PHASE_COLORS[phase] }}>
-                  {phase.toUpperCase().replace('_', ' ')}
+          {runResult.gate_result.failures.length > 0 && (
+            <div className="rounded p-2" style={{ background: 'rgba(255,126,182,0.08)', border: '1px solid rgba(255,126,182,0.2)' }}>
+              {runResult.gate_result.failures.map((f, i) => (
+                <div key={i} className="font-mono text-xs" style={{ color: 'var(--ibm-magenta-40)' }}>// {f.message}</div>
+              ))}
+            </div>
+          )}
+
+          {Object.keys(runResult.gate_result.metadata).length > 0 && (
+            <div className="rounded p-2" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
+              <div className="font-mono text-[11px] mb-1" style={{ color: 'var(--text-secondary)' }}>gate metadata</div>
+              {Object.entries(runResult.gate_result.metadata).map(([k, v]) => (
+                <div key={k} className="font-mono text-xs">
+                  <span style={{ color: 'var(--text-secondary)' }}>{k}: </span>
+                  <span style={{ color: 'var(--ibm-cyan-30)' }}>{String(v)}</span>
                 </div>
-                {phaseGates.map(g => (
-                  <div key={g.name} className="flex items-center gap-2 mb-1.5">
-                    <StatusBadge status={g.result} />
-                    <span className="font-mono text-xs flex-1" style={{ color: 'var(--text-primary)' }}>{g.name}</span>
-                    <span className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{g.detail}</span>
-                  </div>
-                ))}
-              </div>
-            )
-          })}
-
-          {/* signal bars */}
-          <div className="rounded p-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
-            <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>// gate pass rate</div>
-            {Object.entries(PHASE_COLORS).map(([phase, color]) => {
-              const phaseGates = gates.filter(g => g.phase === phase)
-              const passRate = phaseGates.length ? phaseGates.filter(g => g.result === 'PASS').length / phaseGates.length : 0
-              return (
-                <SignalBar key={phase} name={phase} contribution={passRate} color={color} />
-              )
-            })}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {!gates && (
+      {!runResult && !loadingRun && (
         <div className="font-mono text-xs px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
-          // run gates to see pipeline evaluation
+          // select a gate and scenario, then run to see evaluation
         </div>
       )}
-
-      {/* recipe example */}
-      <div className="mt-4">
-        <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Gate Recipe (Python SDK)</div>
-        <CodeBlock
-          label="custom_gate.py"
-          code={`from aigc import EnforcementGate
-
-class PiiDetectionGate(EnforcementGate):
-    phase = "pre_output"
-    name  = "PiiDetectionGate"
-
-    def run(self, invocation, artifact):
-        output = invocation.get("output", {})
-        text   = str(output.get("result", ""))
-        if "SSN" in text or "@" in text:
-            raise ValueError("PII detected in output")`}
-        />
-      </div>
     </div>
   )
 }

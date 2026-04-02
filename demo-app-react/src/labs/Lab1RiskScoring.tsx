@@ -3,17 +3,17 @@ import MetricCard from '@/components/shared/MetricCard'
 import RiskGauge from '@/components/shared/RiskGauge'
 import SignalBar from '@/components/shared/SignalBar'
 import StatusBadge from '@/components/shared/StatusBadge'
-import { getScenario } from '@/mock/scenarios'
-import { evaluateRisk, MEDICAL_FACTORS, type RiskMode, resultMessage } from '@/mock/riskEngine'
+import { useApi } from '@/hooks/useApi'
 import { IBM_COLORS } from '@/theme/tokens'
+import type { Artifact } from '@/types/artifact'
 
 const SCENARIOS = [
-  { key: 'low_risk_faq',             label: 'Low Risk: Simple FAQ',          factorSet: 'low_risk',    desc: 'Well-configured policy, internal model. Expected score ≈ 0.00.' },
-  { key: 'medium_risk_medical',      label: 'Medium Risk: Medical Advice',   factorSet: 'medium_risk', desc: 'Standard policy: broad_roles, missing_guards, external_model. Expected score ≈ 0.65.' },
-  { key: 'high_risk_drug_interaction', label: 'High Risk: Drug Interaction', factorSet: 'high_risk',   desc: 'Loose policy: all 5 factors trigger. Expected score ≈ 1.00.' },
+  { key: 'low_risk_faq',              label: 'Low Risk: Simple FAQ',        mode_hint: 'warn_only'   },
+  { key: 'medium_risk_medical',       label: 'Medium Risk: Medical Advice', mode_hint: 'risk_scored' },
+  { key: 'high_risk_drug_interaction', label: 'High Risk: Drug Interaction', mode_hint: 'strict'     },
 ]
+const MODES = ['strict', 'risk_scored', 'warn_only']
 
-const MODES: RiskMode[] = ['strict', 'risk_scored', 'warn_only']
 const SIGNAL_COLORS: Record<string, string> = {
   no_output_schema: IBM_COLORS.purple40,
   broad_roles:      IBM_COLORS.cyan30,
@@ -22,18 +22,24 @@ const SIGNAL_COLORS: Record<string, string> = {
   no_preconditions: IBM_COLORS.teal30,
 }
 
+interface EnforceResponse { artifact: Artifact; error: string | null }
+
 export default function Lab1RiskScoring() {
   const [scenarioIdx, setScenarioIdx] = useState(1)
-  const [mode, setMode] = useState<RiskMode>('risk_scored')
-  const [result, setResult] = useState<ReturnType<typeof evaluateRisk> | null>(null)
+  const [mode, setMode] = useState('risk_scored')
+  const [artifact, setArtifact] = useState<Artifact | null>(null)
+  const { call, loading, error: apiError } = useApi<EnforceResponse>()
 
-  const selected = SCENARIOS[scenarioIdx]
-  const scenario = getScenario(selected.key)
-
-  const run = () => {
-    const factors = MEDICAL_FACTORS[selected.factorSet]
-    setResult(evaluateRisk(factors, 0.7, mode))
+  const run = async () => {
+    const res = await call('/api/enforce', {
+      scenario_key: SCENARIOS[scenarioIdx].key,
+      mode,
+    })
+    if (res) setArtifact(res.artifact)
   }
+
+  const risk = artifact?.metadata?.risk_scoring
+  const factors = risk?.basis ?? []
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -41,7 +47,6 @@ export default function Lab1RiskScoring() {
         // evaluate invocation risk across signal dimensions
       </p>
 
-      {/* controls */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Preset Scenario</div>
@@ -49,7 +54,7 @@ export default function Lab1RiskScoring() {
             {SCENARIOS.map((s, i) => (
               <button
                 key={s.key}
-                onClick={() => { setScenarioIdx(i); setResult(null) }}
+                onClick={() => { setScenarioIdx(i); setArtifact(null) }}
                 className="text-left font-mono text-[13px] px-3 py-2 rounded transition-colors"
                 style={
                   scenarioIdx === i
@@ -69,7 +74,7 @@ export default function Lab1RiskScoring() {
             {MODES.map(m => (
               <button
                 key={m}
-                onClick={() => { setMode(m); setResult(null) }}
+                onClick={() => { setMode(m); setArtifact(null) }}
                 className="text-left font-mono text-[13px] px-3 py-2 rounded transition-colors"
                 style={
                   mode === m
@@ -83,54 +88,51 @@ export default function Lab1RiskScoring() {
           </div>
           <button
             onClick={run}
+            disabled={loading}
             className="w-full font-mono text-sm py-2 rounded transition-colors"
-            style={{ background: 'var(--ibm-blue-60)', color: '#fff' }}
+            style={{ background: 'var(--ibm-blue-60)', color: '#fff', opacity: loading ? 0.7 : 1 }}
           >
-            Run Enforcement →
+            {loading ? 'Running…' : 'Run Enforcement →'}
           </button>
         </div>
       </div>
 
-      {/* scenario description */}
-      <div className="font-mono text-xs px-3 py-2 rounded mb-4" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
-        {selected.desc}
-      </div>
+      {apiError && (
+        <div className="font-mono text-xs px-3 py-2 rounded mb-3" style={{ background: 'rgba(255,126,182,0.08)', border: '1px solid rgba(255,126,182,0.2)', color: 'var(--ibm-magenta-40)' }}>
+          // API error: {apiError}
+        </div>
+      )}
 
-      {/* prompt preview */}
-      <div className="font-mono text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
-        <span style={{ color: 'var(--ibm-blue-60)' }}>↳ prompt: </span>
-        <span style={{ color: 'var(--text-primary)' }}>{scenario.prompt}</span>
-      </div>
-
-      {/* results */}
-      {result ? (
+      {artifact ? (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
-            <MetricCard value={result.score.toFixed(2)} label="RISK SCORE"  color={result.breached ? 'var(--ibm-magenta-40)' : 'var(--ibm-blue-40)'} />
-            <MetricCard value={mode.toUpperCase()}       label="MODE"        color="var(--ibm-purple-40)" />
-            <MetricCard value={result.threshold.toFixed(2)} label="THRESHOLD" color="var(--ibm-teal-60)" />
+            <MetricCard value={(risk?.score ?? 0).toFixed(2)} label="RISK SCORE" color={(risk?.score ?? 0) > (risk?.threshold ?? 0.7) ? 'var(--ibm-magenta-40)' : 'var(--ibm-blue-40)'} />
+            <MetricCard value={mode.toUpperCase()} label="MODE" color="var(--ibm-purple-40)" />
+            <MetricCard value={(risk?.threshold ?? 0.7).toFixed(2)} label="THRESHOLD" color="var(--ibm-teal-60)" />
           </div>
 
           <div className="flex items-center gap-2">
-            <StatusBadge status={result.enforcement} />
+            <StatusBadge status={artifact.enforcement_result} />
             <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
-              — {resultMessage(result)}
+              — {artifact.enforcement_result === 'PASS' ? 'policy check passed' : 'policy check failed'}
             </span>
           </div>
 
-          <RiskGauge score={result.score} threshold={result.threshold} />
+          {risk && <RiskGauge score={risk.score} threshold={risk.threshold} />}
 
-          <div className="rounded p-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
-            <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>// signal breakdown</div>
-            {result.factors.map(f => (
-              <SignalBar
-                key={f.name}
-                name={f.name}
-                contribution={f.contribution ?? 0}
-                color={SIGNAL_COLORS[f.name] ?? 'var(--ibm-blue-60)'}
-              />
-            ))}
-          </div>
+          {factors.length > 0 && (
+            <div className="rounded p-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
+              <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>// signal breakdown</div>
+              {factors.map(f => (
+                <SignalBar
+                  key={f.name}
+                  name={f.name}
+                  contribution={f.contribution ?? 0}
+                  color={SIGNAL_COLORS[f.name] ?? 'var(--ibm-blue-60)'}
+                />
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <div className="font-mono text-xs px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>

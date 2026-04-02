@@ -14,9 +14,13 @@ def test_list_scenarios():
     r = client.get("/api/scenarios")
     assert r.status_code == 200
     keys = r.json()["scenarios"]
-    assert "medium_risk_medical" in keys
-    assert "chain_entry_1" in keys
-    assert "gate_pii_present" in keys
+    assert len(keys) == 11
+    assert set(keys) == {
+        "low_risk_faq", "medium_risk_medical", "high_risk_drug_interaction",
+        "signing_basic", "chain_entry_1", "chain_entry_2", "chain_entry_3",
+        "gate_high_confidence", "gate_low_confidence", "gate_pii_present",
+        "gate_clean_output",
+    }
 
 
 def test_list_policies():

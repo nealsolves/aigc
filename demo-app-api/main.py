@@ -1,7 +1,9 @@
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from scenarios import SCENARIOS
+from aigc import AIGC, InvocationBuilder, AIGCError
 
 app = FastAPI(title="AIGC Demo API", version="0.3.0")
 
@@ -43,3 +45,35 @@ def list_scenarios():
 def list_policies():
     names = sorted(p.name for p in SAMPLE_POLICIES_DIR.glob("*.yaml"))
     return {"policies": names}
+
+
+class EnforceRequest(BaseModel):
+    scenario_key: str
+    mode: str = "risk_scored"
+
+
+@app.post("/api/enforce")
+def enforce(req: EnforceRequest):
+    scenario = SCENARIOS[req.scenario_key]
+    policy_path = str(SAMPLE_POLICIES_DIR / scenario["policy"])
+
+    aigc = AIGC(
+        risk_config={"mode": req.mode, "threshold": 0.7, "factors": MEDICAL_FACTORS}
+    )
+    invocation = (
+        InvocationBuilder()
+        .policy(policy_path)
+        .model(scenario["model_provider"], scenario["model_id"])
+        .role(scenario["role"])
+        .input({"query": scenario["prompt"]})
+        .output(scenario["output"])
+        .context(scenario["context"])
+        .build()
+    )
+
+    try:
+        artifact = aigc.enforce(invocation)
+        return {"artifact": artifact, "error": None}
+    except AIGCError as exc:
+        artifact = getattr(exc, "audit_artifact", None)
+        return {"artifact": artifact, "error": str(exc)}

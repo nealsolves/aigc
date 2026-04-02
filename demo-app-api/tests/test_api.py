@@ -28,3 +28,23 @@ def test_list_policies():
     assert r.status_code == 200
     names = r.json()["policies"]
     assert "medical_ai.yaml" in names
+
+
+def test_enforce_medium_risk():
+    r = client.post("/api/enforce", json={
+        "scenario_key": "medium_risk_medical",
+        "mode": "risk_scored",
+    })
+    assert r.status_code == 200
+    data = r.json()
+    assert data["artifact"]["enforcement_result"] in ("PASS", "FAIL")
+    assert data["artifact"]["model_provider"] == "mock"
+
+
+def test_enforce_low_risk():
+    r = client.post("/api/enforce", json={
+        "scenario_key": "low_risk_faq",
+        "mode": "strict",
+    })
+    assert r.status_code == 200
+    assert r.json()["artifact"]["enforcement_result"] == "PASS"

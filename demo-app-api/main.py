@@ -21,6 +21,7 @@ from aigc.policy_loader import (
     COMPOSITION_REPLACE,
 )
 from aigc._internal.errors import PolicyValidationError
+from gates import GATES, get_gate_info
 import yaml as yaml_lib
 
 app = FastAPI(title="AIGC Demo API", version="0.3.0")
@@ -415,5 +416,63 @@ def run_policy_tests(req: PolicyTestRequest):
             for r in raw_results
         ],
         "all_met_expectations": suite.all_passed(raw_results),
+        "error": None,
+    }
+
+
+@app.get("/api/gate/{gate_name}")
+def get_gate(gate_name: str):
+    gate = GATES.get(gate_name)
+    if not gate:
+        return {"error": f"Unknown gate: {gate_name}"}
+    return get_gate_info(gate)
+
+
+class GateRunRequest(BaseModel):
+    gate_name: str
+    scenario_key: str
+
+
+@app.post("/api/gate/run")
+def run_gate(req: GateRunRequest):
+    gate = GATES.get(req.gate_name)
+    if not gate:
+        return {"artifact": None, "gate_result": None, "error": f"Unknown gate: {req.gate_name}"}
+
+    if req.scenario_key not in SCENARIOS:
+        raise HTTPException(status_code=422, detail=f"Unknown scenario_key: {req.scenario_key!r}")
+
+    scenario = SCENARIOS[req.scenario_key]
+    policy_path = str(SAMPLE_POLICIES_DIR / scenario["policy"])
+    aigc = AIGC(custom_gates=[gate])
+
+    invocation = (
+        InvocationBuilder()
+        .policy(policy_path)
+        .model(scenario["model_provider"], scenario["model_id"])
+        .role(scenario["role"])
+        .input({"query": scenario["prompt"]})
+        .output(scenario["output"])
+        .context(scenario["context"])
+        .build()
+    )
+
+    try:
+        artifact = aigc.enforce(invocation)
+    except AIGCError as exc:
+        artifact = getattr(exc, "audit_artifact", None)
+
+    # Run gate directly for explicit result (gate may have blocked enforcement)
+    direct_result = gate.evaluate(invocation, {}, {})
+
+    return {
+        "artifact": artifact,
+        "gate_result": {
+            "name": req.gate_name,
+            "insertion_point": gate.insertion_point,
+            "passed": direct_result.passed,
+            "failures": direct_result.failures,
+            "metadata": direct_result.metadata,
+        },
         "error": None,
     }

@@ -254,3 +254,40 @@ def test_policy_test_suite():
     assert results[2]["name"] == "missing precondition fails"
     assert results[2]["enforcement_result"] == "FAIL"
     assert r.json()["all_met_expectations"] is True
+
+
+def test_get_gate_info():
+    r = client.get("/api/gate/confidence_gate")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["name"] == "confidence_gate"
+    assert data["insertion_point"] == "pre_output"
+    assert "source" in data
+
+
+def test_gate_run_high_confidence_passes():
+    r = client.post("/api/gate/run", json={
+        "gate_name": "confidence_gate",
+        "scenario_key": "gate_high_confidence",
+    })
+    assert r.status_code == 200
+    data = r.json()
+    assert data["gate_result"]["passed"] is True
+
+
+def test_gate_run_low_confidence_fails():
+    r = client.post("/api/gate/run", json={
+        "gate_name": "confidence_gate",
+        "scenario_key": "gate_low_confidence",
+    })
+    data = r.json()
+    assert data["gate_result"]["passed"] is False
+
+
+def test_gate_run_pii_detected():
+    r = client.post("/api/gate/run", json={
+        "gate_name": "pii_detection_gate",
+        "scenario_key": "gate_pii_present",
+    })
+    data = r.json()
+    assert data["gate_result"]["passed"] is False

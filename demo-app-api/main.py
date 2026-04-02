@@ -1,6 +1,7 @@
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from scenarios import SCENARIOS
 
 app = FastAPI(title="AIGC Demo API", version="0.3.0")
 
@@ -31,3 +32,14 @@ MEDICAL_FACTORS = [
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/scenarios")
+def list_scenarios():
+    return {"scenarios": list(SCENARIOS.keys())}
+
+
+@app.get("/api/policies")
+def list_policies():
+    names = sorted(p.name for p in SAMPLE_POLICIES_DIR.glob("*.yaml"))
+    return {"policies": names}

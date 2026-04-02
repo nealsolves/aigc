@@ -250,3 +250,7 @@ def test_policy_test_suite():
     # Case 2: unauthorized role should fail
     assert results[1]["name"] == "unauthorized role fails"
     assert results[1]["enforcement_result"] == "FAIL"
+    # Case 3: missing precondition should fail
+    assert results[2]["name"] == "missing precondition fails"
+    assert results[2]["enforcement_result"] == "FAIL"
+    assert r.json()["all_met_expectations"] is True

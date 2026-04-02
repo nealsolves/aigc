@@ -392,7 +392,6 @@ def run_policy_tests(req: PolicyTestRequest):
             output_data={"result": "500mg"},
             context={
                 "domain": "medical",
-                "role_declared": False,
                 "schema_exists": True,
                 "human_review_required": True,
             },

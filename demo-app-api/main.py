@@ -1,5 +1,6 @@
 from pathlib import Path
-from fastapi import FastAPI
+from typing import Literal
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from scenarios import SCENARIOS
@@ -49,11 +50,13 @@ def list_policies():
 
 class EnforceRequest(BaseModel):
     scenario_key: str
-    mode: str = "risk_scored"
+    mode: Literal["strict", "risk_scored", "warn_only"] = "risk_scored"
 
 
 @app.post("/api/enforce")
 def enforce(req: EnforceRequest):
+    if req.scenario_key not in SCENARIOS:
+        raise HTTPException(status_code=422, detail=f"Unknown scenario_key: {req.scenario_key!r}")
     scenario = SCENARIOS[req.scenario_key]
     policy_path = str(SAMPLE_POLICIES_DIR / scenario["policy"])
 

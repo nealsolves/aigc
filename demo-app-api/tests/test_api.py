@@ -48,3 +48,8 @@ def test_enforce_low_risk():
     })
     assert r.status_code == 200
     assert r.json()["artifact"]["enforcement_result"] == "PASS"
+
+
+def test_enforce_unknown_scenario_key():
+    r = client.post("/api/enforce", json={"scenario_key": "nonexistent_key"})
+    assert r.status_code == 422

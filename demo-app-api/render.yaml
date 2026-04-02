@@ -2,8 +2,11 @@ services:
   - type: web
     name: aigc-demo-api
     runtime: python
-    buildCommand: pip install -e ../ && pip install -r requirements.txt
+    rootDir: demo-app-api
+    buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
+      - key: PYTHONPATH
+        value: /opt/render/project/src

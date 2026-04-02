@@ -2,27 +2,42 @@ import { useState } from 'react'
 import StatusBadge from '@/components/shared/StatusBadge'
 import CodeBlock from '@/components/shared/CodeBlock'
 import MetricCard from '@/components/shared/MetricCard'
-import { getScenario } from '@/mock/scenarios'
+import { useApi } from '@/hooks/useApi'
+import type { Artifact } from '@/types/artifact'
 
-// Deterministic mock HMAC — not cryptographically secure, for demo only
-function mockSign(payload: string, key: string): string {
-  let hash = 0
-  const str = payload + key
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0
-  }
-  return Math.abs(hash).toString(16).padStart(8, '0').repeat(8).slice(0, 64)
-}
+interface KeyResponse   { key: string }
+interface SignResponse   { artifact: Artifact | null; error: string | null }
+interface VerifyResponse { valid: boolean }
 
 export default function Lab2Signing() {
-  const [signed, setSigned] = useState(false)
+  const [sigKey, setSigKey]     = useState('')
+  const [artifact, setArtifact] = useState<Artifact | null>(null)
   const [tampered, setTampered] = useState(false)
-  const [sigKey, setSigKey] = useState('demo-key-v1')
-  const scenario = getScenario('signing_basic')
-  const payload = JSON.stringify({ result: scenario.output.result, role: 'doctor' })
-  const signature = mockSign(payload, sigKey)
-  const verifyPayload = tampered ? payload.replace('allergies', 'TAMPERED') : payload
-  const valid = mockSign(verifyPayload, sigKey) === signature
+  const [verified, setVerified] = useState<boolean | null>(null)
+
+  const { call: callKey,    loading: loadingKey }    = useApi<KeyResponse>()
+  const { call: callSign,   loading: loadingSign }   = useApi<SignResponse>()
+  const { call: callVerify, loading: loadingVerify } = useApi<VerifyResponse>()
+
+  const generateKey = async () => {
+    const res = await callKey('/api/sign/generate-key', {})
+    if (res) { setSigKey(res.key); setArtifact(null); setVerified(null) }
+  }
+
+  const sign = async () => {
+    if (!sigKey) return
+    const res = await callSign('/api/sign/enforce', { scenario_key: 'signing_basic', key: sigKey })
+    if (res?.artifact) { setArtifact(res.artifact); setTampered(false); setVerified(null) }
+  }
+
+  const verify = async () => {
+    if (!artifact || !sigKey) return
+    const payload = tampered
+      ? { ...artifact, enforcement_result: artifact.enforcement_result === 'PASS' ? 'FAIL' : 'PASS' }
+      : artifact
+    const res = await callVerify('/api/sign/verify', { artifact: payload, key: sigKey })
+    if (res !== null) setVerified(res.valid)
+  }
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -33,30 +48,42 @@ export default function Lab2Signing() {
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="space-y-3">
           <div className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>↳ Signing Key</div>
-          <input
-            value={sigKey}
-            onChange={e => { setSigKey(e.target.value); setSigned(false) }}
-            className="w-full font-mono text-[13px] px-3 py-2 rounded outline-none"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-primary)' }}
-          />
-          <CodeBlock code={payload} label="payload" />
+          <div className="flex gap-2">
+            <input
+              value={sigKey}
+              onChange={e => { setSigKey(e.target.value); setArtifact(null); setVerified(null) }}
+              placeholder="generate or paste hex key"
+              className="flex-1 font-mono text-[13px] px-3 py-2 rounded outline-none"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-primary)' }}
+            />
+            <button
+              onClick={generateKey}
+              disabled={loadingKey}
+              className="font-mono text-xs px-3 py-2 rounded"
+              style={{ background: 'var(--ibm-teal-60)', color: '#fff', opacity: loadingKey ? 0.7 : 1 }}
+            >
+              {loadingKey ? '…' : 'Generate'}
+            </button>
+          </div>
+          {sigKey && <CodeBlock code={`key: ${sigKey.slice(0, 16)}...`} label="signing_key (hex)" />}
           <button
-            onClick={() => setSigned(true)}
+            onClick={sign}
+            disabled={!sigKey || loadingSign}
             className="w-full font-mono text-sm py-2 rounded"
-            style={{ background: 'var(--ibm-blue-60)', color: '#fff' }}
+            style={{ background: 'var(--ibm-blue-60)', color: '#fff', opacity: (!sigKey || loadingSign) ? 0.7 : 1 }}
           >
-            Sign Artifact →
+            {loadingSign ? 'Signing…' : 'Sign Artifact →'}
           </button>
         </div>
 
         <div className="space-y-3">
           <div className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>↳ Verification</div>
-          {signed ? (
+          {artifact ? (
             <>
-              <CodeBlock code={signature} label="signature (HMAC-SHA256)" />
+              <CodeBlock code={`signature: ${(artifact.signature ?? '').slice(0, 16)}...`} label="HMAC-SHA256 signature" />
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setTampered(t => !t)}
+                  onClick={() => { setTampered(t => !t); setVerified(null) }}
                   className="font-mono text-xs px-3 py-1.5 rounded transition-colors"
                   style={
                     tampered
@@ -66,13 +93,25 @@ export default function Lab2Signing() {
                 >
                   {tampered ? '⚡ tampered' : 'tamper payload'}
                 </button>
-                <StatusBadge status={valid ? 'PASS' : 'FAIL'} />
+                <button
+                  onClick={verify}
+                  disabled={loadingVerify}
+                  className="font-mono text-xs px-3 py-1.5 rounded"
+                  style={{ background: 'var(--ibm-blue-60)', color: '#fff', opacity: loadingVerify ? 0.7 : 1 }}
+                >
+                  Verify
+                </button>
               </div>
+              {verified !== null && <StatusBadge status={verified ? 'PASS' : 'FAIL'} />}
               <div className="grid grid-cols-2 gap-2">
-                <MetricCard value={signed ? '✓' : '—'} label="SIGNED" color="var(--ibm-teal-30)" />
-                <MetricCard value={valid ? 'VALID' : 'INVALID'} label="SIGNATURE" color={valid ? 'var(--ibm-teal-30)' : 'var(--ibm-magenta-40)'} />
+                <MetricCard value="✓" label="SIGNED" color="var(--ibm-teal-30)" />
+                <MetricCard
+                  value={verified === null ? '—' : verified ? 'VALID' : 'INVALID'}
+                  label="SIGNATURE"
+                  color={verified === false ? 'var(--ibm-magenta-40)' : 'var(--ibm-teal-30)'}
+                />
               </div>
-              {!valid && (
+              {verified === false && (
                 <div className="font-mono text-xs px-3 py-2 rounded" style={{ background: 'rgba(255,126,182,0.08)', border: '1px solid rgba(255,126,182,0.2)', color: 'var(--ibm-magenta-40)' }}>
                   // signature mismatch — payload was modified after signing
                 </div>
@@ -80,7 +119,7 @@ export default function Lab2Signing() {
             </>
           ) : (
             <div className="font-mono text-xs px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
-              // sign an artifact first
+              // generate a key and sign an artifact first
             </div>
           )}
         </div>

@@ -20,7 +20,7 @@ export function useApi<T = unknown>() {
       if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`)
       const data = await res.json() as T
       if (data && typeof data === 'object' && 'artifact' in (data as object)) {
-        const artifact = (data as { artifact: Artifact | null }).artifact
+        const artifact = (data as unknown as { artifact: Artifact | null }).artifact
         if (artifact) addAudit(artifact)
       }
       return data

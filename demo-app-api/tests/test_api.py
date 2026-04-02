@@ -80,3 +80,13 @@ def test_sign_and_verify():
     artifact["enforcement_result"] = "FAIL" if artifact["enforcement_result"] == "PASS" else "PASS"
     r3 = client.post("/api/sign/verify", json={"artifact": artifact, "key": key})
     assert r3.json()["valid"] is False
+
+
+def test_sign_enforce_unknown_scenario_key():
+    r = client.post("/api/sign/enforce", json={"scenario_key": "nonexistent", "key": "a" * 64})
+    assert r.status_code == 422
+
+
+def test_sign_verify_bad_hex_key():
+    r = client.post("/api/sign/verify", json={"artifact": {}, "key": "not-hex"})
+    assert r.status_code == 422

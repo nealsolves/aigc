@@ -95,9 +95,15 @@ class SignEnforceRequest(BaseModel):
 
 @app.post("/api/sign/enforce")
 def sign_enforce(req: SignEnforceRequest):
+    if req.scenario_key not in SCENARIOS:
+        raise HTTPException(status_code=422, detail=f"Unknown scenario_key: {req.scenario_key!r}")
     scenario = SCENARIOS[req.scenario_key]
     policy_path = str(SAMPLE_POLICIES_DIR / scenario["policy"])
-    signer = HMACSigner(key=bytes.fromhex(req.key))
+    try:
+        key_bytes = bytes.fromhex(req.key)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="key must be a valid hex string (64 hex chars)")
+    signer = HMACSigner(key=key_bytes)
     aigc = AIGC(signer=signer)
 
     invocation = (
@@ -126,6 +132,10 @@ class VerifySignatureRequest(BaseModel):
 
 @app.post("/api/sign/verify")
 def verify_signature(req: VerifySignatureRequest):
-    signer = HMACSigner(key=bytes.fromhex(req.key))
+    try:
+        key_bytes = bytes.fromhex(req.key)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="key must be a valid hex string (64 hex chars)")
+    signer = HMACSigner(key=key_bytes)
     valid = verify_artifact(req.artifact, signer)
     return {"valid": valid}

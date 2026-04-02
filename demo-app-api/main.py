@@ -1,11 +1,15 @@
+import copy
+import hashlib
+import json
 import secrets
+import uuid
 from pathlib import Path
 from typing import Literal
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from scenarios import SCENARIOS
-from aigc import AIGC, InvocationBuilder, AIGCError, HMACSigner, verify_artifact
+from aigc import AIGC, InvocationBuilder, AIGCError, HMACSigner, verify_artifact, verify_chain
 
 app = FastAPI(title="AIGC Demo API", version="0.3.0")
 
@@ -139,3 +143,80 @@ def verify_signature(req: VerifySignatureRequest):
     signer = HMACSigner(key=key_bytes)
     valid = verify_artifact(req.artifact, signer)
     return {"valid": valid}
+
+
+def _canonical_sha256(obj: dict) -> str:
+    """Replicates AuditChain._compute_artifact_checksum for stateless use."""
+    data = json.dumps(
+        obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+    )
+    return hashlib.sha256(data.encode("utf-8")).hexdigest()
+
+
+class ChainAppendRequest(BaseModel):
+    scenario_key: str
+    chain_id: str | None = None
+    previous_checksum: str | None = None
+    chain_index: int = 0
+
+
+@app.post("/api/chain/append")
+def chain_append(req: ChainAppendRequest):
+    if req.scenario_key not in SCENARIOS:
+        raise HTTPException(status_code=422, detail=f"Unknown scenario_key: {req.scenario_key!r}")
+    scenario = SCENARIOS[req.scenario_key]
+    policy_path = str(SAMPLE_POLICIES_DIR / scenario["policy"])
+    chain_id = req.chain_id or str(uuid.uuid4())
+
+    aigc = AIGC()
+    invocation = (
+        InvocationBuilder()
+        .policy(policy_path)
+        .model(scenario["model_provider"], scenario["model_id"])
+        .role(scenario["role"])
+        .input({"query": scenario["prompt"]})
+        .output(scenario["output"])
+        .context(scenario["context"])
+        .build()
+    )
+
+    try:
+        artifact = aigc.enforce(invocation)
+    except AIGCError as exc:
+        artifact = getattr(exc, "audit_artifact", None) or {}
+
+    # Inject chain fields — mirrors AuditChain.append()
+    artifact["chain_id"] = chain_id
+    artifact["chain_index"] = req.chain_index
+    artifact["previous_audit_checksum"] = req.previous_checksum
+    artifact_copy = {k: v for k, v in artifact.items() if k != "checksum"}
+    artifact["checksum"] = _canonical_sha256(artifact_copy)
+
+    return {"artifact": artifact, "chain_id": chain_id}
+
+
+class ChainVerifyRequest(BaseModel):
+    artifacts: list[dict]
+
+
+@app.post("/api/chain/verify")
+def chain_verify(req: ChainVerifyRequest):
+    valid, errors = verify_chain(req.artifacts)
+    return {"valid": valid, "errors": errors}
+
+
+class ChainTamperRequest(BaseModel):
+    artifacts: list[dict]
+    index: int
+
+
+@app.post("/api/chain/tamper")
+def chain_tamper(req: ChainTamperRequest):
+    artifacts = copy.deepcopy(req.artifacts)
+    if req.index >= len(artifacts):
+        return {"error": f"Index {req.index} out of range", "artifacts": artifacts}
+    artifact = artifacts[req.index]
+    current = artifact.get("enforcement_result", "PASS")
+    artifact["enforcement_result"] = "FAIL" if current == "PASS" else "PASS"
+    # Intentionally do NOT recompute checksum — that's what makes it tampered
+    return {"artifacts": artifacts}

@@ -53,3 +53,30 @@ def test_enforce_low_risk():
 def test_enforce_unknown_scenario_key():
     r = client.post("/api/enforce", json={"scenario_key": "nonexistent_key"})
     assert r.status_code == 422
+
+
+def test_generate_key():
+    r = client.post("/api/sign/generate-key")
+    assert r.status_code == 200
+    key = r.json()["key"]
+    assert len(key) == 64  # 32 bytes hex
+
+
+def test_sign_and_verify():
+    # Generate a key
+    key = client.post("/api/sign/generate-key").json()["key"]
+
+    # Sign via enforcement
+    r = client.post("/api/sign/enforce", json={"scenario_key": "signing_basic", "key": key})
+    assert r.status_code == 200
+    artifact = r.json()["artifact"]
+    assert "signature" in artifact
+
+    # Verify — should be valid
+    r2 = client.post("/api/sign/verify", json={"artifact": artifact, "key": key})
+    assert r2.json()["valid"] is True
+
+    # Tamper and re-verify — should be invalid
+    artifact["enforcement_result"] = "FAIL" if artifact["enforcement_result"] == "PASS" else "PASS"
+    r3 = client.post("/api/sign/verify", json={"artifact": artifact, "key": key})
+    assert r3.json()["valid"] is False

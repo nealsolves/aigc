@@ -1,10 +1,11 @@
+import secrets
 from pathlib import Path
 from typing import Literal
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from scenarios import SCENARIOS
-from aigc import AIGC, InvocationBuilder, AIGCError
+from aigc import AIGC, InvocationBuilder, AIGCError, HMACSigner, verify_artifact
 
 app = FastAPI(title="AIGC Demo API", version="0.3.0")
 
@@ -80,3 +81,51 @@ def enforce(req: EnforceRequest):
     except AIGCError as exc:
         artifact = getattr(exc, "audit_artifact", None)
         return {"artifact": artifact, "error": str(exc)}
+
+
+@app.post("/api/sign/generate-key")
+def generate_key():
+    return {"key": secrets.token_hex(32)}
+
+
+class SignEnforceRequest(BaseModel):
+    scenario_key: str = "signing_basic"
+    key: str
+
+
+@app.post("/api/sign/enforce")
+def sign_enforce(req: SignEnforceRequest):
+    scenario = SCENARIOS[req.scenario_key]
+    policy_path = str(SAMPLE_POLICIES_DIR / scenario["policy"])
+    signer = HMACSigner(key=bytes.fromhex(req.key))
+    aigc = AIGC(signer=signer)
+
+    invocation = (
+        InvocationBuilder()
+        .policy(policy_path)
+        .model(scenario["model_provider"], scenario["model_id"])
+        .role(scenario["role"])
+        .input({"query": scenario["prompt"]})
+        .output(scenario["output"])
+        .context(scenario["context"])
+        .build()
+    )
+
+    try:
+        artifact = aigc.enforce(invocation)
+        return {"artifact": artifact, "error": None}
+    except AIGCError as exc:
+        artifact = getattr(exc, "audit_artifact", None)
+        return {"artifact": artifact, "error": str(exc)}
+
+
+class VerifySignatureRequest(BaseModel):
+    artifact: dict
+    key: str
+
+
+@app.post("/api/sign/verify")
+def verify_signature(req: VerifySignatureRequest):
+    signer = HMACSigner(key=bytes.fromhex(req.key))
+    valid = verify_artifact(req.artifact, signer)
+    return {"valid": valid}

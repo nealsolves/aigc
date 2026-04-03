@@ -17,6 +17,7 @@ export default function Lab4Composition() {
   const [parentYaml,    setParentYaml]    = useState('')
   const [childYaml,     setChildYaml]     = useState('')
   const [policiesReady, setPoliciesReady] = useState(false)
+  const [loadError,     setLoadError]     = useState<string | null>(null)
   const [strategy,      setStrategy]      = useState<Strategy>('intersect')
   const [result,        setResult]        = useState<ComposeResponse | null>(null)
 
@@ -29,9 +30,17 @@ export default function Lab4Composition() {
       callLoad('/api/policy/load', { policy_name: 'medical_ai.yaml' }),
       callLoad('/api/policy/load', { policy_name: 'medical_ai_child.yaml' }),
     ]).then(([parent, child]) => {
-      if (parent?.yaml_text) setParentYaml(parent.yaml_text)
-      if (child?.yaml_text)  setChildYaml(child.yaml_text)
-      setPoliciesReady(true)
+      const parentYaml = parent?.yaml_text
+      const childYaml  = child?.yaml_text
+      if (parentYaml && childYaml) {
+        setParentYaml(parentYaml)
+        setChildYaml(childYaml)
+        setPoliciesReady(true)
+      } else {
+        setLoadError(
+          parent?.error ?? child?.error ?? 'Failed to load sample policies — check API connection'
+        )
+      }
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -56,7 +65,10 @@ export default function Lab4Composition() {
         <div className="grid grid-cols-2 gap-4 mb-4">
           {['medical_ai.yaml', 'medical_ai_child.yaml'].map(name => (
             <div key={name} className="rounded h-40 flex items-center justify-center" style={{ border: '1px solid var(--border-ui)', background: 'var(--bg-surface)' }}>
-              <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>// loading {name}…</span>
+              {loadError
+                ? <span className="font-mono text-xs px-3 text-center" style={{ color: 'var(--ibm-magenta-40)' }}>// load failed: {loadError}</span>
+                : <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>// loading {name}…</span>
+              }
             </div>
           ))}
         </div>

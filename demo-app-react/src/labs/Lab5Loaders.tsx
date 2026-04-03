@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import CodeBlock from '@/components/shared/CodeBlock'
 import { useApi } from '@/hooks/useApi'
 
@@ -23,6 +23,8 @@ risk:
 export default function Lab5Loaders() {
   const [tab, setTab] = useState<Tab>('loaders')
   const [loaderMode, setLoaderMode] = useState<LoaderMode>('filesystem')
+  const loaderModeRef = useRef<LoaderMode>('filesystem')
+  useEffect(() => { loaderModeRef.current = loaderMode }, [loaderMode])
 
   // Loaders tab state
   const [policies, setPolicies]             = useState<string[]>([])
@@ -59,13 +61,15 @@ export default function Lab5Loaders() {
   }, [])
 
   const loadFilesystem = async () => {
+    const dispatchedMode = loaderMode
     const res = await callLoad('/api/policy/load', { policy_name: selectedPolicy })
-    if (res) setLoadedPolicy(res)
+    if (res && loaderModeRef.current === dispatchedMode) setLoadedPolicy(res)
   }
 
   const loadInMemory = async () => {
+    const dispatchedMode = loaderMode
     const res = await callInMemory('/api/policy/load-inmemory', { yaml_text: inMemoryYaml })
-    if (res) setLoadedPolicy(res)
+    if (res && loaderModeRef.current === dispatchedMode) setLoadedPolicy(res)
   }
 
   const validateDates = async () => {

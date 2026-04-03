@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import StatusBadge from '@/components/shared/StatusBadge'
 import CodeBlock from '@/components/shared/CodeBlock'
 import { useApi } from '@/hooks/useApi'
@@ -50,6 +50,8 @@ const PHASE_COLORS: Record<string, string> = {
 
 export default function Lab6CustomGates() {
   const [gateName,    setGateName]    = useState('confidence_gate')
+  const gateNameRef = useRef('confidence_gate')
+  useEffect(() => { gateNameRef.current = gateName }, [gateName])
   const [scenarioKey, setScenarioKey] = useState('gate_high_confidence')
   const [gateInfo,    setGateInfo]    = useState<GateInfo | null>(null)
   const [showSource,  setShowSource]  = useState(false)
@@ -60,7 +62,7 @@ export default function Lab6CustomGates() {
 
   const loadGateInfo = async (name: string) => {
     const res = await callInfo(`/api/gate/${name}`)
-    if (res) setGateInfo(res)
+    if (res && gateNameRef.current === name) setGateInfo(res)
   }
 
   // Auto-load gate info on mount for the default gate

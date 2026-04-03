@@ -51,7 +51,6 @@ const PHASE_COLORS: Record<string, string> = {
 export default function Lab6CustomGates() {
   const [gateName,    setGateName]    = useState('confidence_gate')
   const gateNameRef = useRef('confidence_gate')
-  useEffect(() => { gateNameRef.current = gateName }, [gateName])
   const [scenarioKey, setScenarioKey] = useState('gate_high_confidence')
   const [gateInfo,    setGateInfo]    = useState<GateInfo | null>(null)
   const [showSource,  setShowSource]  = useState(false)
@@ -76,6 +75,7 @@ export default function Lab6CustomGates() {
   }
 
   const selectGate = (name: string) => {
+    gateNameRef.current = name
     setGateName(name)
     setRunResult(null)
     loadGateInfo(name)

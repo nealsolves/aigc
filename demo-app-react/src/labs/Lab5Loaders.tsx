@@ -93,7 +93,7 @@ export default function Lab5Loaders() {
   const timelineEnd   = expirationDate
   const timelineRef   = referenceDate
 
-  const toYear = (d: string) => new Date(d).getFullYear() + new Date(d).getMonth() / 12
+  const toYear = (d: string) => { const [y, m] = d.split('-').map(Number); return y + (m - 1) / 12 }
   const clamp  = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
   const pct = timelineStart && timelineEnd
     ? (d: string) => {

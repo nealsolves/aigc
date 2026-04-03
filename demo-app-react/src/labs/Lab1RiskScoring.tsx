@@ -44,11 +44,13 @@ export default function Lab1RiskScoring() {
 
   // Load scenario detail whenever the selected scenario changes
   useEffect(() => {
+    let cancelled = false
     const key = SCENARIOS[scenarioIdx].key
     callDetail(`/api/scenarios/${key}`).then(res => {
-      if (res) setScenarioDetail(res)
+      if (!cancelled && res) setScenarioDetail(res)
     })
     setArtifact(null)
+    return () => { cancelled = true }
   }, [scenarioIdx]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const run = async () => {

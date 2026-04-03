@@ -25,6 +25,7 @@ export default function Lab5Loaders() {
   const [loaderMode, setLoaderMode] = useState<LoaderMode>('filesystem')
   const loaderModeRef = useRef<LoaderMode>('filesystem')
   useEffect(() => { loaderModeRef.current = loaderMode }, [loaderMode])
+  const loadGenRef = useRef(0)
 
   // Loaders tab state
   const [policies, setPolicies]             = useState<string[]>([])
@@ -49,8 +50,9 @@ export default function Lab5Loaders() {
   const { call: callTest,       loading: loadingTest    } = useApi<TestResponse>()
 
   useEffect(() => {
+    let cancelled = false
     callPolicies('/api/policies').then(res => {
-      if (res) {
+      if (!cancelled && res) {
         setPolicies(res.policies)
         if (res.policies.length > 0) {
           setSelectedPolicy(res.policies[0])
@@ -58,18 +60,21 @@ export default function Lab5Loaders() {
         }
       }
     })
+    return () => { cancelled = true }
   }, [])
 
   const loadFilesystem = async () => {
+    const gen = ++loadGenRef.current
     const dispatchedMode = loaderMode
     const res = await callLoad('/api/policy/load', { policy_name: selectedPolicy })
-    if (res && loaderModeRef.current === dispatchedMode) setLoadedPolicy(res)
+    if (res && loaderModeRef.current === dispatchedMode && loadGenRef.current === gen) setLoadedPolicy(res)
   }
 
   const loadInMemory = async () => {
+    const gen = ++loadGenRef.current
     const dispatchedMode = loaderMode
     const res = await callInMemory('/api/policy/load-inmemory', { yaml_text: inMemoryYaml })
-    if (res && loaderModeRef.current === dispatchedMode) setLoadedPolicy(res)
+    if (res && loaderModeRef.current === dispatchedMode && loadGenRef.current === gen) setLoadedPolicy(res)
   }
 
   const validateDates = async () => {

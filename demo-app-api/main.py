@@ -210,7 +210,9 @@ def chain_append(req: ChainAppendRequest):
     try:
         artifact = aigc.enforce(invocation)
     except AIGCError as exc:
-        artifact = getattr(exc, "audit_artifact", None) or {}
+        artifact = getattr(exc, "audit_artifact", None)
+        if not artifact:
+            raise HTTPException(status_code=422, detail=str(exc))
 
     # Inject chain fields — mirrors AuditChain.append()
     artifact["chain_id"] = chain_id
@@ -253,10 +255,15 @@ _STRATEGY_MAP = {
 @app.post("/api/compose")
 def compose_policies(req: ComposeRequest):
     try:
-        base = yaml_lib.safe_load(req.parent_yaml) or {}
-        child = yaml_lib.safe_load(req.child_yaml) or {}
+        base  = yaml_lib.safe_load(req.parent_yaml)
+        child = yaml_lib.safe_load(req.child_yaml)
     except yaml_lib.YAMLError as exc:
         return {"merged_yaml": None, "escalations": [], "diff": {}, "error": str(exc)}
+
+    if not isinstance(base, dict):
+        return {"merged_yaml": None, "escalations": [], "diff": {}, "error": "parent_yaml must be a YAML mapping"}
+    if not isinstance(child, dict):
+        return {"merged_yaml": None, "escalations": [], "diff": {}, "error": "child_yaml must be a YAML mapping"}
 
     strategy = _STRATEGY_MAP.get(req.strategy, COMPOSITION_INTERSECT)
 
@@ -492,8 +499,10 @@ def run_gate(req: GateRunRequest):
     except AIGCError as exc:
         artifact = getattr(exc, "audit_artifact", None)
 
-    # Run gate directly for explicit result (gate may have blocked enforcement)
-    direct_result = gate.evaluate(invocation, {}, {})
+    # Run gate with the same policy and context used during enforcement
+    with open(policy_path) as _f:
+        policy_dict = yaml_lib.safe_load(_f) or {}
+    direct_result = gate.evaluate(invocation, policy_dict, scenario["context"])
 
     return {
         "artifact": artifact,

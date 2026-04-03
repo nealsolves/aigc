@@ -21,14 +21,15 @@ export default function Lab4Composition() {
   const [strategy,      setStrategy]      = useState<Strategy>('intersect')
   const [result,        setResult]        = useState<ComposeResponse | null>(null)
 
-  const { call: callLoad } = useApi<LoadResponse>()
+  const { call: callLoadParent } = useApi<LoadResponse>()
+  const { call: callLoadChild  } = useApi<LoadResponse>()
   const { call,           loading, error: apiError } = useApi<ComposeResponse>()
 
   // Seed editors with real v0.3.0 sample policies on mount
   useEffect(() => {
     Promise.all([
-      callLoad('/api/policy/load', { policy_name: 'medical_ai.yaml' }),
-      callLoad('/api/policy/load', { policy_name: 'medical_ai_child.yaml' }),
+      callLoadParent('/api/policy/load', { policy_name: 'medical_ai.yaml' }),
+      callLoadChild('/api/policy/load', { policy_name: 'medical_ai_child.yaml' }),
     ]).then(([parent, child]) => {
       const parentYaml = parent?.yaml_text
       const childYaml  = child?.yaml_text

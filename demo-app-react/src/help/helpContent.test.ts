@@ -64,7 +64,7 @@ describe('helpContent', () => {
 
   it('lab 5 glossary includes FileSystemLoader and InMemoryPolicyLoader', () => {
     const terms = (helpContent[5].glossary ?? []).map(g => g.term)
-    expect(terms.some(t => t.toLowerCase().includes('filesystemloader') || t.toLowerCase().includes('filepolicyloader'))).toBe(true)
+    expect(terms.some(t => t.toLowerCase().includes('filepolicyloader'))).toBe(true)
     expect(terms.some(t => t.toLowerCase().includes('inmemorypolicyloader') || t.toLowerCase().includes('inmemoryloader'))).toBe(true)
   })
 

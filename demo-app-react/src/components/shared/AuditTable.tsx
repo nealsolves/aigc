@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import StatusBadge from './StatusBadge'
 import type { AuditRecord } from '@/mock/auditFixtures'
 
@@ -73,9 +73,8 @@ export default function AuditTable({ records }: Props) {
               const isExpanded = expandedRow === r.id
               const raw = r.rawArtifact
               return (
-                <>
+                <Fragment key={r.id}>
                   <tr
-                    key={r.id}
                     className="text-sm cursor-pointer"
                     onClick={() => toggleRow(r.id)}
                     style={{
@@ -120,7 +119,7 @@ export default function AuditTable({ records }: Props) {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               )
             })}
           </tbody>

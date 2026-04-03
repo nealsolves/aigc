@@ -3,7 +3,7 @@ import MetricCard from '@/components/shared/MetricCard'
 import AuditTable from '@/components/shared/AuditTable'
 import { useAigc } from '@/context/AigcContext'
 import type { Artifact } from '@/types/artifact'
-import type { AuditRecord } from '@/mock/auditFixtures'
+import { AUDIT_LOG, type AuditRecord } from '@/mock/auditFixtures'
 
 function toRecord(a: Artifact, idx: number): AuditRecord {
   return {
@@ -24,7 +24,7 @@ export default function Lab7Compliance() {
   const { auditHistory } = useAigc()
 
   const records: AuditRecord[] = useMemo(
-    () => auditHistory.map(toRecord),
+    () => auditHistory.length > 0 ? auditHistory.map(toRecord) : AUDIT_LOG,
     [auditHistory],
   )
 

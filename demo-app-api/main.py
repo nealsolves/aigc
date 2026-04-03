@@ -160,10 +160,8 @@ def verify_signature(req: VerifySignatureRequest):
 
 def _canonical_sha256(obj: dict) -> str:
     """Replicates AuditChain._compute_artifact_checksum for stateless use."""
-    data = json.dumps(
-        obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
-    )
-    return hashlib.sha256(data.encode("utf-8")).hexdigest()
+    from aigc._internal.utils import canonical_json_bytes
+    return hashlib.sha256(canonical_json_bytes(obj)).hexdigest()
 
 
 class ChainAppendRequest(BaseModel):

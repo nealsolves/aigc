@@ -50,7 +50,9 @@ An interactive companion to the SDK is deployed at:
 **[https://nealsolves.github.io/aigc/](https://nealsolves.github.io/aigc/)**
 
 The demo is a React application with seven hands-on labs, each exercising a specific
-governance capability from v0.3.0. No installation required — runs entirely in the browser.
+governance capability from v0.3.0. It is backed by a FastAPI API server deployed on
+Render — no user API keys are required. `demo-app-streamlit/` remains in the repository
+as deprecated reference material and is not the forward product surface.
 
 | Lab | Topic | What it demonstrates |
 | --- | ----- | -------------------- |

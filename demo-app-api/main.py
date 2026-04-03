@@ -22,6 +22,7 @@ from aigc.policy_loader import (
 )
 from aigc._internal.errors import PolicyValidationError
 from gates import GATES, get_gate_info
+from loaders import InMemoryPolicyLoader
 import yaml as yaml_lib
 
 app = FastAPI(title="AIGC Demo API", version="0.3.0")
@@ -48,6 +49,21 @@ MEDICAL_FACTORS = [
     {"name": "external_model",   "weight": 0.30, "condition": "external_model"},
     {"name": "no_preconditions", "weight": 0.20, "condition": "no_preconditions"},
 ]
+
+
+@app.get("/api/scenarios/{scenario_key}")
+def get_scenario(scenario_key: str):
+    if scenario_key not in SCENARIOS:
+        raise HTTPException(status_code=422, detail=f"Unknown scenario_key: {scenario_key!r}")
+    s = SCENARIOS[scenario_key]
+    return {
+        "prompt": s["prompt"],
+        "context": s["context"],
+        "policy": s["policy"],
+        "model_provider": s["model_provider"],
+        "model_id": s["model_id"],
+        "role": s["role"],
+    }
 
 
 @app.get("/health")
@@ -317,6 +333,22 @@ class ValidateDatesRequest(BaseModel):
     effective_date: str | None = None
     expiration_date: str | None = None
     reference_date: str | None = None
+
+
+class LoadInMemoryRequest(BaseModel):
+    yaml_text: str
+
+
+@app.post("/api/policy/load-inmemory")
+def load_policy_inmemory(req: LoadInMemoryRequest):
+    try:
+        loader = InMemoryPolicyLoader(req.yaml_text)
+        policy = loader.load("inline")
+        if not isinstance(policy, dict):
+            return {"policy": None, "yaml_text": req.yaml_text, "loader_class": "InMemoryPolicyLoader", "error": "YAML must be a mapping"}
+        return {"policy": policy, "yaml_text": req.yaml_text, "loader_class": "InMemoryPolicyLoader", "error": None}
+    except Exception as exc:
+        return {"policy": None, "yaml_text": None, "loader_class": "InMemoryPolicyLoader", "error": str(exc)}
 
 
 @app.post("/api/policy/validate-dates")

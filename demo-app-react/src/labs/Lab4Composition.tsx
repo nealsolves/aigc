@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PolicyEditor from '@/components/shared/PolicyEditor'
 import CodeBlock from '@/components/shared/CodeBlock'
 import { useApi } from '@/hooks/useApi'
 
 type Strategy = 'intersect' | 'union' | 'replace'
 
+interface LoadResponse { yaml_text: string | null; error: string | null }
 interface ComposeResponse {
   merged_yaml: string | null
   escalations: string[]
@@ -12,28 +13,27 @@ interface ComposeResponse {
   error: string | null
 }
 
-const PARENT_YAML = `policy_version: "1.0"
-roles: [doctor, nurse]
-pre_conditions:
-  required: [domain, role_declared]
-risk:
-  mode: strict
-  threshold: 0.7`
-
-const CHILD_YAML = `policy_version: "1.0"
-extends: medical_ai.yaml
-roles: [doctor]
-risk:
-  mode: risk_scored
-  threshold: 0.5`
-
 export default function Lab4Composition() {
-  const [parentYaml, setParentYaml] = useState(PARENT_YAML)
-  const [childYaml, setChildYaml]   = useState(CHILD_YAML)
-  const [strategy, setStrategy]     = useState<Strategy>('intersect')
-  const [result, setResult]         = useState<ComposeResponse | null>(null)
+  const [parentYaml,    setParentYaml]    = useState('')
+  const [childYaml,     setChildYaml]     = useState('')
+  const [policiesReady, setPoliciesReady] = useState(false)
+  const [strategy,      setStrategy]      = useState<Strategy>('intersect')
+  const [result,        setResult]        = useState<ComposeResponse | null>(null)
 
-  const { call, loading, error: apiError } = useApi<ComposeResponse>()
+  const { call: callLoad } = useApi<LoadResponse>()
+  const { call,           loading, error: apiError } = useApi<ComposeResponse>()
+
+  // Seed editors with real v0.3.0 sample policies on mount
+  useEffect(() => {
+    Promise.all([
+      callLoad('/api/policy/load', { policy_name: 'medical_ai.yaml' }),
+      callLoad('/api/policy/load', { policy_name: 'medical_ai_child.yaml' }),
+    ]).then(([parent, child]) => {
+      if (parent?.yaml_text) setParentYaml(parent.yaml_text)
+      if (child?.yaml_text)  setChildYaml(child.yaml_text)
+      setPoliciesReady(true)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const merge = async () => {
     const res = await call('/api/compose', {
@@ -52,10 +52,20 @@ export default function Lab4Composition() {
         // compose parent + child policies with configurable merge strategy
       </p>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <PolicyEditor initialYaml={parentYaml} label="parent_policy.yaml" onChange={setParentYaml} />
-        <PolicyEditor initialYaml={childYaml}  label="child_policy.yaml"  onChange={setChildYaml} />
-      </div>
+      {!policiesReady ? (
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          {['medical_ai.yaml', 'medical_ai_child.yaml'].map(name => (
+            <div key={name} className="rounded h-40 flex items-center justify-center" style={{ border: '1px solid var(--border-ui)', background: 'var(--bg-surface)' }}>
+              <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>// loading {name}…</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <PolicyEditor key="parent" initialYaml={parentYaml} label="medical_ai.yaml (parent)" onChange={setParentYaml} />
+          <PolicyEditor key="child"  initialYaml={childYaml}  label="medical_ai_child.yaml (child)" onChange={setChildYaml} />
+        </div>
+      )}
 
       <div className="flex items-center gap-2 mb-4">
         <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>↳ Strategy:</span>
@@ -75,9 +85,9 @@ export default function Lab4Composition() {
         ))}
         <button
           onClick={merge}
-          disabled={loading}
+          disabled={loading || !policiesReady}
           className="font-mono text-sm px-4 py-1.5 rounded ml-auto"
-          style={{ background: 'var(--ibm-blue-60)', color: '#fff', opacity: loading ? 0.7 : 1 }}
+          style={{ background: 'var(--ibm-blue-60)', color: '#fff', opacity: (loading || !policiesReady) ? 0.7 : 1 }}
         >
           {loading ? 'Merging…' : 'Merge →'}
         </button>
@@ -93,12 +103,12 @@ export default function Lab4Composition() {
         <>
           <CodeBlock code={result.merged_yaml} label="merged_policy.yaml" />
 
-          {/* Diff summary */}
+          {/* Roles diff */}
           <div className="grid grid-cols-3 gap-2 mt-3">
             {[
-              { label: 'Kept', items: result.diff.kept_roles,    color: 'var(--ibm-teal-30)' },
-              { label: 'Removed', items: result.diff.removed_roles, color: 'var(--ibm-blue-40)' },
-              { label: 'Added',   items: result.diff.added_roles,   color: 'var(--ibm-magenta-40)' },
+              { label: 'Kept roles',    items: result.diff.kept_roles,    color: 'var(--ibm-teal-30)' },
+              { label: 'Removed roles', items: result.diff.removed_roles, color: 'var(--ibm-blue-40)' },
+              { label: 'Added roles',   items: result.diff.added_roles,   color: 'var(--ibm-magenta-40)' },
             ].map(col => (
               <div key={col.label} className="rounded p-2" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
                 <div className="font-mono text-[11px] mb-1" style={{ color: 'var(--text-secondary)' }}>{col.label}</div>
@@ -112,8 +122,8 @@ export default function Lab4Composition() {
             ))}
           </div>
 
-          {/* Escalation panel */}
-          {result.escalations.length > 0 && (
+          {/* Escalation panel — covers new tools and removed postconditions */}
+          {result.escalations.length > 0 ? (
             <div className="mt-3 rounded p-3" style={{ background: 'rgba(255,126,182,0.08)', border: '1px solid rgba(255,126,182,0.3)' }}>
               <div className="font-mono text-xs mb-1" style={{ color: 'var(--ibm-magenta-40)' }}>
                 // privilege escalation detected ({result.escalations.length} violation{result.escalations.length > 1 ? 's' : ''})
@@ -122,8 +132,7 @@ export default function Lab4Composition() {
                 <div key={i} className="font-mono text-xs" style={{ color: 'var(--ibm-magenta-40)' }}>- {v}</div>
               ))}
             </div>
-          )}
-          {result.escalations.length === 0 && (
+          ) : (
             <div className="mt-3 font-mono text-xs px-3 py-2 rounded" style={{ background: 'rgba(8,186,132,0.08)', border: '1px solid rgba(8,186,132,0.3)', color: 'var(--ibm-teal-30)' }}>
               // no privilege escalation — child is a restriction of the base
             </div>

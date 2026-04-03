@@ -80,6 +80,7 @@ export default function Lab2Signing() {
           <div className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>↳ Verification</div>
           {artifact ? (
             <>
+              <CodeBlock code={JSON.stringify(artifact, null, 2)} label="signed_artifact.json" />
               <CodeBlock code={`signature: ${(artifact.signature ?? '').slice(0, 16)}...`} label="HMAC-SHA256 signature" />
               <div className="flex items-center gap-2">
                 <button

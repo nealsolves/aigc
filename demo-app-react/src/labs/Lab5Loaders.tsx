@@ -3,20 +3,32 @@ import CodeBlock from '@/components/shared/CodeBlock'
 import { useApi } from '@/hooks/useApi'
 
 type Tab = 'loaders' | 'versioning' | 'testing'
+type LoaderMode = 'filesystem' | 'inmemory'
 
 interface PoliciesResponse { policies: string[] }
-interface LoadResponse { policy: Record<string, unknown> | null; yaml_text: string | null; error: string | null }
+interface LoadResponse { policy: Record<string, unknown> | null; yaml_text: string | null; loader_class?: string; error: string | null }
 interface ValidateDatesResponse { in_range: boolean; evidence: Record<string, unknown>; error: string | null }
 interface TestResult { name: string; enforcement_result: string; passed: boolean; failure_reason: string | null }
 interface TestResponse { results: TestResult[]; all_met_expectations: boolean; error: string | null }
 
+const SAMPLE_INMEMORY_YAML = `policy_version: "1.0"
+roles: [doctor, nurse]
+pre_conditions:
+  required: [domain, role_declared]
+risk:
+  mode: risk_scored
+  threshold: 0.7
+`
+
 export default function Lab5Loaders() {
   const [tab, setTab] = useState<Tab>('loaders')
+  const [loaderMode, setLoaderMode] = useState<LoaderMode>('filesystem')
 
   // Loaders tab state
   const [policies, setPolicies]             = useState<string[]>([])
   const [selectedPolicy, setSelectedPolicy] = useState('')
   const [loadedPolicy, setLoadedPolicy]     = useState<LoadResponse | null>(null)
+  const [inMemoryYaml, setInMemoryYaml]     = useState(SAMPLE_INMEMORY_YAML)
 
   // Versioning tab state
   const [effectiveDate,  setEffectiveDate]  = useState('2020-01-01')
@@ -29,9 +41,10 @@ export default function Lab5Loaders() {
   const [testResults, setTestResults] = useState<TestResponse | null>(null)
 
   const { call: callPolicies } = useApi<PoliciesResponse>()
-  const { call: callLoad,    loading: loadingLoad    } = useApi<LoadResponse>()
-  const { call: callDates,   loading: loadingDates   } = useApi<ValidateDatesResponse>()
-  const { call: callTest,    loading: loadingTest    } = useApi<TestResponse>()
+  const { call: callLoad,       loading: loadingLoad    } = useApi<LoadResponse>()
+  const { call: callInMemory,   loading: loadingInMemory } = useApi<LoadResponse>()
+  const { call: callDates,      loading: loadingDates   } = useApi<ValidateDatesResponse>()
+  const { call: callTest,       loading: loadingTest    } = useApi<TestResponse>()
 
   useEffect(() => {
     callPolicies('/api/policies').then(res => {
@@ -45,8 +58,13 @@ export default function Lab5Loaders() {
     })
   }, [])
 
-  const loadPolicy = async () => {
+  const loadFilesystem = async () => {
     const res = await callLoad('/api/policy/load', { policy_name: selectedPolicy })
+    if (res) setLoadedPolicy(res)
+  }
+
+  const loadInMemory = async () => {
+    const res = await callInMemory('/api/policy/load-inmemory', { yaml_text: inMemoryYaml })
     if (res) setLoadedPolicy(res)
   }
 
@@ -65,10 +83,25 @@ export default function Lab5Loaders() {
   }
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'loaders', label: 'Loaders' },
+    { key: 'loaders',    label: 'Loaders'    },
     { key: 'versioning', label: 'Versioning' },
-    { key: 'testing', label: 'Testing' },
+    { key: 'testing',    label: 'Testing'    },
   ]
+
+  // Compute timeline bar positions (0–100%) for the versioning panel
+  const timelineStart = effectiveDate
+  const timelineEnd   = expirationDate
+  const timelineRef   = referenceDate
+
+  const toYear = (d: string) => new Date(d).getFullYear() + new Date(d).getMonth() / 12
+  const clamp  = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+  const pct = timelineStart && timelineEnd
+    ? (d: string) => {
+        const lo = toYear(timelineStart)
+        const hi = toYear(timelineEnd)
+        return hi > lo ? clamp(((toYear(d) - lo) / (hi - lo)) * 100, 0, 100) : 0
+      }
+    : null
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -97,30 +130,92 @@ export default function Lab5Loaders() {
       {/* Loaders tab */}
       {tab === 'loaders' && (
         <div className="space-y-3">
-          <div className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>↳ FileSystem Loader — select a policy to load and parse</div>
-          <div className="flex gap-2">
-            <select
-              value={selectedPolicy}
-              onChange={e => { setSelectedPolicy(e.target.value); setLoadedPolicy(null) }}
-              className="flex-1 font-mono text-[13px] px-3 py-2 rounded outline-none"
-              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-primary)' }}
-            >
-              {policies.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-            <button
-              onClick={loadPolicy}
-              disabled={!selectedPolicy || loadingLoad}
-              className="font-mono text-xs px-3 py-2 rounded"
-              style={{ background: 'var(--ibm-blue-60)', color: '#fff', opacity: (!selectedPolicy || loadingLoad) ? 0.7 : 1 }}
-            >
-              {loadingLoad ? '…' : 'Load →'}
-            </button>
+          {/* Loader mode selector */}
+          <div>
+            <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Loader Mode</div>
+            <div className="flex gap-2 mb-3">
+              {(['filesystem', 'inmemory'] as LoaderMode[]).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => { setLoaderMode(mode); setLoadedPolicy(null) }}
+                  className="font-mono text-xs px-3 py-1.5 rounded"
+                  style={
+                    loaderMode === mode
+                      ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
+                      : { color: 'var(--text-secondary)', border: '1px solid var(--border-ui)' }
+                  }
+                >
+                  {mode === 'filesystem' ? 'FileSystem' : 'InMemory'}
+                </button>
+              ))}
+            </div>
+            <div className="font-mono text-[11px] px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
+              {loaderMode === 'filesystem'
+                ? '// FilePolicyLoader — reads YAML from a file path on disk'
+                : '// InMemoryPolicyLoader(PolicyLoaderBase) — holds policy in memory; no filesystem required'}
+            </div>
           </div>
+
+          {/* FileSystem mode */}
+          {loaderMode === 'filesystem' && (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <select
+                  value={selectedPolicy}
+                  onChange={e => { setSelectedPolicy(e.target.value); setLoadedPolicy(null) }}
+                  className="flex-1 font-mono text-[13px] px-3 py-2 rounded outline-none"
+                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-primary)' }}
+                >
+                  {policies.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <button
+                  onClick={loadFilesystem}
+                  disabled={!selectedPolicy || loadingLoad}
+                  className="font-mono text-xs px-3 py-2 rounded"
+                  style={{ background: 'var(--ibm-blue-60)', color: '#fff', opacity: (!selectedPolicy || loadingLoad) ? 0.7 : 1 }}
+                >
+                  {loadingLoad ? '…' : 'Load →'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* InMemory mode */}
+          {loaderMode === 'inmemory' && (
+            <div className="space-y-2">
+              <div className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>↳ Paste or edit policy YAML — parsed directly, no file path needed</div>
+              <textarea
+                value={inMemoryYaml}
+                onChange={e => { setInMemoryYaml(e.target.value); setLoadedPolicy(null) }}
+                rows={8}
+                className="w-full font-mono text-[12px] px-3 py-2 rounded outline-none resize-y"
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-primary)' }}
+                spellCheck={false}
+              />
+              <button
+                onClick={loadInMemory}
+                disabled={!inMemoryYaml.trim() || loadingInMemory}
+                className="font-mono text-xs px-3 py-2 rounded"
+                style={{ background: 'var(--ibm-blue-60)', color: '#fff', opacity: (!inMemoryYaml.trim() || loadingInMemory) ? 0.7 : 1 }}
+              >
+                {loadingInMemory ? '…' : 'Parse →'}
+              </button>
+            </div>
+          )}
+
+          {/* Shared result */}
           {loadedPolicy?.error && (
             <div className="font-mono text-xs" style={{ color: 'var(--ibm-magenta-40)' }}>// error: {loadedPolicy.error}</div>
           )}
-          {loadedPolicy?.yaml_text && (
-            <CodeBlock code={loadedPolicy.yaml_text} label={selectedPolicy} />
+          {loadedPolicy && !loadedPolicy.error && loadedPolicy.yaml_text && (
+            <div className="space-y-2">
+              {loadedPolicy.loader_class && (
+                <div className="font-mono text-[11px]" style={{ color: 'var(--ibm-teal-30)' }}>
+                  // loaded via {loadedPolicy.loader_class}
+                </div>
+              )}
+              <CodeBlock code={loadedPolicy.yaml_text} label={loaderMode === 'filesystem' ? selectedPolicy : 'inline policy'} />
+            </div>
           )}
         </div>
       )}
@@ -147,6 +242,38 @@ export default function Lab5Loaders() {
               </div>
             ))}
           </div>
+
+          {/* Version timeline panel */}
+          {pct && timelineStart && timelineEnd && timelineRef && (
+            <div className="rounded p-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
+              <div className="font-mono text-[11px] mb-2" style={{ color: 'var(--text-secondary)' }}>// policy validity window</div>
+              <div className="relative h-6 rounded" style={{ background: 'rgba(15,98,254,0.08)', border: '1px solid var(--border-ui)' }}>
+                {/* active window bar */}
+                <div
+                  className="absolute top-0 bottom-0 rounded"
+                  style={{
+                    left: '0%',
+                    right: '0%',
+                    background: 'rgba(8,186,132,0.18)',
+                  }}
+                />
+                {/* reference date cursor */}
+                <div
+                  className="absolute top-0 bottom-0 w-0.5"
+                  style={{
+                    left: `${pct(timelineRef)}%`,
+                    background: 'var(--ibm-cyan-30)',
+                  }}
+                />
+              </div>
+              <div className="flex justify-between font-mono text-[10px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+                <span>{timelineStart}</span>
+                <span style={{ color: 'var(--ibm-cyan-30)' }}>▲ {timelineRef}</span>
+                <span>{timelineEnd}</span>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={validateDates}
             disabled={loadingDates}

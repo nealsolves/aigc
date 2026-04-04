@@ -1,4 +1,5 @@
 // Static audit log fixture for Lab 7 — Compliance Dashboard
+import type { Artifact } from '@/types/artifact'
 
 export interface AuditRecord {
   id: string
@@ -11,6 +12,8 @@ export interface AuditRecord {
   risk_score: number
   signed: boolean
   chain_id?: string
+  /** Present for session-generated records; absent for fixture rows. */
+  rawArtifact?: Artifact
 }
 
 export const AUDIT_LOG: AuditRecord[] = [

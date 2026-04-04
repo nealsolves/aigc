@@ -22,6 +22,7 @@ from aigc.policy_loader import (
 )
 from aigc._internal.errors import PolicyValidationError
 from gates import GATES, get_gate_info
+from loaders import InMemoryPolicyLoader
 import yaml as yaml_lib
 
 app = FastAPI(title="AIGC Demo API", version="0.3.0")
@@ -48,6 +49,21 @@ MEDICAL_FACTORS = [
     {"name": "external_model",   "weight": 0.30, "condition": "external_model"},
     {"name": "no_preconditions", "weight": 0.20, "condition": "no_preconditions"},
 ]
+
+
+@app.get("/api/scenarios/{scenario_key}")
+def get_scenario(scenario_key: str):
+    if scenario_key not in SCENARIOS:
+        raise HTTPException(status_code=422, detail=f"Unknown scenario_key: {scenario_key!r}")
+    s = SCENARIOS[scenario_key]
+    return {
+        "prompt": s["prompt"],
+        "context": s["context"],
+        "policy": s["policy"],
+        "model_provider": s["model_provider"],
+        "model_id": s["model_id"],
+        "role": s["role"],
+    }
 
 
 @app.get("/health")
@@ -194,7 +210,9 @@ def chain_append(req: ChainAppendRequest):
     try:
         artifact = aigc.enforce(invocation)
     except AIGCError as exc:
-        artifact = getattr(exc, "audit_artifact", None) or {}
+        artifact = getattr(exc, "audit_artifact", None)
+        if not artifact:
+            raise HTTPException(status_code=422, detail=str(exc))
 
     # Inject chain fields — mirrors AuditChain.append()
     artifact["chain_id"] = chain_id
@@ -237,10 +255,15 @@ _STRATEGY_MAP = {
 @app.post("/api/compose")
 def compose_policies(req: ComposeRequest):
     try:
-        base = yaml_lib.safe_load(req.parent_yaml) or {}
-        child = yaml_lib.safe_load(req.child_yaml) or {}
+        base  = yaml_lib.safe_load(req.parent_yaml)
+        child = yaml_lib.safe_load(req.child_yaml)
     except yaml_lib.YAMLError as exc:
         return {"merged_yaml": None, "escalations": [], "diff": {}, "error": str(exc)}
+
+    if not isinstance(base, dict):
+        return {"merged_yaml": None, "escalations": [], "diff": {}, "error": "parent_yaml must be a YAML mapping"}
+    if not isinstance(child, dict):
+        return {"merged_yaml": None, "escalations": [], "diff": {}, "error": "child_yaml must be a YAML mapping"}
 
     strategy = _STRATEGY_MAP.get(req.strategy, COMPOSITION_INTERSECT)
 
@@ -317,6 +340,22 @@ class ValidateDatesRequest(BaseModel):
     effective_date: str | None = None
     expiration_date: str | None = None
     reference_date: str | None = None
+
+
+class LoadInMemoryRequest(BaseModel):
+    yaml_text: str
+
+
+@app.post("/api/policy/load-inmemory")
+def load_policy_inmemory(req: LoadInMemoryRequest):
+    try:
+        loader = InMemoryPolicyLoader(req.yaml_text)
+        policy = loader.load("inline")
+        if not isinstance(policy, dict):
+            return {"policy": None, "yaml_text": req.yaml_text, "loader_class": "InMemoryPolicyLoader", "error": "YAML must be a mapping"}
+        return {"policy": policy, "yaml_text": req.yaml_text, "loader_class": "InMemoryPolicyLoader", "error": None}
+    except Exception as exc:
+        return {"policy": None, "yaml_text": None, "loader_class": "InMemoryPolicyLoader", "error": str(exc)}
 
 
 @app.post("/api/policy/validate-dates")
@@ -460,8 +499,10 @@ def run_gate(req: GateRunRequest):
     except AIGCError as exc:
         artifact = getattr(exc, "audit_artifact", None)
 
-    # Run gate directly for explicit result (gate may have blocked enforcement)
-    direct_result = gate.evaluate(invocation, {}, {})
+    # Run gate with the same policy and context used during enforcement
+    with open(policy_path) as _f:
+        policy_dict = yaml_lib.safe_load(_f) or {}
+    direct_result = gate.evaluate(invocation, policy_dict, scenario["context"])
 
     return {
         "artifact": artifact,

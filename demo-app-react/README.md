@@ -17,6 +17,15 @@ hands-on labs covering every v0.3.0 governance capability.
 | 6 | Custom Gates — `EnforcementGate` plugins at all four pipeline insertion points |
 | 7 | Compliance Dashboard — compliance export from a JSONL audit trail |
 
+## Architecture
+
+The demo has two deployed components:
+
+- **React frontend** — built with Vite, deployed to GitHub Pages via `.github/workflows/deploy-demo-react.yml` on every push to `main` that touches `demo-app-react/`. The API URL is baked in at build time via the `VITE_API_URL` GitHub secret.
+- **FastAPI backend** (`demo-app-api/`) — deployed on Render at `https://aigc-2oaf.onrender.com`. The React app calls this backend for all lab enforcement, signing, chaining, composition, and loader operations. No user API keys are required.
+
+`demo-app-streamlit/` is retained in the repository as deprecated reference material for historical and local-development context. It is not the forward product surface.
+
 ## Development
 
 ```bash

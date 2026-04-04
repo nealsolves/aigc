@@ -31,6 +31,14 @@ describe('HelpDrawer', () => {
     expect(screen.getByText('Choose a preset scenario')).toBeInTheDocument()
   })
 
+  it('renders the narrative framework sections for first-time users', () => {
+    renderDrawer(true)
+    expect(screen.getByText('Why This Matters')).toBeInTheDocument()
+    expect(screen.getByText('What This Lab Shows')).toBeInTheDocument()
+    expect(screen.getByText('How To Navigate')).toBeInTheDocument()
+    expect(screen.getByText('Key Takeaway')).toBeInTheDocument()
+  })
+
   it('calls onClose when the close button is clicked', () => {
     const onClose = vi.fn()
     renderDrawer(true, onClose)

@@ -6,16 +6,38 @@ import { useAigc } from '@/context/AigcContext'
 import type { Artifact } from '@/types/artifact'
 import { AUDIT_LOG, type AuditRecord } from '@/mock/auditFixtures'
 
+function normalizeTimestamp(value: unknown): string {
+  if (typeof value === 'string' && value.trim().length > 0) return value
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    // API artifacts use epoch seconds; tolerate millis if a caller provides it.
+    const millis = value > 1_000_000_000_000 ? value : value * 1000
+    const dt = new Date(millis)
+    if (!Number.isNaN(dt.getTime())) return dt.toISOString()
+  }
+
+  return 'unknown'
+}
+
+function normalizeRiskScore(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return 0
+}
+
 function toRecord(a: Artifact, idx: number): AuditRecord {
   return {
-    id: (a.checksum ?? String(idx)).slice(0, 6),
-    timestamp: (a.timestamp as string | undefined) ?? new Date().toISOString(),
+    id: String(a.checksum ?? idx).slice(0, 6),
+    timestamp: normalizeTimestamp(a.timestamp),
     policy_file: String(a.policy_file ?? 'unknown'),
     role: a.role,
     model_provider: a.model_provider,
     model_identifier: a.model_identifier,
     enforcement_result: a.enforcement_result,
-    risk_score: a.metadata?.risk_scoring?.score ?? 0,
+    risk_score: normalizeRiskScore(a.metadata?.risk_scoring?.score),
     signed: !!a.signature,
     chain_id: a.chain_id,
     rawArtifact: a,

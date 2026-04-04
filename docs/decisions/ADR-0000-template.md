@@ -1,8 +1,8 @@
-# ADR-XXXX: <Short Title>
+# ADR-XXXX: Short Title Here
 
 Date: YYYY-MM-DD
 Status: Proposed | Accepted | Superseded by ADR-XXXX
-Owners: <name or team>
+Owners: name or team
 
 ---
 
@@ -35,7 +35,7 @@ Owners: <name or team>
 
 ## Options Considered
 
-### Option A: <name> (chosen)
+### Option A: name (chosen)
 
 Pros:
 
@@ -45,7 +45,7 @@ Cons:
 
 - ...
 
-### Option B: <name>
+### Option B: name
 
 Pros:
 

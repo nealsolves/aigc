@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTheme } from '@/theme/ThemeContext'
 import { helpContent } from '@/help/helpContent'
 
@@ -85,6 +85,11 @@ export default function HelpDrawer({ labId, isOpen, onClose }: Props) {
   const tipBg     = isDark ? 'rgba(61,219,217,0.06)' : '#f0fafa'
   const tipBorder = isDark ? 'rgba(61,219,217,0.4)' : '#007d79'
   const tipColor  = isDark ? '#3ddbd9' : '#007d79'
+  const sectionCardBg = isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc'
+  const sectionLabelBg = isDark ? 'rgba(15,98,254,0.12)' : '#edf5ff'
+  const sectionLabelBorder = isDark ? 'rgba(15,98,254,0.28)' : '#d0e2ff'
+  const sectionTextColor = isDark ? '#c1c7cd' : '#393939'
+  const bulletColor = isDark ? '#78a9ff' : '#0f62fe'
   const glossaryBtnBg = isDark ? 'rgba(255,255,255,0.04)' : '#f2f4f8'
   const glossaryBodyBorder = borderColor
   const glossaryTermColor = isDark ? '#78a9ff' : '#0f62fe'
@@ -211,6 +216,44 @@ export default function HelpDrawer({ labId, isOpen, onClose }: Props) {
             {lab.overview}
           </p>
 
+          <GuideSection
+            label="Why This Matters"
+            borderColor={borderColor}
+            cardBg={sectionCardBg}
+            labelBg={sectionLabelBg}
+            labelBorder={sectionLabelBorder}
+            labelColor={labelColor}
+            textColor={sectionTextColor}
+          >
+            <p style={{ margin: 0, fontSize: '0.9375rem', lineHeight: 1.6 }}>
+              {lab.whyItMatters}
+            </p>
+          </GuideSection>
+
+          <GuideSection
+            label="What This Lab Shows"
+            borderColor={borderColor}
+            cardBg={sectionCardBg}
+            labelBg={sectionLabelBg}
+            labelBorder={sectionLabelBorder}
+            labelColor={labelColor}
+            textColor={sectionTextColor}
+          >
+            <GuideList items={lab.whatThisLabShows} bulletColor={bulletColor} textColor={sectionTextColor} />
+          </GuideSection>
+
+          <GuideSection
+            label="How To Navigate"
+            borderColor={borderColor}
+            cardBg={sectionCardBg}
+            labelBg={sectionLabelBg}
+            labelBorder={sectionLabelBorder}
+            labelColor={labelColor}
+            textColor={sectionTextColor}
+          >
+            <GuideList items={lab.howToNavigate} bulletColor={bulletColor} textColor={sectionTextColor} />
+          </GuideSection>
+
           {/* Steps label */}
           <div
             style={{
@@ -297,12 +340,26 @@ export default function HelpDrawer({ labId, isOpen, onClose }: Props) {
                       fontFamily: "'IBM Plex Sans', sans-serif",
                     }}
                   >
-                    {'💡 '}{step.tip}
+                    {'Tip: '}{step.tip}
                   </div>
                 )}
               </div>
             </div>
           ))}
+
+          <GuideSection
+            label="Key Takeaway"
+            borderColor={tipBorder}
+            cardBg={tipBg}
+            labelBg={isDark ? 'rgba(61,219,217,0.12)' : '#e0f7f4'}
+            labelBorder={tipBorder}
+            labelColor={tipColor}
+            textColor={sectionTextColor}
+          >
+            <p style={{ margin: 0, fontSize: '0.9375rem', lineHeight: 1.6 }}>
+              {lab.takeaway}
+            </p>
+          </GuideSection>
 
           {/* Glossary */}
           {lab.glossary && lab.glossary.length > 0 && (
@@ -421,5 +478,92 @@ export default function HelpDrawer({ labId, isOpen, onClose }: Props) {
         </div>
       </div>
     </>
+  )
+}
+
+function GuideSection({
+  label,
+  children,
+  borderColor,
+  cardBg,
+  labelBg,
+  labelBorder,
+  labelColor,
+  textColor,
+}: {
+  label: string
+  children: ReactNode
+  borderColor: string
+  cardBg: string
+  labelBg: string
+  labelBorder: string
+  labelColor: string
+  textColor: string
+}) {
+  return (
+    <div
+      style={{
+        marginBottom: '1.25rem',
+        padding: '1rem',
+        border: `1px solid ${borderColor}`,
+        borderRadius: '0.75rem',
+        background: cardBg,
+        color: textColor,
+      }}
+    >
+      <div
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '0.1875rem 0.5rem',
+          marginBottom: '0.75rem',
+          borderRadius: '999px',
+          border: `1px solid ${labelBorder}`,
+          background: labelBg,
+          color: labelColor,
+          fontSize: '0.6875rem',
+          fontWeight: 600,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          fontFamily: "'IBM Plex Sans', sans-serif",
+        }}
+      >
+        {label}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function GuideList({
+  items,
+  bulletColor,
+  textColor,
+}: {
+  items: string[]
+  bulletColor: string
+  textColor: string
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      {items.map(item => (
+        <div key={item} style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start' }}>
+          <span
+            aria-hidden="true"
+            style={{
+              width: '0.5rem',
+              height: '0.5rem',
+              borderRadius: '50%',
+              background: bulletColor,
+              marginTop: '0.4rem',
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ fontSize: '0.9375rem', lineHeight: 1.6, color: textColor }}>
+            {item}
+          </span>
+        </div>
+      ))}
+    </div>
   )
 }

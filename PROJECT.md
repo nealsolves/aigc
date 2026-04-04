@@ -422,9 +422,7 @@ and are not part of this SDK.
 | Architecture Decisions (`docs/decisions/`) | ADRs documenting significant architectural choices (full repo only) |
 | [Policy DSL Spec](policies/policy_dsl_spec.md) | Full specification of the policy YAML format |
 | [Usage Guide](docs/USAGE.md) | Code examples and best practices |
-| [Golden Replays Guide](docs/GOLDEN_REPLAYS_README.md) | How to author and maintain golden replay fixtures |
-| [Golden Replays CI](docs/GOLDEN_REPLAYS_CI_GUIDE.md) | CI integration for golden replay regression |
-| [Golden Replay Checklist](docs/GOLDEN_REPLAYS_CHECKLIST.md) | Checklist for adding new golden replays |
+| Golden Replays (`tests/golden_replays/`) | Deterministic governance regression fixtures; authoring guidance in `CLAUDE.md` |
 
 ### Documents Not In This Repository
 

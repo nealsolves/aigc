@@ -42,12 +42,17 @@ dist/
 build/
 UNKNOWN-0.0.0/
 
+# Release archive
+release/
+
+# Deprecated Streamlit demo app
+demo-app-streamlit/
+
 # Demo app generated docs
-demo-app-streamlit/docs/reference/
-demo-app-streamlit/docs/audits/
+docs/demo_app/
 
 # External reference docs
-docs/reference/external/
+docs/reference/
 
 # Research notes
 docs/research/
@@ -69,6 +74,8 @@ docs/dev/
 docs/plans/
 docs/prs/
 docs/superpowers/
+docs/releases/
+docs/GOLDEN_REPLAYS_*.md
 
 # Local audit reports (root level)
 AIGC_0.3.0_Release_Readiness_Audit.md

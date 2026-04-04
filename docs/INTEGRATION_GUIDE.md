@@ -229,7 +229,7 @@ Your CI pipeline should include:
   `schemas/policy_dsl.schema.json`
 - **Governance tests** — test PASS and FAIL paths for each role
 - **Golden replays** — deterministic regression fixtures for governance
-  behavior (see [Golden Replays Guide](GOLDEN_REPLAYS_README.md))
+  behavior (see `tests/golden_replays/` and authoring guidance in `CLAUDE.md`)
 - **Coverage gate** — enforce minimum coverage on governance-related code
 
 ---

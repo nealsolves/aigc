@@ -453,6 +453,15 @@ def _run_pipeline(
                     }
                 ]
 
+            fail_metadata: dict[str, Any] = {
+                "gates_evaluated": list(gates_evaluated),
+                "redacted_fields": redacted_fields,
+            }
+            if isinstance(exc, RiskThresholdError) and isinstance(
+                getattr(exc, "details", None), dict
+            ):
+                fail_metadata["risk_scoring"] = exc.details
+
             audit_record = generate_audit_artifact(
                 invocation,
                 policy,
@@ -460,10 +469,7 @@ def _run_pipeline(
                 failures=failures,
                 failure_gate=failure_gate,
                 failure_reason=failure_reason,
-                metadata={
-                    "gates_evaluated": list(gates_evaluated),
-                    "redacted_fields": redacted_fields,
-                },
+                metadata=fail_metadata,
             )
 
             # Sign FAIL artifacts too

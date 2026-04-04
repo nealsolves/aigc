@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import StatusBadge from '@/components/shared/StatusBadge'
 import CodeBlock from '@/components/shared/CodeBlock'
 import { useApi } from '@/hooks/useApi'
@@ -33,6 +33,14 @@ const GATE_SCENARIOS = [
   { key: 'gate_pii_present',     label: 'PII Present'     },
   { key: 'gate_clean_output',    label: 'Clean Output'    },
 ]
+
+const PIPELINE_PHASES = [
+  'pre_authorization',
+  'post_authorization',
+  'pre_output',
+  'post_output',
+] as const
+
 const PHASE_COLORS: Record<string, string> = {
   pre_authorization:  IBM_COLORS.blue40,
   post_authorization: IBM_COLORS.purple40,
@@ -42,6 +50,7 @@ const PHASE_COLORS: Record<string, string> = {
 
 export default function Lab6CustomGates() {
   const [gateName,    setGateName]    = useState('confidence_gate')
+  const gateNameRef = useRef('confidence_gate')
   const [scenarioKey, setScenarioKey] = useState('gate_high_confidence')
   const [gateInfo,    setGateInfo]    = useState<GateInfo | null>(null)
   const [showSource,  setShowSource]  = useState(false)
@@ -52,8 +61,13 @@ export default function Lab6CustomGates() {
 
   const loadGateInfo = async (name: string) => {
     const res = await callInfo(`/api/gate/${name}`)
-    if (res) setGateInfo(res)
+    if (res && gateNameRef.current === name) setGateInfo(res)
   }
+
+  // Auto-load gate info on mount for the default gate
+  useEffect(() => {
+    loadGateInfo(gateName)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const run = async () => {
     const res = await callRun('/api/gate/run', { gate_name: gateName, scenario_key: scenarioKey })
@@ -61,10 +75,13 @@ export default function Lab6CustomGates() {
   }
 
   const selectGate = (name: string) => {
+    gateNameRef.current = name
     setGateName(name)
     setRunResult(null)
     loadGateInfo(name)
   }
+
+  const gatesEvaluated: string[] = runResult?.artifact?.metadata?.gates_evaluated ?? []
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -103,6 +120,35 @@ export default function Lab6CustomGates() {
             </span>
           </div>
           <div className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{gateInfo.description}</div>
+
+          {/* Pipeline visualization */}
+          <div className="mt-3 mb-1">
+            <div className="font-mono text-[11px] mb-1" style={{ color: 'var(--text-secondary)' }}>// pipeline insertion point</div>
+            <div className="flex items-center gap-1">
+              {PIPELINE_PHASES.map((phase, i) => {
+                const isActive = phase === gateInfo.insertion_point
+                return (
+                  <div key={phase} className="flex items-center gap-1">
+                    <div
+                      className="font-mono text-[10px] px-2 py-1 rounded"
+                      style={{
+                        background: isActive ? `${PHASE_COLORS[phase]}22` : 'var(--bg-base)',
+                        border: `1px solid ${isActive ? PHASE_COLORS[phase] : 'var(--border-ui)'}`,
+                        color: isActive ? PHASE_COLORS[phase] : 'var(--text-secondary)',
+                        fontWeight: isActive ? 600 : 400,
+                      }}
+                    >
+                      {phase}
+                    </div>
+                    {i < PIPELINE_PHASES.length - 1 && (
+                      <span className="font-mono text-[10px]" style={{ color: 'var(--text-secondary)' }}>→</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
           <button
             onClick={() => setShowSource(s => !s)}
             className="font-mono text-[11px] mt-2"
@@ -142,6 +188,7 @@ export default function Lab6CustomGates() {
 
       {runResult && runResult.gate_result && (
         <div className="space-y-3">
+          {/* Gate result */}
           <div className="flex items-center gap-2">
             <StatusBadge status={runResult.gate_result.passed ? 'PASS' : 'FAIL'} />
             <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -168,12 +215,42 @@ export default function Lab6CustomGates() {
               ))}
             </div>
           )}
+
+          {/* gates_evaluated from full artifact */}
+          {gatesEvaluated.length > 0 && (
+            <div className="rounded p-2" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
+              <div className="font-mono text-[11px] mb-2" style={{ color: 'var(--text-secondary)' }}>// gates_evaluated (artifact metadata)</div>
+              <div className="flex flex-col gap-1">
+                {gatesEvaluated.map((gid, i) => {
+                  const isCustom = gid === `custom:${gateName}`
+                  return (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{i + 1}.</span>
+                      <span
+                        className="font-mono text-[11px] px-2 py-0.5 rounded"
+                        style={{
+                          background: isCustom ? 'rgba(15,98,254,0.15)' : 'transparent',
+                          color: isCustom ? 'var(--ibm-cyan-30)' : 'var(--text-secondary)',
+                          border: isCustom ? '1px solid rgba(15,98,254,0.3)' : 'none',
+                        }}
+                      >
+                        {gid}
+                      </span>
+                      {isCustom && (
+                        <span className="font-mono text-[10px]" style={{ color: 'var(--ibm-cyan-30)' }}>← selected gate</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {!runResult && !loadingRun && (
         <div className="font-mono text-xs px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
-          // select a gate and scenario, then run to see evaluation
+          // select a scenario and run to see gate evaluation
         </div>
       )}
     </div>

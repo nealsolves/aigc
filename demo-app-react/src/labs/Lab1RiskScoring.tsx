@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import MetricCard from '@/components/shared/MetricCard'
 import RiskGauge from '@/components/shared/RiskGauge'
 import SignalBar from '@/components/shared/SignalBar'
@@ -8,8 +8,8 @@ import { IBM_COLORS } from '@/theme/tokens'
 import type { Artifact } from '@/types/artifact'
 
 const SCENARIOS = [
-  { key: 'low_risk_faq',              label: 'Low Risk: Simple FAQ',        mode_hint: 'warn_only'   },
-  { key: 'medium_risk_medical',       label: 'Medium Risk: Medical Advice', mode_hint: 'risk_scored' },
+  { key: 'low_risk_faq',               label: 'Low Risk: Simple FAQ',        mode_hint: 'warn_only'   },
+  { key: 'medium_risk_medical',        label: 'Medium Risk: Medical Advice', mode_hint: 'risk_scored' },
   { key: 'high_risk_drug_interaction', label: 'High Risk: Drug Interaction', mode_hint: 'strict'     },
 ]
 const MODES = ['strict', 'risk_scored', 'warn_only']
@@ -22,13 +22,36 @@ const SIGNAL_COLORS: Record<string, string> = {
   no_preconditions: IBM_COLORS.teal30,
 }
 
+interface ScenarioDetail {
+  prompt: string
+  context: Record<string, unknown>
+  policy: string
+  model_provider: string
+  model_id: string
+  role: string
+}
+
 interface EnforceResponse { artifact: Artifact; error: string | null }
 
 export default function Lab1RiskScoring() {
-  const [scenarioIdx, setScenarioIdx] = useState(1)
-  const [mode, setMode] = useState('risk_scored')
-  const [artifact, setArtifact] = useState<Artifact | null>(null)
-  const { call, loading, error: apiError } = useApi<EnforceResponse>()
+  const [scenarioIdx,     setScenarioIdx]     = useState(1)
+  const [mode,            setMode]            = useState('risk_scored')
+  const [artifact,        setArtifact]        = useState<Artifact | null>(null)
+  const [scenarioDetail,  setScenarioDetail]  = useState<ScenarioDetail | null>(null)
+
+  const { call,             loading, error: apiError } = useApi<EnforceResponse>()
+  const { call: callDetail                            } = useApi<ScenarioDetail>()
+
+  // Load scenario detail whenever the selected scenario changes
+  useEffect(() => {
+    let cancelled = false
+    const key = SCENARIOS[scenarioIdx].key
+    callDetail(`/api/scenarios/${key}`).then(res => {
+      if (!cancelled && res) setScenarioDetail(res)
+    })
+    setArtifact(null)
+    return () => { cancelled = true }
+  }, [scenarioIdx]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const run = async () => {
     const res = await call('/api/enforce', {
@@ -54,7 +77,7 @@ export default function Lab1RiskScoring() {
             {SCENARIOS.map((s, i) => (
               <button
                 key={s.key}
-                onClick={() => { setScenarioIdx(i); setArtifact(null) }}
+                onClick={() => setScenarioIdx(i)}
                 className="text-left font-mono text-[13px] px-3 py-2 rounded transition-colors"
                 style={
                   scenarioIdx === i
@@ -66,6 +89,37 @@ export default function Lab1RiskScoring() {
               </button>
             ))}
           </div>
+
+          {/* Scenario context panel */}
+          {scenarioDetail && (
+            <div className="mt-3 rounded p-3 space-y-1" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
+              <div className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>// scenario context</div>
+              <div className="font-mono text-[11px]">
+                <span style={{ color: 'var(--text-secondary)' }}>prompt: </span>
+                <span style={{ color: 'var(--text-primary)' }}>&ldquo;{scenarioDetail.prompt}&rdquo;</span>
+              </div>
+              <div className="font-mono text-[11px]">
+                <span style={{ color: 'var(--text-secondary)' }}>policy: </span>
+                <span style={{ color: 'var(--ibm-cyan-30)' }}>{scenarioDetail.policy}</span>
+              </div>
+              <div className="font-mono text-[11px]">
+                <span style={{ color: 'var(--text-secondary)' }}>model: </span>
+                <span style={{ color: 'var(--ibm-blue-40)' }}>{scenarioDetail.model_provider}/{scenarioDetail.model_id}</span>
+              </div>
+              <div className="font-mono text-[11px]">
+                <span style={{ color: 'var(--text-secondary)' }}>role: </span>
+                <span style={{ color: 'var(--ibm-purple-40)' }}>{scenarioDetail.role}</span>
+              </div>
+              {Object.entries(scenarioDetail.context).map(([k, v]) => (
+                <div key={k} className="font-mono text-[11px]">
+                  <span style={{ color: 'var(--text-secondary)' }}>{k}: </span>
+                  <span style={{ color: String(v) === 'true' ? 'var(--ibm-teal-30)' : String(v) === 'false' ? 'var(--ibm-magenta-40)' : 'var(--text-primary)' }}>
+                    {String(v)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>

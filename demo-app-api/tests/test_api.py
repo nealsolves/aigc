@@ -291,3 +291,51 @@ def test_gate_run_pii_detected():
     })
     data = r.json()
     assert data["gate_result"]["passed"] is False
+
+
+# --- New endpoint tests for v0.3.1 fidelity pass ---
+
+def test_load_inmemory_valid_yaml():
+    yaml_text = "policy_version: \"1.0\"\nroles: [doctor]\n"
+    r = client.post("/api/policy/load-inmemory", json={"yaml_text": yaml_text})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["error"] is None
+    assert data["policy"]["roles"] == ["doctor"]
+    assert data["loader_class"] == "InMemoryPolicyLoader"
+    assert data["yaml_text"] == yaml_text
+
+
+def test_load_inmemory_invalid_yaml():
+    r = client.post("/api/policy/load-inmemory", json={"yaml_text": ":\ninvalid: [unclosed"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["policy"] is None
+    assert data["error"] is not None
+    assert data["loader_class"] == "InMemoryPolicyLoader"
+
+
+def test_load_inmemory_non_mapping_yaml():
+    r = client.post("/api/policy/load-inmemory", json={"yaml_text": "- just\n- a\n- list\n"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["policy"] is None
+    assert data["error"] is not None
+
+
+def test_get_scenario_known_key():
+    r = client.get("/api/scenarios/low_risk_faq")
+    assert r.status_code == 200
+    data = r.json()
+    assert "prompt" in data
+    assert "policy" in data
+    assert "model_provider" in data
+    assert "model_id" in data
+    assert "role" in data
+    assert "context" in data
+    assert data["policy"] == "medical_ai_low_risk.yaml"
+
+
+def test_get_scenario_unknown_key():
+    r = client.get("/api/scenarios/does_not_exist")
+    assert r.status_code == 422

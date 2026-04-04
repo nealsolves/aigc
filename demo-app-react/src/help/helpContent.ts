@@ -17,7 +17,7 @@ export const helpContent: Record<number, LabHelp> = {
     overview:
       'The AIGC SDK sits between your app and any AI model call. Every time your code invokes a model, ' +
       'the SDK checks the invocation against a policy — before the output reaches your app — and produces ' +
-      'a signed audit record regardless of outcome.',
+      'an audit artifact regardless of outcome. Signing and chaining are opt-in utilities; they are not default behavior.',
     steps: [
       {
         title: 'Component View — what connects to what',
@@ -32,8 +32,8 @@ export const helpContent: Record<number, LabHelp> = {
         title: 'Enforcement Pipeline — the gate sequence',
         instruction:
           'Every invocation passes through a fixed sequence of gates, left to right: ' +
-          'custom pre-auth gates → guard evaluation → role check → precondition check → tool constraints → ' +
-          'custom post-auth gates → output schema validation → postcondition check → custom post-output gates → risk scoring → audit artifact. ' +
+          'pre_authorization gates → guard evaluation → role check → precondition check → tool constraints → ' +
+          'post_authorization gates → pre_output gates → schema validation → postcondition check → post_output gates → risk scoring → audit artifact. ' +
           'The gates are fail-closed — any failure stops the pipeline and produces a FAIL artifact.',
       },
       {
@@ -71,7 +71,8 @@ export const helpContent: Record<number, LabHelp> = {
         title: 'Choose a preset scenario',
         instruction:
           'Select Low Risk, Medium Risk, or High Risk: Drug Interaction from the scenario panel. ' +
-          'Each preset loads a different prompt and policy configuration.',
+          'The context panel below shows the prompt, policy, model, and role that will be used — ' +
+          'inspect these before running enforcement to understand why the score changes.',
         tip: 'Start with Low Risk to see a clean baseline score of 0.00, then escalate.',
       },
       {
@@ -111,16 +112,16 @@ export const helpContent: Record<number, LabHelp> = {
       'Use the tamper toggle to see how even a single changed byte invalidates the signature.',
     steps: [
       {
-        title: 'Sign an artifact',
+        title: 'Generate a key and sign an artifact',
         instruction:
-          'Click Sign Artifact. The SDK computes an HMAC-SHA256 digest of the payload ' +
-          'using a secret key and attaches the hex signature.',
+          'Click Generate to create a random 32-byte hex key, then click Sign Artifact. ' +
+          'The SDK computes an HMAC-SHA256 digest of the artifact payload using the key and attaches the hex signature.',
       },
       {
-        title: 'Inspect the signed payload',
+        title: 'Inspect the signed artifact',
         instruction:
-          'The CodeBlock shows the artifact JSON with a signature field appended. ' +
-          'Copy it — this is the evidence bundle you would store for compliance.',
+          'The signed_artifact.json CodeBlock shows the full artifact JSON with the signature field included. ' +
+          'This is the evidence bundle you would store or transmit for compliance — the signature covers the entire payload.',
       },
       {
         title: 'Verify the signature',
@@ -151,17 +152,17 @@ export const helpContent: Record<number, LabHelp> = {
       'Altering any past record would break every subsequent link.',
     steps: [
       {
-        title: 'Link your first artifact',
+        title: 'Add your first artifact',
         instruction:
-          'Click Link Artifact to add the first record to the chain. It has no previous checksum — ' +
-          'this is the genesis block.',
+          'Click + Entry 1, + Entry 2, or + Entry 3 to add the first record to the chain. ' +
+          'It has no previous checksum — this is the genesis entry, marked with a genesis badge.',
       },
       {
         title: 'Grow the chain',
         instruction:
-          'Click Link Artifact again. Each new artifact shows its own checksum and the ' +
-          "previous artifact's checksum in the prev_checksum field.",
-        tip: 'Verify by eye: the prev_checksum on block N+1 matches the checksum on block N.',
+          'Click any entry button again. Each new artifact shows its own checksum and the ' +
+          "previous artifact's checksum in the previous_audit_checksum field (shown as `prev:` in the chain view).",
+        tip: 'Verify by eye: the prev: on block N+1 matches the checksum on block N.',
       },
       {
         title: 'Inspect the chain visualization',
@@ -214,56 +215,66 @@ export const helpContent: Record<number, LabHelp> = {
       {
         title: 'Merge and inspect the result',
         instruction:
-          'Click Merge. The merged policy appears below. Each field shows whether it came ' +
-          'from the base, the child, or was merged from both.',
+          'Click Merge. The merged policy YAML appears below. The roles diff shows which roles ' +
+          'were kept, removed, or added by the merge. The escalation panel flags any new tools ' +
+          'or removed postconditions that represent a privilege escalation from base to merged policy.',
+        tip: 'intersect with medical_ai_child.yaml restricts roles — no escalation. Try union to see additive behavior.',
       },
     ],
     glossary: [
       { term: 'extends', definition: 'A policy field that names the base policy to inherit from.' },
-      { term: 'merge strategy', definition: 'Combines fields from base and child, concatenating lists and shallow-merging maps.' },
-      { term: 'override strategy', definition: 'Child fields take precedence over base fields on any conflict.' },
-      { term: 'strict strategy', definition: 'Raises an error if the child attempts to override any field already set in the base.' },
+      { term: 'intersect', definition: 'Keeps only fields present in both base and child. Most restrictive — useful for compliance-critical policies.' },
+      { term: 'union', definition: 'Combines all fields from base and child; child wins on conflict. Most permissive.' },
+      { term: 'replace', definition: 'Child policy replaces the base entirely. Base fields not present in child are dropped.' },
     ],
   },
 
   5: {
     title: 'Loaders & Versioning Guide',
     overview:
-      'Explore how the aigc SDK discovers and loads policy files. Different loader strategies ' +
-      'control whether policies are read from disk, environment variables, or a registry. ' +
-      'The version timeline lets you trace how a policy evolved over time.',
+      'Explore how the aigc SDK discovers and loads policy files through pluggable loader classes. ' +
+      'Switch between FileSystem and InMemory loader modes, validate policy date ranges, ' +
+      'and run automated policy test cases — all three capabilities make up the v0.3.0 loader story.',
     steps: [
       {
-        title: 'Select a loader type',
+        title: 'Select a loader mode',
         instruction:
-          'Choose from the available loader types: FileLoader (reads from disk path), ' +
-          'EnvLoader (reads from environment variable), or RegistryLoader (fetches from a registry URL).',
+          'Choose FileSystem or InMemory at the top of the Loaders tab. ' +
+          'FileSystem uses FilePolicyLoader to read a policy file from disk via the API backend. ' +
+          'InMemory uses InMemoryPolicyLoader — a custom PolicyLoaderBase subclass — to parse raw YAML directly, ' +
+          'with no file path required. The SDK calls loader.load() transparently in both cases.',
+        tip: 'AIGC(policy_loader=InMemoryPolicyLoader(yaml_text)) is a one-line swap — the enforcement pipeline is identical.',
       },
       {
-        title: 'Browse the version timeline',
+        title: 'Load or parse a policy',
         instruction:
-          'The version timeline shows when each policy version was published. ' +
-          'Select a version to preview its content.',
-        tip: 'Earlier versions may be missing fields added in later schema revisions — the SDK falls back gracefully.',
+          'In FileSystem mode, select a policy from the dropdown and click Load. ' +
+          'In InMemory mode, paste or edit YAML in the textarea and click Parse. ' +
+          'The parsed policy is displayed and the active loader class is shown above the result.',
       },
       {
-        title: 'Load the policy',
+        title: 'Validate policy dates',
         instruction:
-          'Click Load to fetch and parse the selected version. The SDK validates it against ' +
-          'the policy DSL JSON Schema and reports any validation errors.',
+          'Switch to the Versioning tab. Set effective_date, expiration_date, and reference_date, ' +
+          'then click Validate Dates. The timeline panel shows the policy validity window with a cursor ' +
+          'at the reference date. A policy outside its date range is rejected by the SDK at load time.',
+        tip: 'Set reference_date to a date before effective_date to see the policy go inactive.',
       },
       {
-        title: 'Compare versions',
+        title: 'Run policy tests',
         instruction:
-          'Load two different versions in sequence and observe which fields changed. ' +
-          'Version diffs help auditors trace policy evolution.',
+          'Switch to the Testing tab. Select a policy and click Run Tests. ' +
+          'The SDK generates three test cases — valid role, unauthorized role, missing precondition — ' +
+          'and reports pass or fail for each against the selected policy.',
       },
     ],
     glossary: [
-      { term: 'FileLoader', definition: 'Reads a YAML policy from a file path on disk. Used in local development and CI.' },
-      { term: 'EnvLoader', definition: 'Reads a YAML policy from an environment variable. Used in containerised deployments.' },
-      { term: 'RegistryLoader', definition: 'Fetches a policy from a remote registry URL. Used for centralised policy management.' },
-      { term: 'Schema validation', definition: 'After loading, the policy is validated against policy_dsl.schema.json. Invalid policies are rejected.' },
+      { term: 'PolicyLoaderBase', definition: 'Abstract base class for custom policy loaders. Implement load(policy_ref) to load from any source.' },
+      { term: 'FilePolicyLoader', definition: 'Default loader. Reads a YAML policy from a file path on disk.' },
+      { term: 'InMemoryPolicyLoader', definition: 'Demo custom loader. Holds a policy dict parsed from a raw YAML string; no filesystem access.' },
+      { term: 'effective_date', definition: 'The date from which a policy becomes active. Invocations before this date are rejected.' },
+      { term: 'expiration_date', definition: 'The date after which a policy becomes inactive. Invocations after this date are rejected.' },
+      { term: 'Policy test case', definition: 'A deterministic invocation with a declared expected outcome (pass or fail) used to validate policy behavior.' },
     ],
   },
 
@@ -272,79 +283,87 @@ export const helpContent: Record<number, LabHelp> = {
     overview:
       'Add custom enforcement logic at four insertion points in the governance pipeline: ' +
       'pre_authorization, post_authorization, pre_output, and post_output. ' +
-      'Gates can block, warn, or annotate an invocation without modifying the core SDK.',
+      'Gates can block or annotate an invocation without modifying the core SDK.',
     steps: [
       {
-        title: 'Choose a gate scenario',
+        title: 'Select a gate',
         instruction:
-          'Select one of the pre-built gate scenarios. Each scenario loads a different ' +
-          'set of custom gates targeting different pipeline phases.',
-      },
-      {
-        title: 'Review the gate configuration',
-        instruction:
-          'The code panel shows the gate implementation. Each gate receives the invocation ' +
-          'and context, and returns a GateResult with status and optional message.',
+          'Click a gate name to load its description and insertion point. ' +
+          'Gate info loads automatically — you can inspect the gate before running anything. ' +
+          'The pipeline visualization highlights where in the enforcement sequence this gate runs.',
         tip: 'Gates run in insertion-point order: pre_authorization → post_authorization → pre_output → post_output.',
       },
       {
-        title: 'Run Gates',
+        title: 'Review gate info and pipeline position',
         instruction:
-          'Click Run Gates to execute the full pipeline with the loaded gate configuration. ' +
-          "Each gate's result is shown with its phase, status, and any message.",
+          'The gate info panel shows the gate description and its insertion_point. ' +
+          'The pipeline strip highlights the active phase in the enforcement sequence. ' +
+          'Click "show source" to inspect the gate implementation.',
       },
       {
-        title: 'Inspect the gate results',
+        title: 'Select a scenario and run',
         instruction:
-          'Each result card shows the gate name, phase, and outcome (pass/block/warn). ' +
-          'A block result from any gate halts the pipeline at that point.',
+          'Choose a scenario (High Confidence, Low Confidence, PII Present, or Clean Output) ' +
+          'and click Run Gate. The SDK runs full enforcement with the selected gate active at its insertion point.',
+      },
+      {
+        title: 'Inspect gate result and artifact evidence',
+        instruction:
+          'The gate result shows pass or fail, any failure messages, and gate metadata. ' +
+          'Below it, gates_evaluated lists the ordered gate IDs recorded in the audit artifact — ' +
+          'the selected custom gate appears highlighted at its position in the sequence.',
       },
     ],
     glossary: [
-      { term: 'EnforcementGate', definition: 'A plugin that inserts custom logic at a specific pipeline phase. Implements the GatePlugin interface.' },
-      { term: 'Gate phase', definition: 'One of four pipeline insertion points: pre_authorization, post_authorization, pre_output, post_output.' },
-      { term: 'GateResult', definition: 'The object returned by a gate. Contains status (pass/block/warn) and an optional message.' },
+      { term: 'EnforcementGate', definition: 'A plugin class that inserts custom logic at a specific pipeline phase. Extend EnforcementGate and set insertion_point.' },
+      { term: 'insertion_point', definition: 'One of four pipeline phases: pre_authorization, post_authorization, pre_output, post_output.' },
+      { term: 'GateResult', definition: 'Returned by a gate\'s evaluate() method. Contains passed (bool), failures list, and metadata dict.' },
+      { term: 'gates_evaluated', definition: 'Ordered list of gate identifiers recorded in the audit artifact metadata. Shows which gates ran during enforcement.' },
     ],
   },
 
   7: {
     title: 'Compliance Dashboard Guide',
     overview:
-      'Browse a live audit log with filtering and export capabilities. Every aigc invocation ' +
-      'produces an audit artifact — this dashboard lets you review, filter, and export ' +
-      'compliance evidence for auditors and regulators.',
+      'Review, filter, and export audit artifacts produced during your session. ' +
+      'The dashboard is backed by live session data — every enforcement run in any lab ' +
+      'adds a record here. Use sample data to explore the dashboard before running labs.',
     steps: [
       {
-        title: 'Filter the audit records',
+        title: 'Build your audit log',
         instruction:
-          'Use the ALL, PASS, and FAIL filter buttons to narrow the visible records. ' +
-          'PASS records are governance-clean invocations; FAIL records indicate a violation.',
+          'Run enforcement in any lab (Labs 1–6) to add records to the session audit trail. ' +
+          'Records appear here automatically. If no records exist yet, click Load Sample Data ' +
+          'to see an example dataset — sample mode is shown with a banner and can be cleared.',
       },
       {
-        title: 'Review individual records',
+        title: 'Filter records',
         instruction:
-          'Each row shows: artifact ID, timestamp, policy file, role, model provider, ' +
-          'enforcement result, risk score, and signing status. ' +
-          'Risk scores above 0.70 are highlighted in magenta.',
+          'Use ALL, PASS, and FAIL to filter by enforcement result. ' +
+          'If multiple policies appear, use the policy dropdown to narrow to a single policy file. ' +
+          'Both filters apply together; exports respect the current filter state.',
+      },
+      {
+        title: 'Inspect a record',
+        instruction:
+          'Click any row to expand it. Session records show full artifact detail: ' +
+          'checksum, previous_audit_checksum, risk mode and threshold, gates_evaluated, and signature presence. ' +
+          'Sample records show summary fields only.',
+        tip: 'Risk scores above 0.70 are highlighted in magenta.',
       },
       {
         title: 'Export for compliance',
         instruction:
-          'Click JSON to download all visible records as a structured JSON file, ' +
-          'or CSV for spreadsheet-compatible format. The export respects the active filter.',
-        tip: 'Export FAIL records only to produce a targeted incident report.',
-      },
-      {
-        title: 'Verify signing status',
-        instruction:
-          'The Signed column shows ✓ for artifacts that carry a valid HMAC signature. ' +
-          'Unsigned artifacts (—) were produced without the signing gate enabled.',
+          'Click JSON or CSV to download the visible records. ' +
+          'The equivalent CLI command is: aigc compliance export --input audit.jsonl. ' +
+          'Add --output report.json --include-artifacts to include full artifact records in the report.',
       },
     ],
     glossary: [
-      { term: 'Audit artifact', definition: 'The immutable record produced by each enforce_invocation() call. Contains input/output checksums, risk score, policy metadata, and optional signature.' },
-      { term: 'Enforcement result', definition: 'The final governance decision: Pass (allowed), Fail (blocked), or Warn (allowed with warning).' },
-      { term: 'Compliance evidence', definition: 'The audit log exported for external auditors. Contains the full chain of governance decisions.' },
+      { term: 'Audit artifact', definition: 'The immutable record produced by each enforce_invocation() call. Contains checksums, risk score, policy metadata, and optional signature.' },
+      { term: 'Enforcement result', definition: 'The final governance decision: PASS (allowed) or FAIL (blocked).' },
+      { term: 'Signed (✓)', definition: 'Indicates signing was enabled for this invocation. Verification requires the original signing key.' },
+      { term: 'Sample mode', definition: 'An explicit mode activated by clicking Load Sample Data. Shows fixture records with a banner; does not replace live session data.' },
     ],
   },
 }

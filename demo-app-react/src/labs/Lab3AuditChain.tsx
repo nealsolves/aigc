@@ -136,6 +136,9 @@ export default function Lab3AuditChain() {
               <div className="rounded p-3" style={{ border: `1px solid ${tampered ? 'rgba(255,126,182,0.4)' : 'var(--border-ui)'}`, background: 'var(--bg-surface)' }}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="font-mono text-xs" style={{ color: 'var(--ibm-cyan-30)' }}>#{i}</span>
+                  {i === 0 && (
+                    <span className="font-mono text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(15,98,254,0.12)', color: 'var(--ibm-blue-40)', border: '1px solid rgba(15,98,254,0.25)' }}>genesis</span>
+                  )}
                   <StatusBadge status={entry.enforcement_result} />
                   {!tampered && (
                     <button

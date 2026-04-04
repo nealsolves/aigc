@@ -38,9 +38,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SAMPLE_POLICIES_DIR = (
-    Path(__file__).resolve().parent.parent / "demo-app-streamlit" / "sample_policies"
-)
+SAMPLE_POLICIES_DIR = Path(__file__).resolve().parent / "sample_policies"
 
 MEDICAL_FACTORS = [
     {"name": "no_output_schema", "weight": 0.15, "condition": "no_output_schema"},

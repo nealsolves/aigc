@@ -11,6 +11,7 @@ ignores:
   - "demo-app/**"
   - "demo-app-streamlit/**"
   - "demo-app-react/**"
+  - "docs/articles/**"
   - "docs/research/**"
   - "docs/audits/**"
   - "docs/superpowers/**"

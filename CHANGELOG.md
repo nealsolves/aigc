@@ -7,6 +7,41 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.3.1] - 2026-04-04
+
+### Added
+
+- **React demo full parity** — All 7 labs connected to live FastAPI backend;
+  no user API keys required. Replaces Streamlit reference implementation as
+  the primary demo surface.
+- **FastAPI backend on Render** — Permanent API backend deployed; demo-app-api
+  serves all lab endpoints
+- **ADR template** — Architecture Decision Record template added to help drawer
+
+### Fixed
+
+- Lab 7 blank screen crash when API returns numeric (int/float) timestamps
+- Lab 1 strict mode risk score display regression
+- Lab 6 stale gate-info responses retained after gate selection change
+- Lab 5 out-of-order loader results guard added
+- Lab 5 UTC date parsing and timeline day-component calculation corrected
+- Lab 4 composition UI readiness now gated on successful policy preload
+- Lab 4/5/6 stale scenario responses guarded against race conditions
+- Canonical JSON normalization for integer-valued floats (JS/Python parity)
+- Sample policies path relocated into demo-app-api; `SAMPLE_POLICIES_DIR`
+  resolution fixed for Render deployment
+- Render deployment: `PYTHONPATH` and editable install path corrected
+
+### Changed
+
+- Help drawer content updated to reflect v0.3.0 feature set across all labs
+- CI: pytest `testpaths` scoped to `tests/` to exclude demo-app-api fixtures
+- CI: `workflow_dispatch` trigger added to React deploy workflow
+- Markdownlint gate: `docs/articles/**` excluded (article prose is
+  intentionally non-gating)
+
+---
+
 ## [0.3.0] - 2026-03-15
 
 ### Added
@@ -199,6 +234,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+[0.3.1]: https://github.com/nealsolves/aigc/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/nealsolves/aigc/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nealsolves/aigc/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/nealsolves/aigc/compare/v0.1.2...v0.1.3

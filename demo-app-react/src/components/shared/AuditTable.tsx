@@ -86,7 +86,7 @@ export default function AuditTable({ records }: Props) {
                       {isExpanded ? '▼' : '▶'}
                     </td>
                     <td className="px-3 py-2" style={{ color: 'var(--ibm-cyan-30)' }}>{r.id}</td>
-                    <td className="px-3 py-2" style={{ color: 'var(--text-secondary)' }}>{r.timestamp.replace('T', ' ').replace('Z', '')}</td>
+                    <td className="px-3 py-2" style={{ color: 'var(--text-secondary)' }}>{String(r.timestamp).replace('T', ' ').replace('Z', '')}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-primary)' }}>{r.policy_file}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-secondary)' }}>{r.role}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-secondary)' }}>{r.model_provider}</td>

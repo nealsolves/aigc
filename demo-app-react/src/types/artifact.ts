@@ -12,7 +12,7 @@ export interface Artifact {
   policy_version?: string
   policy_file?: string
   audit_schema_version?: string
-  timestamp?: string
+  timestamp?: string | number
   checksum?: string
   signature?: string
   chain_id?: string

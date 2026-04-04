@@ -1,0 +1,12 @@
+extends: "medical_ai.yaml"
+policy_version: "2.0-restricted"
+description: "Restricted medical AI — nurses only, reduced tool access"
+composition_strategy: "intersect"
+
+roles:
+  - nurse
+
+tools:
+  allowed_tools:
+    - name: "search_medical_db"
+      max_calls: 3

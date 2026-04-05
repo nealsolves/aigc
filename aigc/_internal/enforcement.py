@@ -1518,16 +1518,47 @@ def enforce_post_call(
             )
         raise exc
 
+    # 1d. Pre-deserialize evidence for authenticated identity in error paths.
+    # HMAC verified above; _frozen_evidence_bytes is now authenticated.
+    # Use _verified_snap for all FAIL artifact safe_inv construction below so
+    # that mutations to _frozen_invocation_snapshot do not forge artifact
+    # identity (audit Finding 4, 2026-04-05).
+    # If the bytes are not valid JSON the token is corrupted; raise immediately.
+    try:
+        _pre_verified_evidence = json.loads(
+            pre_call_result._frozen_evidence_bytes
+        )
+        _verified_snap = dict(_pre_verified_evidence["invocation_snapshot"])
+        _verified_snap.setdefault("output", {})
+    except (TypeError, ValueError, KeyError) as _ev_exc:
+        exc = InvocationValidationError(
+            "PreCallResult contains invalid internal token state; "
+            "token may be corrupted or forged",
+            details={"field": "_frozen_evidence_bytes"},
+        )
+        safe_inv = {
+            "policy_file": "unknown", "model_provider": "unknown",
+            "model_identifier": "unknown", "role": "unknown",
+            "input": {}, "output": {}, "context": {},
+        }
+        artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
+        artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+        exc.audit_artifact = artifact
+        try:
+            emit_to_sink(artifact)
+        except AuditSinkError as sink_exc:
+            logger.error(
+                "Sink emission failed on pre-pipeline FAIL path: %s", sink_exc,
+            )
+        raise exc from _ev_exc
+
     # 2. Output type validation
     if not isinstance(output, dict):
         exc = InvocationValidationError(
             "enforce_post_call() output must be a dict",
             details={"field": "output"},
         )
-        # Use frozen snapshot — not the mutable public field — so callers
-        # cannot forge FAIL artifact identity (Round 2 audit Finding 2).
-        safe_inv = dict(pre_call_result._frozen_invocation_snapshot)
-        safe_inv["output"] = {}
+        safe_inv = dict(_verified_snap)
         artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
         artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
         exc.audit_artifact = artifact
@@ -1552,8 +1583,7 @@ def enforce_post_call(
             f"{json_exc}",
             details={"field": "output"},
         )
-        safe_inv = dict(pre_call_result._frozen_invocation_snapshot)
-        safe_inv["output"] = {}
+        safe_inv = dict(_verified_snap)
         artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
         artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
         exc.audit_artifact = artifact
@@ -1573,8 +1603,7 @@ def enforce_post_call(
             "create a new one via enforce_pre_call()",
             details={"field": "pre_call_result"},
         )
-        safe_inv = dict(pre_call_result._frozen_invocation_snapshot)
-        safe_inv["output"] = {}
+        safe_inv = dict(_verified_snap)
         artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
         artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
         exc.audit_artifact = artifact
@@ -1586,12 +1615,9 @@ def enforce_post_call(
             )
         raise exc
 
-    # 4. Validate and deserialize Phase A evidence BEFORE marking consumed.
-    # Catching TypeError/ValueError here (audit Finding #2, 2026-04-05)
-    # ensures that None or invalid bytes produce a typed FAIL artifact
-    # rather than an unhandled raw exception.
+    # 4. Use pre-deserialized evidence from step 1d; parse policy bytes only.
+    evidence = _pre_verified_evidence
     try:
-        evidence = json.loads(pre_call_result._frozen_evidence_bytes)
         original_policy = json.loads(pre_call_result._frozen_policy_bytes)
     except (TypeError, ValueError) as dec_exc:
         exc = InvocationValidationError(
@@ -2582,14 +2608,60 @@ class AIGC:
                 )
             raise exc
 
+        # 1d. Pre-deserialize evidence for authenticated identity in error paths.
+        # HMAC verified above; _frozen_evidence_bytes is now authenticated.
+        # Use _verified_snap for all FAIL artifact safe_inv construction below
+        # so that mutations to _frozen_invocation_snapshot do not forge
+        # artifact identity (audit Finding 4, 2026-04-05).
+        # If the bytes are not valid JSON the token is corrupted; raise
+        # immediately.
+        try:
+            _pre_verified_evidence = json.loads(
+                pre_call_result._frozen_evidence_bytes
+            )
+            _verified_snap = dict(
+                _pre_verified_evidence["invocation_snapshot"]
+            )
+            _verified_snap.setdefault("output", {})
+        except (TypeError, ValueError, KeyError) as _ev_exc:
+            exc = InvocationValidationError(
+                "PreCallResult contains invalid internal token state; "
+                "token may be corrupted or forged",
+                details={"field": "_frozen_evidence_bytes"},
+            )
+            safe_inv = {
+                "policy_file": "unknown",
+                "model_provider": "unknown",
+                "model_identifier": "unknown",
+                "role": "unknown",
+                "input": {}, "output": {}, "context": {},
+            }
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+            exc.audit_artifact = artifact
+            try:
+                emit_to_sink(
+                    artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    sink_exc,
+                )
+            raise exc from _ev_exc
+
         # 2. Output type validation
         if not isinstance(output, dict):
             exc = InvocationValidationError(
                 "enforce_post_call() output must be a dict",
                 details={"field": "output"},
             )
-            safe_inv = dict(pre_call_result._frozen_invocation_snapshot)
-            safe_inv["output"] = {}
+            safe_inv = dict(_verified_snap)
             artifact = _generate_pre_pipeline_fail_artifact(
                 safe_inv, exc,
                 redaction_patterns=self._redaction_patterns,
@@ -2620,8 +2692,7 @@ class AIGC:
                 f"{json_exc}",
                 details={"field": "output"},
             )
-            safe_inv = dict(pre_call_result._frozen_invocation_snapshot)
-            safe_inv["output"] = {}
+            safe_inv = dict(_verified_snap)
             artifact = _generate_pre_pipeline_fail_artifact(
                 safe_inv, exc,
                 redaction_patterns=self._redaction_patterns,
@@ -2650,8 +2721,7 @@ class AIGC:
                 "create a new one via enforce_pre_call()",
                 details={"field": "pre_call_result"},
             )
-            safe_inv = dict(pre_call_result._frozen_invocation_snapshot)
-            safe_inv["output"] = {}
+            safe_inv = dict(_verified_snap)
             artifact = _generate_pre_pipeline_fail_artifact(
                 safe_inv, exc,
                 redaction_patterns=self._redaction_patterns,
@@ -2673,10 +2743,10 @@ class AIGC:
                 )
             raise exc
 
-        # 4. Validate and deserialize Phase A evidence BEFORE marking consumed
-        # (audit Finding #2, 2026-04-05).
+        # 4. Use pre-deserialized evidence from step 1d; parse policy bytes
+        # only (audit Finding #2, 2026-04-05).
+        evidence = _pre_verified_evidence
         try:
-            evidence = json.loads(pre_call_result._frozen_evidence_bytes)
             original_policy = json.loads(pre_call_result._frozen_policy_bytes)
         except (TypeError, ValueError) as dec_exc:
             exc = InvocationValidationError(

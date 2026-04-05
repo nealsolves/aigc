@@ -140,3 +140,76 @@ class TestFinding5NonMappingFAILArtifact:
         artifact = exc_info.value.audit_artifact
         assert artifact is not None
         assert artifact["enforcement_result"] == "FAIL"
+
+
+# ── Finding 4: FAIL artifact identity forgery on pre-pipeline error paths ─────
+
+
+class TestFinding4FAILArtifactIdentityForgery:
+    """Mutating _frozen_invocation_snapshot after Phase A must not forge the
+    identity fields (policy_file, role) in FAIL artifacts emitted when
+    enforce_post_call() rejects non-dict or non-serializable output.
+
+    Root cause: pre-fix code used dict(pre_call_result._frozen_invocation_snapshot)
+    which is a mutable dict; post-fix reads from authenticated _frozen_evidence_bytes.
+    """
+
+    def test_module_snapshot_mutation_does_not_forge_policy_file_in_fail_artifact(self):
+        """Tampered policy_file in snapshot must not appear in FAIL artifact."""
+        pre = enforce_pre_call(_pre_call_inv())
+        original_policy_file = pre.policy_file
+        # Mutate the snapshot
+        pre._frozen_invocation_snapshot["policy_file"] = "tampered.yaml"
+        with pytest.raises(InvocationValidationError) as exc_info:
+            enforce_post_call(pre, "not a dict")
+        artifact = exc_info.value.audit_artifact
+        assert artifact is not None
+        assert artifact["policy_file"] == original_policy_file, (
+            f"Expected {original_policy_file!r}, got {artifact['policy_file']!r}"
+        )
+
+    def test_module_snapshot_mutation_does_not_forge_role_in_fail_artifact(self):
+        """Tampered role in snapshot must not appear in FAIL artifact."""
+        pre = enforce_pre_call(_pre_call_inv())
+        original_role = pre.role
+        pre._frozen_invocation_snapshot["role"] = "tampered-role"
+        with pytest.raises(InvocationValidationError) as exc_info:
+            enforce_post_call(pre, "not a dict")
+        artifact = exc_info.value.audit_artifact
+        assert artifact is not None
+        assert artifact["role"] == original_role
+
+    def test_module_snapshot_mutation_does_not_forge_fail_artifact_on_non_serializable(self):
+        """Tampered snapshot must not forge artifact on non-serializable output."""
+        pre = enforce_pre_call(_pre_call_inv())
+        original_policy_file = pre.policy_file
+        pre._frozen_invocation_snapshot["policy_file"] = "tampered.yaml"
+        with pytest.raises(InvocationValidationError) as exc_info:
+            enforce_post_call(pre, {"bad": float("nan")})  # non-serializable
+        artifact = exc_info.value.audit_artifact
+        assert artifact is not None
+        assert artifact["policy_file"] == original_policy_file
+
+    def test_module_snapshot_mutation_does_not_forge_fail_artifact_on_reuse(self):
+        """Tampered snapshot must not forge artifact when token is reused."""
+        pre = enforce_pre_call(_pre_call_inv())
+        original_policy_file = pre.policy_file
+        enforce_post_call(pre, _valid_output())  # consume it
+        pre._frozen_invocation_snapshot["policy_file"] = "tampered.yaml"
+        with pytest.raises(InvocationValidationError) as exc_info:
+            enforce_post_call(pre, _valid_output())  # reuse -> error path
+        artifact = exc_info.value.audit_artifact
+        assert artifact is not None
+        assert artifact["policy_file"] == original_policy_file
+
+    def test_aigc_snapshot_mutation_does_not_forge_policy_file_in_fail_artifact(self):
+        """AIGC instance: tampered snapshot must not forge FAIL artifact."""
+        engine = AIGC()
+        pre = engine.enforce_pre_call(_pre_call_inv())
+        original_policy_file = pre.policy_file
+        pre._frozen_invocation_snapshot["policy_file"] = "tampered.yaml"
+        with pytest.raises(InvocationValidationError) as exc_info:
+            engine.enforce_post_call(pre, "not a dict")
+        artifact = exc_info.value.audit_artifact
+        assert artifact is not None
+        assert artifact["policy_file"] == original_policy_file

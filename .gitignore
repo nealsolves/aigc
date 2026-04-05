@@ -82,3 +82,6 @@ AIGC_0.3.0_Release_Readiness_Audit.md
 
 # Brainstorming session files
 .superpowers/
+
+# Git worktrees
+.worktrees/

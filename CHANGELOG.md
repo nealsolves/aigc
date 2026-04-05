@@ -7,7 +7,15 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [0.3.2] — Unreleased
+## [0.3.2] — 2026-04-05
+
+### Security (audit findings 2026-04-05)
+- Fix: Phase B policy enforcement now reads effective policy from HMAC-signed evidence; `_frozen_policy_bytes` replacement has no effect on enforcement (Finding 1)
+- Fix: Phase B gate fingerprint verified against signed evidence; `_phase_b_grouped_gates` replacement via `object.__setattr__` detected and rejected (Finding 2)
+- Fix: Process-local consumption registry prevents deepcopy/pickle clone replay; per-token nonce ensures unique HMAC per invocation (Finding 3)
+- Fix: FAIL artifact identity fields sourced from verified evidence bytes, not mutable `_frozen_invocation_snapshot` (Finding 4)
+- Fix: Non-mapping invocations now emit FAIL artifacts at all 8 entry points (Finding 5)
+- Docs: Updated README test count from 776 to 797 (Finding 6)
 
 ### Added
 
@@ -22,6 +30,22 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Audit schema version bumped from `1.2` to `1.3`.
 - Unified mode artifacts now include `metadata.enforcement_mode = "unified"`.
+- **`PreCallResult` token integrity hardened** (audit 2026-04-05): Phase B now
+  performs two-layer provenance validation — the existing `_origin` sentinel check
+  plus a new HMAC-SHA256 check over the frozen evidence bytes. Tokens where
+  `_origin` was stamped without holding the session signing key are rejected with
+  `InvocationValidationError`. The threat model remains misuse-detection; see
+  design spec §10.4 for scope.
+- **`enforce_post_call()` fail-closed on invalid token state** (audit 2026-04-05):
+  `_frozen_evidence_bytes` is now validated and deserialized before `_consumed` is
+  flipped. Invalid bytes (None or malformed JSON) produce a typed
+  `InvocationValidationError` with an attached FAIL artifact rather than a raw
+  `TypeError`.
+- **Failure-gate taxonomy clarification**: `failure_gate="wrapped_function_error"`
+  is now explicitly documented as the value emitted when the wrapped function raises
+  in `@governed(pre_call_enforcement=True)` mode. This value existed before v0.3.2;
+  split mode extends its use to the pre-call decorator path. No schema changes
+  required.
 
 ### Unchanged
 

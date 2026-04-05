@@ -46,6 +46,10 @@ function readGateList(value: unknown): string[] {
   return value.map(v => String(v))
 }
 
+function scenarioRequiresSplit(flowHint: 'unified' | 'split'): boolean {
+  return flowHint === 'split'
+}
+
 export default function Lab1RiskScoring() {
   const [scenarioIdx,     setScenarioIdx]     = useState(1)
   const [mode,            setMode]            = useState<RiskMode>('risk_scored')
@@ -85,6 +89,7 @@ export default function Lab1RiskScoring() {
   const postCallGates = readGateList(artifact?.metadata?.post_call_gates_evaluated)
   const phaseABlocked = enforcementMode === 'split_pre_call_only'
   const selectedScenario = SCENARIOS[scenarioIdx]
+  const flowLockedToSplit = scenarioRequiresSplit(selectedScenario.flowHint)
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -99,7 +104,11 @@ export default function Lab1RiskScoring() {
             {SCENARIOS.map((s, i) => (
               <button
                 key={s.key}
-                onClick={() => setScenarioIdx(i)}
+                onClick={() => {
+                  setScenarioIdx(i)
+                  setFlow(scenarioRequiresSplit(s.flowHint) ? 'split' : 'unified')
+                  setArtifact(null)
+                }}
                 className="text-left font-mono text-[13px] px-3 py-2 rounded transition-colors"
                 style={
                   scenarioIdx === i
@@ -170,26 +179,44 @@ export default function Lab1RiskScoring() {
           <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Enforcement Flow</div>
           <div className="flex flex-col gap-1 mb-3">
             {FLOWS.map(option => (
+              (() => {
+                const isDisabled = flowLockedToSplit && option.key === 'unified'
+                return (
               <button
                 key={option.key}
-                onClick={() => { setFlow(option.key); setArtifact(null) }}
+                onClick={() => {
+                  if (isDisabled) return
+                  setFlow(option.key)
+                  setArtifact(null)
+                }}
+                disabled={isDisabled}
+                aria-disabled={isDisabled}
                 className="text-left font-mono text-[13px] px-3 py-2 rounded transition-colors"
                 style={
-                  flow === option.key
-                    ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
-                    : { color: 'var(--text-secondary)', border: '1px solid var(--border-ui)', background: 'var(--bg-surface)' }
+                  isDisabled
+                    ? { color: 'var(--text-secondary)', border: '1px solid var(--border-ui)', background: 'var(--bg-surface)', opacity: 0.45, cursor: 'not-allowed' }
+                    : flow === option.key
+                      ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
+                      : { color: 'var(--text-secondary)', border: '1px solid var(--border-ui)', background: 'var(--bg-surface)' }
                 }
               >
                 <div>{option.label}</div>
-                <div className="text-[11px]" style={{ color: flow === option.key ? 'var(--ibm-cyan-30)' : 'var(--text-secondary)' }}>
+                <div className="text-[11px]" style={{ color: !isDisabled && flow === option.key ? 'var(--ibm-cyan-30)' : 'var(--text-secondary)' }}>
                   {option.hint}
                 </div>
+                {isDisabled && (
+                  <div className="text-[10px]" style={{ color: 'var(--ibm-magenta-40)' }}>
+                    disabled for split demo scenario
+                  </div>
+                )}
               </button>
+                )
+              })()
             ))}
           </div>
           {selectedScenario.flowHint === 'split' && (
             <div className="font-mono text-[11px] px-3 py-2 rounded mb-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
-              // this scenario is designed to show a Phase A split-mode block before the model call
+              // this scenario is locked to Split so the demo always shows a Phase A block before the model call
             </div>
           )}
           <button

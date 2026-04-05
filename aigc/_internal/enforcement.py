@@ -292,45 +292,62 @@ class PreCallResult:
         init=False, default=b"", repr=False, compare=False,
     )
 
-    def __reduce__(self) -> tuple:
-        """Explicit pickle protocol.
 
-        Forces pickle to use __getstate__/__setstate__ regardless of Python
-        version behaviour for frozen+slots dataclasses (Python 3.10/3.11 do
-        not always invoke __getstate__ automatically for such classes).
-        """
-        return (_reconstruct_precall_result, (self.__getstate__(),))
+# ── PreCallResult pickle support ──────────────────────────────────
+#
+# Python 3.10's @dataclass(frozen=True, slots=True) has a bug: dunder methods
+# defined inside the class body are not always preserved in the new slots class
+# created by _add_slots().  Assigning pickle methods to the class AFTER creation
+# ensures they are present on the final class object on all Python versions.
 
-    def __getstate__(self) -> dict:
-        """Pickle support: serialize all slots, converting MappingProxyType to dict."""
-        state = {
-            slot: getattr(self, slot)
-            for slot in self.__slots__
-            if hasattr(self, slot)
+
+def _precall_result_getstate(self: "PreCallResult") -> dict:
+    """Pickle support: serialize all slots, converting MappingProxyType to dict."""
+    state = {
+        slot: getattr(self, slot)
+        for slot in self.__slots__
+        if hasattr(self, slot)
+    }
+    # MappingProxyType is not picklable on Python < 3.12; convert to plain
+    # dict with list values so __setstate__ can rebuild the immutable proxy.
+    gates = state.get("_phase_b_grouped_gates")
+    if isinstance(gates, types.MappingProxyType):
+        state["_phase_b_grouped_gates"] = {
+            pt: list(gl) for pt, gl in gates.items()
         }
-        # MappingProxyType is not picklable; convert to plain dict with
-        # list values so __setstate__ can rebuild the immutable proxy.
-        gates = state.get("_phase_b_grouped_gates")
-        if isinstance(gates, types.MappingProxyType):
-            state["_phase_b_grouped_gates"] = {
-                pt: list(gl) for pt, gl in gates.items()
-            }
-        return state
+    return state
 
-    def __setstate__(self, state: dict) -> None:
-        """Pickle support: restore all slots, re-wrapping gates as MappingProxyType."""
-        for key, value in state.items():
-            object.__setattr__(self, key, value)
-        # Re-wrap gates in the immutable proxy that __getstate__ flattened.
-        gates = state.get("_phase_b_grouped_gates")
-        if isinstance(gates, dict):
-            object.__setattr__(
-                self,
-                "_phase_b_grouped_gates",
-                types.MappingProxyType(
-                    {pt: tuple(gl) for pt, gl in gates.items()}
-                ),
-            )
+
+def _precall_result_setstate(self: "PreCallResult", state: dict) -> None:
+    """Pickle support: restore all slots, re-wrapping gates as MappingProxyType."""
+    for key, value in state.items():
+        object.__setattr__(self, key, value)
+    # Re-wrap gates in the immutable proxy that __getstate__ flattened.
+    gates = state.get("_phase_b_grouped_gates")
+    if isinstance(gates, dict):
+        object.__setattr__(
+            self,
+            "_phase_b_grouped_gates",
+            types.MappingProxyType(
+                {pt: tuple(gl) for pt, gl in gates.items()}
+            ),
+        )
+
+
+def _precall_result_reduce(self: "PreCallResult") -> tuple:
+    """Explicit pickle/deepcopy protocol for PreCallResult.
+
+    Forces serialisation through _precall_result_getstate regardless of Python
+    version behaviour for frozen+slots dataclasses.
+    """
+    return (_reconstruct_precall_result, (_precall_result_getstate(self),))
+
+
+# Assign after class creation so the methods land on the final slots class
+# (Python 3.10 _add_slots does not always carry user-defined dunders over).
+PreCallResult.__getstate__ = _precall_result_getstate  # type: ignore[method-assign]
+PreCallResult.__setstate__ = _precall_result_setstate  # type: ignore[method-assign]
+PreCallResult.__reduce__ = _precall_result_reduce  # type: ignore[method-assign]
 
 
 # ── Invocation validation (three layers) ─────────────────────────

@@ -288,6 +288,71 @@ def _make_custom_gate_runner(
     return _run_custom_gates_at
 
 
+def _build_phase_a_mid_pipeline_fail_artifact(
+    invocation_without_output: Mapping[str, Any],
+    policy: dict[str, Any],
+    exc: AIGCError,
+    phase_a_gates: list[str],
+    redaction_patterns: list[tuple[str, re.Pattern[str]]] | None = None,
+) -> dict[str, Any]:
+    """Build and return the FAIL artifact for a mid-pipeline Phase A failure.
+
+    Does NOT emit to sink or attach the artifact to exc — the caller is
+    responsible for both.
+
+    :param invocation_without_output: Invocation dict (output will be {})
+    :param policy: Loaded policy dict
+    :param exc: The AIGCError that caused the failure
+    :param phase_a_gates: Gates evaluated before the failure
+    :param redaction_patterns: Optional patterns for failure message sanitization
+    :return: FAIL audit artifact dict
+    """
+    safe_inv = dict(invocation_without_output)
+    safe_inv["output"] = {}
+
+    failure_gate = _map_exception_to_failure_gate(exc)
+    raw_reason = str(exc)
+    failure_reason, reason_redacted = sanitize_failure_message(
+        raw_reason, redaction_patterns,
+    )
+    redacted_fields: list[str] = list(reason_redacted)
+    failures = None
+    if hasattr(exc, "details") and exc.details:
+        sanitized_msg, msg_redacted = sanitize_failure_message(
+            str(exc), redaction_patterns,
+        )
+        for r in msg_redacted:
+            if r not in redacted_fields:
+                redacted_fields.append(r)
+        failures = [
+            {
+                "code": exc.__class__.__name__,
+                "message": sanitized_msg,
+                "field": (
+                    exc.details.get("field")
+                    if isinstance(exc.details, dict)
+                    else None
+                ),
+            }
+        ]
+
+    fail_metadata: dict[str, Any] = {
+        "enforcement_mode": "split_pre_call_only",
+        "pre_call_gates_evaluated": list(phase_a_gates),
+        "redacted_fields": redacted_fields,
+    }
+
+    return generate_audit_artifact(
+        safe_inv,
+        policy,
+        enforcement_result="FAIL",
+        failures=failures,
+        failure_gate=failure_gate,
+        failure_reason=failure_reason,
+        metadata=fail_metadata,
+    )
+
+
 def _run_phase_a(
     policy: dict[str, Any],
     invocation: Mapping[str, Any],
@@ -520,6 +585,7 @@ def _run_phase_b(
                     "tool_constraints", {},
                 ),
                 "gates_evaluated": combined_gates,
+                "enforcement_mode": "unified",
             }
         else:
             # split mode
@@ -992,51 +1058,9 @@ def enforce_pre_call(
             )
         except AIGCError as exc:
             # Mid-pipeline Phase A FAIL: generate artifact with output={}
-            safe_inv = dict(invocation)
-            safe_inv["output"] = {}
-
-            failure_gate = _map_exception_to_failure_gate(exc)
-            raw_reason = str(exc)
-            failure_reason, reason_redacted = sanitize_failure_message(
-                raw_reason, None,
+            audit_record = _build_phase_a_mid_pipeline_fail_artifact(
+                invocation, policy, exc, phase_a_gates,
             )
-            redacted_fields: list[str] = list(reason_redacted)
-            failures = None
-            if hasattr(exc, "details") and exc.details:
-                sanitized_msg, msg_redacted = sanitize_failure_message(
-                    str(exc), None,
-                )
-                for r in msg_redacted:
-                    if r not in redacted_fields:
-                        redacted_fields.append(r)
-                failures = [
-                    {
-                        "code": exc.__class__.__name__,
-                        "message": sanitized_msg,
-                        "field": (
-                            exc.details.get("field")
-                            if isinstance(exc.details, dict)
-                            else None
-                        ),
-                    }
-                ]
-
-            fail_metadata: dict[str, Any] = {
-                "enforcement_mode": "split_pre_call_only",
-                "pre_call_gates_evaluated": list(phase_a_gates),
-                "redacted_fields": redacted_fields,
-            }
-
-            audit_record = generate_audit_artifact(
-                safe_inv,
-                policy,
-                enforcement_result="FAIL",
-                failures=failures,
-                failure_gate=failure_gate,
-                failure_reason=failure_reason,
-                metadata=fail_metadata,
-            )
-
             exc.audit_artifact = audit_record
             try:
                 emit_to_sink(audit_record)
@@ -1046,6 +1070,8 @@ def enforce_pre_call(
                     "(artifact preserved): %s",
                     sink_exc,
                 )
+            failure_gate = _map_exception_to_failure_gate(exc)
+            failure_reason = sanitize_failure_message(str(exc), None)[0]
             record_enforcement_result(
                 span, "FAIL",
                 policy_file=invocation.get("policy_file"),
@@ -1131,8 +1157,10 @@ def enforce_post_call(
         exc.audit_artifact = artifact
         try:
             emit_to_sink(artifact)
-        except AuditSinkError:
-            pass
+        except AuditSinkError as sink_exc:
+            logger.error(
+                "Sink emission failed on pre-pipeline FAIL path: %s", sink_exc,
+            )
         raise exc
 
     # 2. Output validation
@@ -1148,8 +1176,10 @@ def enforce_post_call(
         exc.audit_artifact = artifact
         try:
             emit_to_sink(artifact)
-        except AuditSinkError:
-            pass
+        except AuditSinkError as sink_exc:
+            logger.error(
+                "Sink emission failed on pre-pipeline FAIL path: %s", sink_exc,
+            )
         raise exc
 
     # 3. Consumption check
@@ -1166,8 +1196,10 @@ def enforce_post_call(
         exc.audit_artifact = artifact
         try:
             emit_to_sink(artifact)
-        except AuditSinkError:
-            pass
+        except AuditSinkError as sink_exc:
+            logger.error(
+                "Sink emission failed on pre-pipeline FAIL path: %s", sink_exc,
+            )
         raise exc
 
     # 4. Mark consumed (frozen dataclass requires object.__setattr__)
@@ -1294,51 +1326,10 @@ async def enforce_pre_call_async(
                 gates_evaluated=phase_a_gates,
             )
         except AIGCError as exc:
-            safe_inv = dict(invocation)
-            safe_inv["output"] = {}
-
-            failure_gate = _map_exception_to_failure_gate(exc)
-            raw_reason = str(exc)
-            failure_reason, reason_redacted = sanitize_failure_message(
-                raw_reason, None,
+            # Mid-pipeline Phase A FAIL: generate artifact with output={}
+            audit_record = _build_phase_a_mid_pipeline_fail_artifact(
+                invocation, policy, exc, phase_a_gates,
             )
-            redacted_fields: list[str] = list(reason_redacted)
-            failures = None
-            if hasattr(exc, "details") and exc.details:
-                sanitized_msg, msg_redacted = sanitize_failure_message(
-                    str(exc), None,
-                )
-                for r in msg_redacted:
-                    if r not in redacted_fields:
-                        redacted_fields.append(r)
-                failures = [
-                    {
-                        "code": exc.__class__.__name__,
-                        "message": sanitized_msg,
-                        "field": (
-                            exc.details.get("field")
-                            if isinstance(exc.details, dict)
-                            else None
-                        ),
-                    }
-                ]
-
-            fail_metadata: dict[str, Any] = {
-                "enforcement_mode": "split_pre_call_only",
-                "pre_call_gates_evaluated": list(phase_a_gates),
-                "redacted_fields": redacted_fields,
-            }
-
-            audit_record = generate_audit_artifact(
-                safe_inv,
-                policy,
-                enforcement_result="FAIL",
-                failures=failures,
-                failure_gate=failure_gate,
-                failure_reason=failure_reason,
-                metadata=fail_metadata,
-            )
-
             exc.audit_artifact = audit_record
             try:
                 emit_to_sink(audit_record)
@@ -1348,10 +1339,17 @@ async def enforce_pre_call_async(
                     "(artifact preserved): %s",
                     sink_exc,
                 )
+            failure_gate = _map_exception_to_failure_gate(exc)
+            failure_reason = sanitize_failure_message(str(exc), None)[0]
             record_enforcement_result(
                 span, "FAIL",
                 policy_file=invocation.get("policy_file"),
                 role=invocation.get("role"),
+            )
+            logger.error(
+                "Enforcement failed at gate '%s': %s",
+                failure_gate,
+                failure_reason,
             )
             raise
 

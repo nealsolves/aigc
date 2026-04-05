@@ -167,6 +167,8 @@ class TestPhaseAFail:
         assert "guard_evaluation" in gates
         # Role validation failed, so it should NOT be in the list
         assert "role_validation" not in gates
+        # Exact gate count and order: only guard_evaluation ran before failure
+        assert gates == ["guard_evaluation"]
 
 
 # ── Phase B FAIL ────────────────────────────────────────────────
@@ -253,17 +255,16 @@ class TestUnifiedBackwardCompat:
         assert audit["role"] == "planner"
 
     def test_unified_artifact_enforcement_mode_is_unified(self):
-        """Unified artifact does NOT have enforcement_mode in metadata.
+        """Unified artifact has enforcement_mode='unified' in metadata.
 
-        The unified path preserves exact backward compatibility: metadata
-        contains gates_evaluated (combined list), no enforcement_mode key.
+        Per design spec Section 11.2, unified mode artifacts must set
+        metadata.enforcement_mode = "unified".
         """
         inv = _unified_invocation()
         audit = enforce_invocation(inv)
 
-        # Unified mode preserves backward compat: no enforcement_mode key
-        assert "enforcement_mode" not in audit["metadata"]
-        # But gates_evaluated is still present as before
+        assert audit["metadata"]["enforcement_mode"] == "unified"
+        # gates_evaluated is still present as before
         assert "gates_evaluated" in audit["metadata"]
 
 

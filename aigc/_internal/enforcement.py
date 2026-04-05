@@ -182,6 +182,23 @@ def _make_token_signer() -> tuple:
 _token_sign, _token_verify = _make_token_signer()
 
 
+def _gate_fingerprint(grouped_gates: Any) -> dict[str, list[dict[str, str]]]:
+    """Compute a JSON-serializable fingerprint of the gate manifest.
+
+    Used to authenticate _phase_b_grouped_gates against signed evidence.
+    Maps insertion point -> list of {name, insertion_point} dicts.
+    """
+    if grouped_gates is None:
+        return {}
+    result: dict[str, list[dict[str, str]]] = {}
+    for pt, gates in grouped_gates.items():
+        result[pt] = [
+            {"name": g.name, "insertion_point": g.insertion_point}
+            for g in gates
+        ]
+    return result
+
+
 @dataclass(frozen=True, slots=True)
 class PreCallResult:
     """Opaque handoff token from enforce_pre_call() to enforce_post_call().
@@ -1386,6 +1403,10 @@ def enforce_pre_call(
                         for g in guards_evaluated_engine
                     ],
                     "conditions_resolved": dict(conditions_resolved),
+                    # Finding 1: policy in evidence so Phase B reads from signed bytes.
+                    "effective_policy": dict(token.effective_policy),
+                    # Finding 2: gate fingerprint so Phase B can verify _phase_b_grouped_gates.
+                    "gate_fingerprint": _gate_fingerprint(grouped_gates),
                 },
                 sort_keys=True,
             ).encode()
@@ -1552,6 +1573,28 @@ def enforce_post_call(
             )
         raise exc from _ev_exc
 
+    # 1e. Gate fingerprint integrity check — detects object.__setattr__ replacement
+    # of _phase_b_grouped_gates after Phase A (audit Finding 2, 2026-04-05).
+    _expected_gate_fp = _pre_verified_evidence.get("gate_fingerprint", {})
+    _actual_gate_fp = _gate_fingerprint(pre_call_result._phase_b_grouped_gates)
+    if _actual_gate_fp != _expected_gate_fp:
+        exc = InvocationValidationError(
+            "Phase B gate manifest was tampered; "
+            "gate fingerprint does not match signed evidence",
+            details={"field": "_phase_b_grouped_gates"},
+        )
+        safe_inv = dict(_verified_snap)
+        artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
+        artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+        exc.audit_artifact = artifact
+        try:
+            emit_to_sink(artifact)
+        except AuditSinkError as sink_exc:
+            logger.error(
+                "Sink emission failed on gate fingerprint FAIL path: %s", sink_exc,
+            )
+        raise exc
+
     # 2. Output type validation
     if not isinstance(output, dict):
         exc = InvocationValidationError(
@@ -1615,31 +1658,17 @@ def enforce_post_call(
             )
         raise exc
 
-    # 4. Use pre-deserialized evidence from step 1d; parse policy bytes only.
+    # 4. Use pre-deserialized evidence from step 1d; read policy from
+    # authenticated evidence (Finding 1, 2026-04-05).
+    # _frozen_policy_bytes may have been replaced; evidence bytes are HMAC-verified.
+    # Fallback to _frozen_policy_bytes only for backward compat (old pickled tokens).
     evidence = _pre_verified_evidence
-    try:
-        original_policy = json.loads(pre_call_result._frozen_policy_bytes)
-    except (TypeError, ValueError) as dec_exc:
-        exc = InvocationValidationError(
-            "PreCallResult contains invalid internal token state; "
-            "token may be corrupted or forged",
-            details={"field": "_frozen_evidence_bytes"},
-        )
-        safe_inv = {
-            "policy_file": "unknown", "model_provider": "unknown",
-            "model_identifier": "unknown", "role": "unknown",
-            "input": {}, "output": {}, "context": {},
-        }
-        artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
-        artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
-        exc.audit_artifact = artifact
+    original_policy = evidence.get("effective_policy") or None
+    if original_policy is None:
         try:
-            emit_to_sink(artifact)
-        except AuditSinkError as sink_exc:
-            logger.error(
-                "Sink emission failed on pre-pipeline FAIL path: %s", sink_exc,
-            )
-        raise exc from dec_exc
+            original_policy = json.loads(pre_call_result._frozen_policy_bytes)
+        except (TypeError, ValueError):
+            original_policy = {}
 
     # 5. Mark consumed AFTER validating token state (frozen dataclass
     # requires object.__setattr__).
@@ -1666,7 +1695,7 @@ def enforce_post_call(
         },
     ) as span:
         return _run_phase_b(
-            json.loads(pre_call_result._frozen_policy_bytes),
+            original_policy,
             original_policy,
             full_invocation,
             phase_a_gates=phase_a_gates,
@@ -1870,6 +1899,10 @@ async def enforce_pre_call_async(
                         for g in guards_evaluated_engine
                     ],
                     "conditions_resolved": dict(conditions_resolved),
+                    # Finding 1: policy in evidence so Phase B reads from signed bytes.
+                    "effective_policy": dict(token.effective_policy),
+                    # Finding 2: gate fingerprint so Phase B can verify _phase_b_grouped_gates.
+                    "gate_fingerprint": _gate_fingerprint(grouped_gates),
                 },
                 sort_keys=True,
             ).encode()
@@ -2436,6 +2469,10 @@ class AIGC:
                             for g in guards_evaluated_engine
                         ],
                         "conditions_resolved": dict(conditions_resolved),
+                        # Finding 1: policy in evidence so Phase B reads from signed bytes.
+                        "effective_policy": dict(token.effective_policy),
+                        # Finding 2: gate fingerprint so Phase B can verify _phase_b_grouped_gates.
+                        "gate_fingerprint": _gate_fingerprint(grouped_gates),
                     },
                     sort_keys=True,
                 ).encode()
@@ -2655,6 +2692,31 @@ class AIGC:
                 )
             raise exc from _ev_exc
 
+        # 1e. Gate fingerprint integrity check — detects object.__setattr__ replacement
+        # of _phase_b_grouped_gates after Phase A (audit Finding 2, 2026-04-05).
+        _expected_gate_fp = _pre_verified_evidence.get("gate_fingerprint", {})
+        _actual_gate_fp = _gate_fingerprint(pre_call_result._phase_b_grouped_gates)
+        if _actual_gate_fp != _expected_gate_fp:
+            exc = InvocationValidationError(
+                "Phase B gate manifest was tampered; "
+                "gate fingerprint does not match signed evidence",
+                details={"field": "_phase_b_grouped_gates"},
+            )
+            safe_inv = dict(_verified_snap)
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+            exc.audit_artifact = artifact
+            try:
+                emit_to_sink(artifact, sink=self._sink, failure_mode=self._on_sink_failure)
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on gate fingerprint FAIL path: %s", sink_exc,
+                )
+            raise exc
+
         # 2. Output type validation
         if not isinstance(output, dict):
             exc = InvocationValidationError(
@@ -2743,42 +2805,17 @@ class AIGC:
                 )
             raise exc
 
-        # 4. Use pre-deserialized evidence from step 1d; parse policy bytes
-        # only (audit Finding #2, 2026-04-05).
+        # 4. Use pre-deserialized evidence from step 1d; read policy from
+        # authenticated evidence (Finding 1, 2026-04-05).
+        # _frozen_policy_bytes may have been replaced; evidence bytes are HMAC-verified.
+        # Fallback to _frozen_policy_bytes only for backward compat (old pickled tokens).
         evidence = _pre_verified_evidence
-        try:
-            original_policy = json.loads(pre_call_result._frozen_policy_bytes)
-        except (TypeError, ValueError) as dec_exc:
-            exc = InvocationValidationError(
-                "PreCallResult contains invalid internal token state; "
-                "token may be corrupted or forged",
-                details={"field": "_frozen_evidence_bytes"},
-            )
-            safe_inv = {
-                "policy_file": "unknown",
-                "model_provider": "unknown",
-                "model_identifier": "unknown",
-                "role": "unknown",
-                "input": {}, "output": {}, "context": {},
-            }
-            artifact = _generate_pre_pipeline_fail_artifact(
-                safe_inv, exc,
-                redaction_patterns=self._redaction_patterns,
-            )
-            artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
-            exc.audit_artifact = artifact
+        original_policy = evidence.get("effective_policy") or None
+        if original_policy is None:
             try:
-                emit_to_sink(
-                    artifact,
-                    sink=self._sink,
-                    failure_mode=self._on_sink_failure,
-                )
-            except AuditSinkError as sink_exc:
-                logger.error(
-                    "Sink emission failed on pre-pipeline FAIL path: %s",
-                    sink_exc,
-                )
-            raise exc from dec_exc
+                original_policy = json.loads(pre_call_result._frozen_policy_bytes)
+            except (TypeError, ValueError):
+                original_policy = {}
 
         # 5. Mark consumed AFTER validating token state.
         object.__setattr__(pre_call_result, "_consumed", True)
@@ -2804,7 +2841,7 @@ class AIGC:
             },
         ) as span:
             return _run_phase_b(
-                json.loads(pre_call_result._frozen_policy_bytes),
+                original_policy,
                 original_policy,
                 full_invocation,
                 phase_a_gates=phase_a_gates,
@@ -3041,6 +3078,10 @@ class AIGC:
                             for g in guards_evaluated_engine
                         ],
                         "conditions_resolved": dict(conditions_resolved),
+                        # Finding 1: policy in evidence so Phase B reads from signed bytes.
+                        "effective_policy": dict(token.effective_policy),
+                        # Finding 2: gate fingerprint so Phase B can verify _phase_b_grouped_gates.
+                        "gate_fingerprint": _gate_fingerprint(grouped_gates),
                     },
                     sort_keys=True,
                 ).encode()

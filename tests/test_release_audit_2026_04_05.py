@@ -213,3 +213,135 @@ class TestFinding4FAILArtifactIdentityForgery:
         artifact = exc_info.value.audit_artifact
         assert artifact is not None
         assert artifact["policy_file"] == original_policy_file
+
+
+# ── Finding 1: Policy bytes tampering via _frozen_policy_bytes replacement ────
+
+
+class TestFinding1PolicyBytesTamperPrevention:
+    """Replacing _frozen_policy_bytes via object.__setattr__ must not affect
+    Phase B policy enforcement.
+
+    After the fix, Phase B reads effective_policy from HMAC-signed evidence
+    bytes, not from _frozen_policy_bytes.
+    """
+
+    def test_corrupted_policy_bytes_do_not_crash_phase_b(self):
+        """After fix: _frozen_policy_bytes = garbage bytes -> Phase B still PASS."""
+        pre = enforce_pre_call(_pre_call_inv())
+        object.__setattr__(pre, "_frozen_policy_bytes", b"not valid json at all")
+        artifact = enforce_post_call(pre, _valid_output())
+        assert artifact["enforcement_result"] == "PASS"
+
+    def test_weakened_policy_bytes_do_not_bypass_schema_validation(self, tmp_path):
+        """Replacing policy bytes with a schema-free policy must not bypass schema validation."""
+        p = tmp_path / "strict_schema.yaml"
+        p.write_text(
+            "policy_version: '1.0'\n"
+            "roles:\n"
+            "  - planner\n"
+            "pre_conditions:\n"
+            "  required:\n"
+            "    role_declared:\n"
+            "      type: boolean\n"
+            "output_schema:\n"
+            "  type: object\n"
+            "  required:\n"
+            "    - required_field\n"
+            "  properties:\n"
+            "    required_field:\n"
+            "      type: string\n"
+        )
+        inv = _pre_call_inv(policy_file=str(p))
+        pre = enforce_pre_call(inv)
+        # Replace policy bytes with a schema-free policy
+        weak_policy = {
+            "policy_version": "1.0",
+            "roles": ["planner"],
+            "pre_conditions": {
+                "required": {"role_declared": {"type": "boolean"}},
+            },
+        }
+        object.__setattr__(
+            pre, "_frozen_policy_bytes",
+            json.dumps(weak_policy, sort_keys=True).encode(),
+        )
+        # Output missing 'required_field' must still FAIL (real policy used from evidence)
+        from aigc._internal.errors import SchemaValidationError
+        with pytest.raises(SchemaValidationError):
+            enforce_post_call(pre, {"no_required_field": "x"})
+
+    def test_aigc_corrupted_policy_bytes_do_not_crash_phase_b(self):
+        """AIGC instance: corrupted _frozen_policy_bytes -> Phase B still works."""
+        engine = AIGC()
+        pre = engine.enforce_pre_call(_pre_call_inv())
+        object.__setattr__(pre, "_frozen_policy_bytes", b"not json")
+        artifact = engine.enforce_post_call(pre, _valid_output())
+        assert artifact["enforcement_result"] == "PASS"
+
+
+# ── Finding 2: Gate bypass via _phase_b_grouped_gates object.__setattr__ ──────
+
+
+class TestFinding2GateManifestTamperPrevention:
+    """Replacing _phase_b_grouped_gates via object.__setattr__ must not bypass
+    Phase B custom gates.
+
+    Prior: MappingProxyType prevents key-assignment (existing tests).
+    NEW: object.__setattr__ can replace the entire field.
+    After fix: Phase B verifies gate fingerprint from signed evidence.
+    """
+
+    def test_module_gates_field_replacement_is_detected_and_rejected(self):
+        """object.__setattr__ replacement of _phase_b_grouped_gates raises InvocationValidationError."""
+        pre = enforce_pre_call(
+            _pre_call_inv(),
+            custom_gates=[_AlwaysFailPreOutputGate()],
+        )
+        object.__setattr__(
+            pre, "_phase_b_grouped_gates", types.MappingProxyType({}),
+        )
+        with pytest.raises(InvocationValidationError, match="[Gg]ate"):
+            enforce_post_call(pre, _valid_output())
+
+    def test_module_gates_field_replacement_attaches_fail_artifact(self):
+        """Gate fingerprint mismatch attaches FAIL artifact to exception."""
+        pre = enforce_pre_call(
+            _pre_call_inv(),
+            custom_gates=[_AlwaysFailPreOutputGate()],
+        )
+        object.__setattr__(
+            pre, "_phase_b_grouped_gates", types.MappingProxyType({}),
+        )
+        with pytest.raises(InvocationValidationError) as exc_info:
+            enforce_post_call(pre, _valid_output())
+        artifact = exc_info.value.audit_artifact
+        assert artifact is not None
+        assert artifact["enforcement_result"] == "FAIL"
+        assert artifact["failure_gate"] == "invocation_validation"
+
+    def test_module_no_gates_no_fingerprint_mismatch(self):
+        """A genuine token with no custom gates passes Phase B normally."""
+        pre = enforce_pre_call(_pre_call_inv())
+        artifact = enforce_post_call(pre, _valid_output())
+        assert artifact["enforcement_result"] == "PASS"
+
+    def test_module_no_replacement_gate_still_enforced(self):
+        """Without replacement, the always-fail gate still blocks Phase B."""
+        from aigc._internal.errors import CustomGateViolationError
+        pre = enforce_pre_call(
+            _pre_call_inv(),
+            custom_gates=[_AlwaysFailPreOutputGate()],
+        )
+        with pytest.raises(CustomGateViolationError):
+            enforce_post_call(pre, _valid_output())
+
+    def test_aigc_gates_field_replacement_is_detected_and_rejected(self):
+        """AIGC instance: _phase_b_grouped_gates replacement detected."""
+        engine = AIGC(custom_gates=[_AlwaysFailPreOutputGate()])
+        pre = engine.enforce_pre_call(_pre_call_inv())
+        object.__setattr__(
+            pre, "_phase_b_grouped_gates", types.MappingProxyType({}),
+        )
+        with pytest.raises(InvocationValidationError, match="[Gg]ate"):
+            engine.enforce_post_call(pre, _valid_output())

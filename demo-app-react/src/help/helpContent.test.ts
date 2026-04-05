@@ -91,7 +91,7 @@ describe('helpContent', () => {
     expect(content + glossaryTerms).not.toMatch(/RegistryLoader/i)
   })
 
-  it('lab 5 glossary includes FileSystemLoader and InMemoryPolicyLoader', () => {
+  it('lab 5 glossary includes FilePolicyLoader and InMemoryPolicyLoader', () => {
     const terms = (helpContent[5].glossary ?? []).map(g => g.term)
     expect(terms.some(t => t.toLowerCase().includes('filepolicyloader'))).toBe(true)
     expect(terms.some(t => t.toLowerCase().includes('inmemorypolicyloader') || t.toLowerCase().includes('inmemoryloader'))).toBe(true)
@@ -153,5 +153,17 @@ describe('helpContent', () => {
     expect(content).toMatch(/JSON/i)
     expect(content).toMatch(/CSV/i)
     expect(content).toMatch(/aigc compliance export/i)
+  })
+
+  it('architecture content explains unified default mode and split opt-in', () => {
+    const content = [
+      helpContent[0].overview,
+      helpContent[0].whatThisLabShows.join(' '),
+      helpContent[0].steps.map(s => s.instruction + (s.tip ?? '')).join(' '),
+      (helpContent[0].glossary ?? []).map(g => `${g.term} ${g.definition}`).join(' '),
+    ].join(' ')
+    expect(content).toMatch(/unified/i)
+    expect(content).toMatch(/split/i)
+    expect(content).toMatch(/pre_call_enforcement/i)
   })
 })

@@ -26,6 +26,14 @@ describe('HelpDrawer', () => {
     expect(screen.getByText('Risk Scoring Guide')).toBeInTheDocument()
   })
 
+  it('uses the current lab labels for renamed guides', () => {
+    renderDrawer(true, vi.fn(), 2)
+    expect(screen.getByText('Lab 2 — Signing & Verification')).toBeInTheDocument()
+
+    renderDrawer(true, vi.fn(), 7)
+    expect(screen.getByText('Lab 7 — Compliance Dashboard')).toBeInTheDocument()
+  })
+
   it('shows at least one step title', () => {
     renderDrawer(true)
     expect(screen.getByText('Choose a preset scenario')).toBeInTheDocument()

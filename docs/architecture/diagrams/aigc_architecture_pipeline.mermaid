@@ -12,7 +12,7 @@
   }
 }}%%
 flowchart LR
-    Start(["Invocation\nreceived"])
+    Start(["Invocation\nor Phase A"])
     Load["Validation +\npolicy load"]
     PreAuth["Custom gates\npre_authorization"]
     Guards["Guard\nevaluation"]
@@ -26,5 +26,6 @@ flowchart LR
     PostOutput["Custom gates\npost_output"]
     Risk["Risk\nscoring"]
     Audit(["PASS / FAIL\naudit artifact"])
+    Boundary{{"Model call boundary\nsplit mode only"}}
 
-    Start --> Load --> PreAuth --> Guards --> Role --> Preconditions --> Tools --> PostAuth --> PreOutput --> SchemaV --> Postconditions --> PostOutput --> Risk --> Audit
+    Start --> Load --> PreAuth --> Guards --> Role --> Preconditions --> Tools --> PostAuth --> Boundary --> PreOutput --> SchemaV --> Postconditions --> PostOutput --> Risk --> Audit

@@ -157,3 +157,42 @@ def test_retry_each_attempt_produces_audit():
 
     assert audit["enforcement_result"] == "PASS"
     assert mock_enforce.call_count == 3  # Each attempt called enforcement
+
+
+# ── Split-mode retry interaction (v0.3.2) ──────────────────────────
+#
+# Split enforcement (enforce_pre_call / enforce_post_call) does not
+# have a dedicated retry helper.  Design guidance:
+#
+#   1. Do NOT retry Phase A (enforce_pre_call) authorization failures.
+#      Role, precondition, and guard failures are deterministic for a
+#      given invocation and policy; retrying is wasteful.
+#
+#   2. Host-managed retries may wrap the model call + enforce_post_call()
+#      together for transient failures (e.g. schema validation on a
+#      flaky model output).  A new PreCallResult is NOT needed per
+#      retry -- the host can re-invoke the model and call
+#      enforce_post_call() with a fresh PreCallResult.
+#
+#   3. No new split retry helper is required in v0.3.2.  with_retry()
+#      continues to work for the unified path only.
+
+
+def test_with_retry_unified_mode_unchanged():
+    """with_retry still works with unified enforce_invocation after split refactor."""
+    from aigc._internal.enforcement import enforce_invocation
+
+    invocation = {
+        "model_provider": "anthropic",
+        "model_identifier": "claude-sonnet-4",
+        "role": "planner",
+        "policy_file": "tests/golden_replays/policy_with_retry.yaml",
+        "input": {"task": "test"},
+        "output": {"result": "done", "confidence": 0.9},
+        "context": {"role_declared": True}
+    }
+
+    audit = with_retry(invocation, enforcement_fn=enforce_invocation)
+
+    assert audit["enforcement_result"] == "PASS"
+    assert audit["metadata"]["enforcement_mode"] == "unified"

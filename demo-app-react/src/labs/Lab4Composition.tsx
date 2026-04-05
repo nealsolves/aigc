@@ -25,7 +25,7 @@ export default function Lab4Composition() {
   const { call: callLoadChild  } = useApi<LoadResponse>()
   const { call,           loading, error: apiError } = useApi<ComposeResponse>()
 
-  // Seed editors with real v0.3.0 sample policies on mount
+  // Seed editors with the current sample policies on mount
   useEffect(() => {
     Promise.all([
       callLoadParent('/api/policy/load', { policy_name: 'medical_ai.yaml' }),

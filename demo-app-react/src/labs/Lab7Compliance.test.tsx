@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import Lab7Compliance from '@/labs/Lab7Compliance'
 import { AigcProvider, useAigc } from '@/context/AigcContext'
 import type { Artifact } from '@/types/artifact'
@@ -74,5 +75,28 @@ describe('Lab7Compliance', () => {
     // risk score 0.91 → normalizeRiskScore → toFixed(2) → '0.91'
     // appears in both AVG RISK metric card and table row
     expect(screen.getAllByText('0.91').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('shows the guide-aligned compliance controls for filtering and export', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <AigcProvider>
+        <SeedAudit artifact={API_SHAPED_ARTIFACT} />
+        <SeedAudit artifact={FAIL_ARTIFACT_WITH_RISK} />
+        <Lab7Compliance />
+      </AigcProvider>,
+    )
+
+    expect(screen.getByRole('button', { name: 'ALL' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'PASS' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'FAIL' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /json/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /csv/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'FAIL' }))
+    const table = screen.getByRole('table')
+    expect(within(table).getByText('high_risk.yaml')).toBeInTheDocument()
+    expect(within(table).queryByText('medical_ai.yaml')).not.toBeInTheDocument()
   })
 })

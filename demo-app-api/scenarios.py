@@ -55,6 +55,24 @@ SCENARIOS: dict[str, dict] = {
         "model_id": "mock-model",
         "role": "doctor",
     },
+    "split_precall_block": {
+        "prompt": "Draft discharge instructions for patient #9812.",
+        "output": {
+            "result": (
+                "Follow up with your primary physician in 7 days and return"
+                " immediately if symptoms worsen."
+            ),
+        },
+        "context": {
+            "domain": "medical",
+            "human_review_required": True,
+            "schema_exists": True,
+        },
+        "policy": "medical_ai.yaml",
+        "model_provider": "mock",
+        "model_id": "mock-model",
+        "role": "doctor",
+    },
     "signing_basic": {
         "prompt": "Summarise the patient intake form.",
         "output": {
@@ -124,6 +142,74 @@ SCENARIOS: dict[str, dict] = {
         "model_id": "mock-model",
         "role": "doctor",
     },
+    "gate_authorized_session": {
+        "prompt": "Summarise the triage note.",
+        "output": {
+            "result": "Triage note reviewed. Patient is stable and cleared for follow-up.",
+        },
+        "context": {
+            "domain": "medical",
+            "human_review_required": True,
+            "role_declared": True,
+            "schema_exists": True,
+            "session_authorized": True,
+        },
+        "policy": "medical_ai.yaml",
+        "model_provider": "mock",
+        "model_id": "mock-model",
+        "role": "doctor",
+    },
+    "gate_unauthorized_session": {
+        "prompt": "Summarise the triage note.",
+        "output": {
+            "result": "Triage note reviewed. Patient is stable and cleared for follow-up.",
+        },
+        "context": {
+            "domain": "medical",
+            "human_review_required": True,
+            "role_declared": True,
+            "schema_exists": True,
+            "session_authorized": False,
+        },
+        "policy": "medical_ai.yaml",
+        "model_provider": "mock",
+        "model_id": "mock-model",
+        "role": "doctor",
+    },
+    "gate_allowed_domain": {
+        "prompt": "Summarise the radiology follow-up.",
+        "output": {
+            "result": "Radiology follow-up scheduled. No acute findings were reported.",
+        },
+        "context": {
+            "domain": "medical",
+            "human_review_required": True,
+            "role_declared": True,
+            "schema_exists": True,
+            "session_authorized": True,
+        },
+        "policy": "medical_ai.yaml",
+        "model_provider": "mock",
+        "model_id": "mock-model",
+        "role": "doctor",
+    },
+    "gate_untrusted_domain": {
+        "prompt": "Summarise the portfolio rebalance request.",
+        "output": {
+            "result": "Portfolio rebalance request received for review.",
+        },
+        "context": {
+            "domain": "finance",
+            "human_review_required": True,
+            "role_declared": True,
+            "schema_exists": True,
+            "session_authorized": True,
+        },
+        "policy": "medical_ai.yaml",
+        "model_provider": "mock",
+        "model_id": "mock-model",
+        "role": "doctor",
+    },
     "gate_high_confidence": {
         "prompt": "What colour is the sky?",
         "output": {
@@ -152,6 +238,23 @@ SCENARIOS: dict[str, dict] = {
             "human_review_required": True,
             "role_declared": True,
             "schema_exists": True,
+        },
+        "policy": "medical_ai.yaml",
+        "model_provider": "mock",
+        "model_id": "mock-model",
+        "role": "doctor",
+    },
+    "gate_long_response": {
+        "prompt": "Produce a verbose patient education handout.",
+        "output": {
+            "result": "L" * 540,
+        },
+        "context": {
+            "domain": "medical",
+            "human_review_required": True,
+            "role_declared": True,
+            "schema_exists": True,
+            "session_authorized": True,
         },
         "policy": "medical_ai.yaml",
         "model_provider": "mock",

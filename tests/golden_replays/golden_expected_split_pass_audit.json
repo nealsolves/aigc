@@ -1,0 +1,13 @@
+{
+  "audit_schema_version": "1.3",
+  "model_provider": "openai",
+  "model_identifier": "gpt-test-model",
+  "role": "planner",
+  "policy_version": "1.0",
+  "enforcement_result": "PASS",
+  "policy_file": "tests/golden_replays/golden_policy_v1.yaml",
+  "policy_schema_version": "http://json-schema.org/draft-07/schema#",
+  "metadata": {
+    "enforcement_mode": "split"
+  }
+}

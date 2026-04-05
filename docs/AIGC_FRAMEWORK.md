@@ -46,6 +46,10 @@ Missing preconditions. The system stops. Invalid output schema. The system stops
 
 Core governance gates (role validation, preconditions, schema validation, postconditions, tool constraints) are unconditionally fail-closed. There is no advisory mode for these gates. The default answer is no.
 
+v0.3.2 adds the split enforcement API: `enforce_pre_call()` / `enforce_post_call()` allow host
+code to interleave the actual model call between governance Phase A (authorization) and Phase B
+(output validation), while preserving full enforcement parity with the unified path.
+
 v0.3.0 introduces two explicitly configured non-blocking behaviors in defined scenarios:
 
 - **Risk scoring `warn_only` mode.** When a policy declares

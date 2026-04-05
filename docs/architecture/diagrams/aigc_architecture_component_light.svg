@@ -257,7 +257,7 @@
 
   <rect width="1100" height="820" fill="#ffffff" rx="8"/>
 
-  <text class="title mono" x="54" y="40">AIGC v0.3.0</text>
+  <text class="title mono" x="54" y="40">AIGC v0.3.2</text>
   <text class="subtitle mono" x="54" y="58">Runtime Architecture - Component View</text>
 
   <rect class="host-wrap" x="52" y="82" width="996" height="74" rx="6"/>
@@ -287,16 +287,17 @@
   <rect class="inv-box" x="492" y="356" width="118" height="36" rx="4"/>
   <rect class="inv-box" x="626" y="356" width="122" height="36" rx="4"/>
   <rect class="custom-box" x="764" y="356" width="134" height="36" rx="4"/>
-  <rect class="custom-box" x="96" y="436" width="112" height="36" rx="4"/>
-  <rect class="inv-box" x="224" y="436" width="122" height="36" rx="4"/>
-  <rect class="inv-box" x="362" y="436" width="124" height="36" rx="4"/>
-  <rect class="custom-box" x="502" y="436" width="122" height="36" rx="4"/>
-  <rect class="risk-box" x="640" y="436" width="154" height="36" rx="4"/>
+  <rect class="custom-box" x="118" y="436" width="108" height="36" rx="4"/>
+  <rect class="inv-box" x="248" y="436" width="120" height="36" rx="4"/>
+  <rect class="inv-box" x="390" y="436" width="120" height="36" rx="4"/>
+  <rect class="custom-box" x="532" y="436" width="108" height="36" rx="4"/>
+  <rect class="risk-box" x="662" y="436" width="140" height="36" rx="4"/>
   <rect class="ops-box" x="82" y="700" width="210" height="34" rx="4"/>
   <rect class="ops-box" x="336" y="700" width="220" height="34" rx="4"/>
   <rect class="legend-wrap" x="680" y="700" width="328" height="34" rx="4"/>
 
-  <g>
+  <!-- Connectors -->
+  <g id="connectors">
     <line class="conn" x1="235" y1="128" x2="320" y2="128" marker-end="url(#arrow)"/>
     <line class="conn" x1="495" y1="118" x2="580" y2="118" marker-end="url(#arrow)"/>
     <line class="conn" x1="580" y1="136" x2="495" y2="136" marker-end="url(#arrow)"/>
@@ -313,14 +314,14 @@
     <line class="conn" x1="610" y1="374" x2="626" y2="374" marker-end="url(#arrow)"/>
     <line class="conn" x1="748" y1="374" x2="764" y2="374" marker-end="url(#arrow)"/>
 
-    <polyline class="conn" points="898,374 930,374 930,414 182,414 182,436" marker-end="url(#arrow)"/>
+    <polyline class="conn" points="898,374 948,374 948,404 172,404 172,436" marker-end="url(#arrow)"/>
 
-    <line class="conn" x1="208" y1="454" x2="224" y2="454" marker-end="url(#arrow)"/>
-    <line class="conn" x1="346" y1="454" x2="362" y2="454" marker-end="url(#arrow)"/>
-    <line class="conn" x1="486" y1="454" x2="502" y2="454" marker-end="url(#arrow)"/>
-    <line class="conn" x1="624" y1="454" x2="640" y2="454" marker-end="url(#arrow)"/>
+    <line class="conn" x1="226" y1="454" x2="242" y2="454" marker-end="url(#arrow)"/>
+    <line class="conn" x1="368" y1="454" x2="384" y2="454" marker-end="url(#arrow)"/>
+    <line class="conn" x1="510" y1="454" x2="526" y2="454" marker-end="url(#arrow)"/>
+    <line class="conn" x1="640" y1="454" x2="656" y2="454" marker-end="url(#arrow)"/>
 
-    <line class="conn" x1="717" y1="472" x2="717" y2="518" marker-end="url(#arrow)"/>
+    <line class="conn" x1="732" y1="472" x2="732" y2="518" marker-end="url(#arrow)"/>
     <line class="conn" x1="802" y1="539" x2="842" y2="539" marker-end="url(#arrow)"/>
     <line class="conn" x1="707" y1="560" x2="707" y2="584" marker-end="url(#arrow)"/>
     <polyline class="conn" points="925,560 925,602 801,602" marker-end="url(#arrow)"/>
@@ -332,25 +333,30 @@
     <polyline class="conn-dim" points="790,620 790,662 446,662 446,700" marker-end="url(#arrow-dim)"/>
   </g>
 
-  <g>
+  <!-- Labels -->
+  <g id="labels">
     <text class="section mono" x="68" y="96">HOST APPLICATION</text>
     <text class="label" x="157.5" y="132" text-anchor="middle">App / Orchestrator</text>
     <text class="label mono" x="407.5" y="124" text-anchor="middle">@governed</text>
-    <text class="detail" x="407.5" y="137" text-anchor="middle">post-call wrapper</text>
+    <text class="detail" x="407.5" y="137" text-anchor="middle">default unified / split opt-in</text>
     <text class="label" x="675" y="124" text-anchor="middle">Model Provider</text>
     <text class="detail" x="675" y="137" text-anchor="middle">OpenAI / Anthropic / local</text>
     <text class="tiny" x="278" y="120" text-anchor="middle">decorated call</text>
     <text class="tiny" x="538" y="110" text-anchor="middle">calls wrapped function</text>
     <text class="tiny" x="538" y="149" text-anchor="middle">model output</text>
 
-    <text class="section-blue mono" x="56" y="194">AIGC SDK v0.3.0</text>
+    <text class="section-blue mono" x="56" y="194">AIGC SDK v0.3.2</text>
     <text class="tiny" x="120" y="154">direct integration</text>
     <text class="tiny" x="256" y="176">instance integration</text>
-    <text class="tiny" x="328" y="154">assembles invocation after wrapped call returns</text>
+    <text class="tiny" x="328" y="154">default unified after wrapped call; split opt-in</text>
 
-    <text class="section-blue mono" x="86" y="221">INVOCATION BOUNDARY</text>
+    <text class="section-blue mono" x="86" y="221">INVOCATION BOUNDARY (UNIFIED + SPLIT)</text>
     <text class="label-mid mono" x="167" y="241" text-anchor="middle">enforce_invocation()</text>
     <text class="label-mid mono" x="343" y="241" text-anchor="middle">AIGC.enforce()</text>
+    <text class="tiny" x="167" y="274" text-anchor="middle">split: enforce_pre_call()</text>
+    <text class="tiny" x="167" y="285" text-anchor="middle">then enforce_post_call()</text>
+    <text class="tiny" x="343" y="274" text-anchor="middle">split: AIGC.enforce_pre_call()</text>
+    <text class="tiny" x="343" y="285" text-anchor="middle">then enforce_post_call()</text>
 
     <text class="section-blue mono" x="504" y="221">POLICY LAYER</text>
     <text class="detail" x="552" y="241" text-anchor="middle">Policy YAML</text>
@@ -364,9 +370,10 @@
     <text class="tiny" x="870" y="277" text-anchor="middle">composition / restriction semantics</text>
 
     <text class="section-blue mono" x="88" y="334">DETERMINISTIC ENFORCEMENT CORE</text>
-    <text class="note" x="538" y="334" text-anchor="middle">core gates fail-closed; risk mode may be non-blocking</text>
-    <text class="group-label mono" x="88" y="348">AUTHORIZATION PHASE</text>
-    <text class="group-label mono" x="88" y="428">OUTPUT PHASE</text>
+    <text class="note" x="538" y="334" text-anchor="middle">unified is the default; split preserves the same ordered gates</text>
+    <text class="group-label mono" x="88" y="348">PHASE A / PRE-CALL</text>
+    <text class="group-label mono" x="88" y="428">PHASE B / POST-CALL</text>
+    <text class="tiny" x="620" y="394" text-anchor="middle">model call boundary in split mode</text>
 
     <text class="purple mono" x="150" y="372" text-anchor="middle">pre_authorization</text>
     <text class="purple-sub" x="150" y="384" text-anchor="middle">custom gates</text>
@@ -381,16 +388,16 @@
     <text class="purple mono" x="831" y="372" text-anchor="middle">post_authorization</text>
     <text class="purple-sub" x="831" y="384" text-anchor="middle">custom gates</text>
 
-    <text class="purple mono" x="152" y="452" text-anchor="middle">pre_output</text>
-    <text class="purple-sub" x="152" y="464" text-anchor="middle">custom gates</text>
-    <text class="detail" x="285" y="452" text-anchor="middle">Output Schema</text>
-    <text class="detail-mid" x="285" y="464" text-anchor="middle">validation</text>
-    <text class="detail" x="424" y="452" text-anchor="middle">Postcondition</text>
-    <text class="detail-mid" x="424" y="464" text-anchor="middle">validation</text>
-    <text class="purple mono" x="563" y="452" text-anchor="middle">post_output</text>
-    <text class="purple-sub" x="563" y="464" text-anchor="middle">custom gates</text>
-    <text class="green-mid" x="717" y="452" text-anchor="middle">Risk Scoring</text>
-    <text class="green-detail" x="717" y="464" text-anchor="middle">strict / risk_scored / warn_only</text>
+    <text class="purple mono" x="172" y="452" text-anchor="middle">pre_output</text>
+    <text class="purple-sub" x="172" y="464" text-anchor="middle">custom gates</text>
+    <text class="detail" x="308" y="452" text-anchor="middle">Output Schema</text>
+    <text class="detail-mid" x="308" y="464" text-anchor="middle">validation</text>
+    <text class="detail" x="450" y="452" text-anchor="middle">Postcondition</text>
+    <text class="detail-mid" x="450" y="464" text-anchor="middle">validation</text>
+    <text class="purple mono" x="586" y="452" text-anchor="middle">post_output</text>
+    <text class="purple-sub" x="586" y="464" text-anchor="middle">custom gates</text>
+    <text class="green-mid" x="732" y="452" text-anchor="middle">Risk Scoring</text>
+    <text class="green-detail" x="732" y="464" text-anchor="middle">strict / risk_scored / warn_only</text>
 
     <text class="label-mid" x="165" y="542" text-anchor="middle">OpenTelemetry</text>
     <text class="detail" x="165" y="554" text-anchor="middle">spans + gate events / optional</text>

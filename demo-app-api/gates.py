@@ -8,6 +8,63 @@ from typing import Any, Mapping
 from aigc import EnforcementGate, GateResult
 
 
+class SessionAuthorizationGate(EnforcementGate):
+    """Fails if the caller session is not marked authorized in context."""
+
+    @property
+    def name(self) -> str:
+        return "session_authorization_gate"
+
+    @property
+    def insertion_point(self) -> str:
+        return "pre_authorization"
+
+    def evaluate(
+        self,
+        invocation: Mapping[str, Any],
+        policy: Mapping[str, Any],
+        context: dict[str, Any],
+    ) -> GateResult:
+        authorized = bool(invocation.get("context", {}).get("session_authorized"))
+        if not authorized:
+            return GateResult(
+                passed=False,
+                failures=[{"gate": self.name, "message": "session is not authorized"}],
+            )
+        return GateResult(passed=True, metadata={"session_authorized": True})
+
+
+class DomainAllowlistGate(EnforcementGate):
+    """Fails if context.domain is outside the demo allowlist."""
+
+    _ALLOWED = {"medical", "nutrition"}
+
+    @property
+    def name(self) -> str:
+        return "domain_allowlist_gate"
+
+    @property
+    def insertion_point(self) -> str:
+        return "post_authorization"
+
+    def evaluate(
+        self,
+        invocation: Mapping[str, Any],
+        policy: Mapping[str, Any],
+        context: dict[str, Any],
+    ) -> GateResult:
+        domain = str(invocation.get("context", {}).get("domain", ""))
+        if domain not in self._ALLOWED:
+            return GateResult(
+                passed=False,
+                failures=[{
+                    "gate": self.name,
+                    "message": f"domain '{domain}' is outside the allowlist",
+                }],
+            )
+        return GateResult(passed=True, metadata={"allowed_domain": domain})
+
+
 class ConfidenceGate(EnforcementGate):
     """Fails if output.confidence < 0.5."""
 
@@ -125,7 +182,14 @@ class AuditMetadataGate(EnforcementGate):
 
 GATES: dict[str, EnforcementGate] = {
     g.name: g
-    for g in [ConfidenceGate(), PIIDetectionGate(), ResponseLengthGate(), AuditMetadataGate()]
+    for g in [
+        SessionAuthorizationGate(),
+        DomainAllowlistGate(),
+        ConfidenceGate(),
+        ResponseLengthGate(),
+        PIIDetectionGate(),
+        AuditMetadataGate(),
+    ]
 }
 
 

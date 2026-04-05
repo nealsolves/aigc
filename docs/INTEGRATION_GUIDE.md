@@ -234,7 +234,101 @@ Your CI pipeline should include:
 
 ---
 
-## 9. Compliance Checklist
+## 9. Split Enforcement (v0.3.2+)
+
+### When to use split mode
+
+Unified mode (`enforce_invocation`) validates the entire invocation in one call
+after the model has already responded. Split mode is useful when you want to run
+authorization gates **before** the model call, so that a policy or role violation
+blocks the invocation without spending tokens.
+
+Use split mode when:
+
+- Pre-call authorization cost matters (token spend, rate limits)
+- You need to record a phase-A audit timestamp separate from phase-B
+- You want a clear boundary between "was the invocation authorized?" and
+  "was the output valid?"
+
+Unified mode remains the default and requires no changes for existing integrations.
+
+### Invocation shape for `enforce_pre_call`
+
+The invocation dict is identical to `enforce_invocation` **except that `output`
+is omitted** — it is not yet available:
+
+```python
+from aigc import enforce_pre_call, enforce_post_call
+
+pre_call_result = enforce_pre_call({
+    "policy_file": "policies/planner.yaml",
+    "model_provider": "anthropic",
+    "model_identifier": "claude-sonnet-4-6",
+    "role": "planner",
+    "input": {"task": "Summarize Q4 results"},
+    "context": {
+        "session_id": "sess-42",
+        "tenant_id": "acme-corp",
+        "role_declared": True,
+        "schema_exists": True,
+    },
+})
+```
+
+Phase A runs: policy load → custom gates (pre\_authorization) → guard evaluation →
+role check → precondition check → tool constraints → custom gates (post\_authorization).
+If any gate fails, a typed exception is raised with a FAIL artifact attached, exactly
+as in unified mode.
+
+### `PreCallResult` handoff contract
+
+`enforce_pre_call` returns a `PreCallResult` token. It carries all phase-A state
+needed for phase B (loaded policy, resolved guards, gate results, timestamps).
+Treat it as an opaque handle — do not inspect or copy its internals.
+
+### Completing enforcement with `enforce_post_call`
+
+After the model responds, pass the token and the output to `enforce_post_call`:
+
+```python
+output = llm.generate(task)
+
+artifact = enforce_post_call(pre_call_result, output)
+```
+
+Phase B runs: custom gates (pre\_output) → schema validation → postcondition check
+→ custom gates (post\_output) → risk scoring → audit artifact generation.
+The returned artifact covers the full invocation and is emitted to the configured sink.
+
+**Warning: `PreCallResult` is single-use.** Calling `enforce_post_call` a second
+time with the same token raises `InvocationValidationError`. This prevents one
+phase-A authorization from being reused across multiple model outputs.
+
+### Decorator pattern
+
+For decorator-based call sites, opt in with `pre_call_enforcement=True`:
+
+```python
+from aigc import governed
+
+@governed(
+    policy_file="policies/planner.yaml",
+    role="planner",
+    model_provider="anthropic",
+    model_identifier="claude-sonnet-4-6",
+    pre_call_enforcement=True,
+)
+async def plan_investigation(input_data: dict, context: dict) -> dict:
+    return await llm.generate(input_data)
+```
+
+Phase A runs before the function body executes. If phase A fails, the function
+is never called. Phase B runs after the function returns. Without
+`pre_call_enforcement=True`, `@governed` behaves identically to previous releases.
+
+---
+
+## 10. Compliance Checklist
 
 An integration is AIGC-compliant when:
 

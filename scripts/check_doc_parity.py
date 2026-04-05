@@ -59,7 +59,11 @@ def collect_md_files() -> list[Path]:
             cwd=REPO_ROOT,
             text=True,
         )
-        result = [REPO_ROOT / line for line in output.strip().splitlines() if line]
+        result = [
+            REPO_ROOT / line
+            for line in output.strip().splitlines()
+            if line and (REPO_ROOT / line).exists()
+        ]
     except (subprocess.CalledProcessError, FileNotFoundError):
         # Fallback: rglob with basic exclusions (e.g. outside a git repo)
         excluded = {"aigc-env", "node_modules", ".git", ".pytest_cache",
@@ -439,11 +443,15 @@ _RISK_SCORED_BLOCKING_RE = re.compile(
 )
 
 _AUDIT_CMD_RE = re.compile(r"aigc\s+audit\s+(?:export|summary)", re.I)
+_WRAPPED_FUNCTION_ERROR_MIGRATION_RE = re.compile(
+    r"wrapped_function_error[^\n]{0,160}"
+    r"(?:existed before v0\.3\.2|pre-?dates? v0\.3\.2|no schema changes required)",
+    re.I,
+)
 
 # Docs that describe live CLI behavior (not historical/archive docs)
 _CLI_BEHAVIOR_DOCS = [
     "README.md",
-    "demo-app-streamlit/labs/lab7_compliance.py",
     "docs/AIGC_FRAMEWORK.md",
 ]
 
@@ -451,7 +459,12 @@ _CLI_BEHAVIOR_DOCS = [
 _RISK_SEMANTICS_DOCS = [
     "README.md",
     "docs/AIGC_FRAMEWORK.md",
-    "demo-app-streamlit/labs/lab1_risk_scoring.py",
+]
+
+# Docs that describe the v0.3.2 wrapped-function failure taxonomy.
+_WRAPPED_FUNCTION_ERROR_DOCS = [
+    "CHANGELOG.md",
+    "docs/design/v0.3.2_DESIGN_SPEC.md",
 ]
 
 
@@ -460,6 +473,8 @@ def check_semantic_claims() -> list[str]:
 
     H1: risk_scored must not be described as blocking on threshold exceedance.
     H2: aigc audit commands must not appear in active CLI-behavior docs.
+    H3: wrapped_function_error must not be described as pre-v0.3.2 or
+        schema-neutral.
     """
     errors: list[str] = []
 
@@ -486,6 +501,19 @@ def check_semantic_claims() -> list[str]:
             errors.append(
                 f"[semantic-H2] {rel}:{line}: references 'aigc audit' which does "
                 f"not exist in the CLI; use 'aigc compliance export' instead"
+            )
+
+    for rel in _WRAPPED_FUNCTION_ERROR_DOCS:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for m in _WRAPPED_FUNCTION_ERROR_MIGRATION_RE.finditer(text):
+            line = text[: m.start()].count("\n") + 1
+            errors.append(
+                f"[semantic-H3] {rel}:{line}: describes "
+                f"'wrapped_function_error' as pre-v0.3.2 or as requiring no "
+                f"schema change; this value is additive in v0.3.2"
             )
 
     return errors

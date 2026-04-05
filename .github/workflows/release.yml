@@ -90,13 +90,23 @@ jobs:
             --exclude 'demo-app-react/dist/*'
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            dist/* \
-            "aigc-${{ github.ref_name }}-demo-react.zip" \
-            --title "${{ github.ref_name }}" \
-            --notes "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details." \
-            --verify-tag
+          if gh release view "$TAG_NAME" > /dev/null 2>&1; then
+            echo "Release $TAG_NAME already exists, skipping creation"
+          else
+            gh release create "$TAG_NAME" \
+              --title "$TAG_NAME" \
+              --notes "See [CHANGELOG.md](https://github.com/$REPO/blob/main/CHANGELOG.md) for details." \
+              --verify-tag
+          fi
+          gh release upload "$TAG_NAME" \
+            dist/*.whl dist/*.tar.gz \
+            "aigc-${TAG_NAME}-demo-react.zip" \
+            --clobber

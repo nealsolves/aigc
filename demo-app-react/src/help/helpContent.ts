@@ -30,6 +30,7 @@ export const helpContent: Record<number, LabHelp> = {
     whatThisLabShows: [
       'Where the host app, model provider, policy layer, and SDK enforcement core sit at runtime.',
       'Which checks belong to the core fail-closed pipeline and which capabilities are opt-in utilities.',
+      'How unified default mode and opt-in split enforcement share the same ordered gates.',
       'Why AIGC is provider-agnostic: it wraps model calls instead of replacing the model itself.',
     ],
     howToNavigate: [
@@ -45,7 +46,7 @@ export const helpContent: Record<number, LabHelp> = {
           'Your app, agent, or orchestrator calls a model through the SDK. The SDK loads the policy, ' +
           'runs the enforcement core, then returns the governance result and audit artifact to your app. ' +
           'The model provider still does the generation in the middle; AIGC governs the call boundary around it.',
-        tip: 'The @governed decorator is post-call: the wrapped function runs first, then AIGC enforces on the result.',
+        tip: 'The @governed decorator defaults to unified post-call enforcement. Set pre_call_enforcement=True to run Phase A before the wrapped function executes.',
       },
       {
         title: 'Enforcement Pipeline - the gate sequence',
@@ -54,6 +55,13 @@ export const helpContent: Record<number, LabHelp> = {
           'role check -> precondition check -> tool constraints -> post_authorization gates -> pre_output gates -> ' +
           'schema validation -> postcondition check -> post_output gates -> risk scoring -> audit artifact emission. ' +
           'The core gates are fail-closed: a violation stops the pipeline and produces a FAIL artifact.',
+      },
+      {
+        title: 'Phase boundary in v0.3.2',
+        instruction:
+          'Split mode moves the model-call boundary between post_authorization and pre_output. ' +
+          'Phase A is authorize-before-call; Phase B is validate-after-output. Unified mode still uses the same gate order, but inside one enforcement call.',
+        tip: 'Look for Phase A / Phase B labeling on the pipeline view when you want to reason about token-spend avoidance.',
       },
       {
         title: 'Risk scoring is the last gate',
@@ -73,8 +81,9 @@ export const helpContent: Record<number, LabHelp> = {
       'AIGC is not another model. It is a deterministic governance wrapper that makes AI invocation rules enforceable and auditable.',
     glossary: [
       { term: 'enforce_invocation()', definition: 'The SDK entry point. Accepts policy, input, output, context, model identity, and role, then returns an audit artifact or raises with one attached.' },
+      { term: 'enforce_pre_call()', definition: 'The split-mode Phase A entry point. It authorizes the invocation before the model call and returns a PreCallResult token for Phase B.' },
       { term: 'Audit artifact', definition: 'The immutable record produced after each enforcement run. It contains checksums, policy metadata, result, and supporting evidence.' },
-      { term: '@governed', definition: 'A decorator that assembles an invocation around a function call and enforces policy on the result after the wrapped function returns.' },
+      { term: '@governed', definition: 'A decorator that defaults to unified post-call enforcement and can opt into split pre/post enforcement with pre_call_enforcement=True.' },
       { term: 'Fail-closed', definition: 'If a core governance check fails, the invocation is rejected and a FAIL artifact is emitted. The system does not silently continue.' },
     ],
   },
@@ -91,10 +100,12 @@ export const helpContent: Record<number, LabHelp> = {
       'Five named risk signals contribute weighted evidence to one final score.',
       'The same score can lead to different outcomes depending on strict, risk_scored, or warn_only mode.',
       'Risk scoring happens after the structural policy checks, so it complements core enforcement instead of replacing it.',
+      'Unified and split enforcement can evaluate the same scenario differently when Phase A blocks before the model call.',
     ],
     howToNavigate: [
       'Start with Low Risk to establish the baseline, then move to Medium Risk and High Risk.',
       'Keep one scenario fixed and switch modes to see how policy treatment changes at the same threshold.',
+      'Use the Enforcement Flow control to compare unified vs split behavior on the same invocation.',
       'Read the score, status badge, threshold, and signal bars together rather than in isolation.',
       'Use the scenario context panel to connect the score back to prompt, policy, model, role, and boolean context flags.',
     ],
@@ -111,6 +122,12 @@ export const helpContent: Record<number, LabHelp> = {
         instruction:
           'Choose strict, risk_scored, or warn_only. This controls what happens when the computed score exceeds the 0.70 threshold.',
         tip: 'Try the same High Risk scenario in strict mode and then in risk_scored mode. The score can stay 1.00 while the decision changes.',
+      },
+      {
+        title: 'Compare unified and split flow',
+        instruction:
+          'Choose Unified to run one enforcement call with output already present, or Split to run Phase A before the model call and Phase B after output exists. The split metadata shows which gates ran in each phase.',
+        tip: 'Use the Split Demo: Missing Role Declaration scenario with Split flow to see a Phase A block before any model output is consumed.',
       },
       {
         title: 'Run Enforcement',
@@ -352,7 +369,7 @@ export const helpContent: Record<number, LabHelp> = {
       'Pick a gate first and read its description before you run anything.',
       'Use the highlighted pipeline row to anchor where that gate sits in the sequence.',
       'Open show source when you want to connect the behavior back to implementation.',
-      'Run contrasting scenarios and compare the gate result panel with the gates_evaluated list in the artifact.',
+      'Run contrasting scenarios for the selected gate and compare the gate result panel with the gates_evaluated list in the artifact.',
     ],
     steps: [
       {
@@ -369,7 +386,7 @@ export const helpContent: Record<number, LabHelp> = {
       {
         title: 'Select a scenario and run',
         instruction:
-          'Choose a scenario such as High Confidence, Low Confidence, PII Present, or Clean Output, then click Run Gate. The SDK runs full enforcement with the selected custom gate active.',
+          'Choose a scenario that matches the selected gate, then click Run Gate. Session authorization and domain allowlist gates demonstrate pre_authorization and post_authorization, while confidence, response length, PII detection, and audit metadata cover the output phases.',
       },
       {
         title: 'Inspect gate result and artifact evidence',

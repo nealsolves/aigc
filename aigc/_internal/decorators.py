@@ -89,62 +89,153 @@ def governed(
     role: str,
     model_provider: str,
     model_identifier: str,
+    *,
+    pre_call_enforcement: bool = False,
 ) -> Callable:
     """
     Decorator factory that wraps a function with AIGC governance enforcement.
 
-    The wrapped function is called first.  If it succeeds, the return value
-    and call arguments are assembled into an invocation and passed through
-    enforce_invocation (sync) or enforce_invocation_async (async).
+    When *pre_call_enforcement* is ``False`` (the default), the wrapped
+    function is called first.  If it succeeds, the return value and call
+    arguments are assembled into an invocation and passed through
+    ``enforce_invocation`` (sync) or ``enforce_invocation_async`` (async).
+
+    When *pre_call_enforcement* is ``True``, governance runs in two phases:
+
+    * **Phase A** (pre-call): ``enforce_pre_call()`` validates policy,
+      role, preconditions, guards, and tool constraints *before* the
+      wrapped function executes.  If Phase A fails the function is
+      **not** called.
+    * **Phase B** (post-call): ``enforce_post_call()`` validates the
+      function's output against schema and postconditions.
 
     :param policy_file: Path to governance policy YAML
     :param role: Invocation role (must be declared in the policy's roles list)
     :param model_provider: Model provider identifier (e.g. "anthropic")
     :param model_identifier: Model identifier (e.g. "claude-sonnet-4-5-20250929")
+    :param pre_call_enforcement: If True, run split pre/post enforcement
     :return: Decorated function
     """
     def decorator(fn: Callable) -> Callable:
         if asyncio.iscoroutinefunction(fn):
-            @functools.wraps(fn)
-            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-                input_data, context = _extract_args(fn, args, kwargs)
+            if pre_call_enforcement:
+                @functools.wraps(fn)
+                async def async_wrapper_split(*args: Any, **kwargs: Any) -> Any:
+                    input_data, context = _extract_args(fn, args, kwargs)
 
-                output = await fn(*args, **kwargs)
+                    from aigc._internal.enforcement import (
+                        enforce_pre_call_async,
+                        enforce_post_call_async,
+                        emit_split_fn_failure_artifact,
+                    )
 
-                from aigc._internal.enforcement import enforce_invocation_async
-                await enforce_invocation_async({
-                    "policy_file": policy_file,
-                    "role": role,
-                    "model_provider": model_provider,
-                    "model_identifier": model_identifier,
-                    "input": input_data,
-                    "output": output,
-                    "context": context,
-                })
-                logger.debug("Governed async call passed: %s", fn.__name__)
-                return output
+                    pre_call_inv = {
+                        "policy_file": policy_file,
+                        "role": role,
+                        "model_provider": model_provider,
+                        "model_identifier": model_identifier,
+                        "input": input_data,
+                        "context": context,
+                    }
 
-            return async_wrapper
+                    # Phase A — raises on FAIL, blocking the wrapped function
+                    pre_call_result = await enforce_pre_call_async(pre_call_inv)
+
+                    # Function executes only after Phase A PASS
+                    try:
+                        output = await fn(*args, **kwargs)
+                    except Exception as fn_exc:
+                        emit_split_fn_failure_artifact(pre_call_result, fn_exc)
+                        raise
+
+                    # Phase B
+                    await enforce_post_call_async(pre_call_result, output)
+                    logger.debug(
+                        "Governed split async call passed: %s", fn.__name__,
+                    )
+                    return output
+
+                return async_wrapper_split
+            else:
+                @functools.wraps(fn)
+                async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+                    input_data, context = _extract_args(fn, args, kwargs)
+
+                    output = await fn(*args, **kwargs)
+
+                    from aigc._internal.enforcement import enforce_invocation_async
+                    await enforce_invocation_async({
+                        "policy_file": policy_file,
+                        "role": role,
+                        "model_provider": model_provider,
+                        "model_identifier": model_identifier,
+                        "input": input_data,
+                        "output": output,
+                        "context": context,
+                    })
+                    logger.debug("Governed async call passed: %s", fn.__name__)
+                    return output
+
+                return async_wrapper
         else:
-            @functools.wraps(fn)
-            def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-                input_data, context = _extract_args(fn, args, kwargs)
+            if pre_call_enforcement:
+                @functools.wraps(fn)
+                def sync_wrapper_split(*args: Any, **kwargs: Any) -> Any:
+                    input_data, context = _extract_args(fn, args, kwargs)
 
-                output = fn(*args, **kwargs)
+                    from aigc._internal.enforcement import (
+                        enforce_pre_call,
+                        enforce_post_call,
+                        emit_split_fn_failure_artifact,
+                    )
 
-                from aigc._internal.enforcement import enforce_invocation
-                enforce_invocation({
-                    "policy_file": policy_file,
-                    "role": role,
-                    "model_provider": model_provider,
-                    "model_identifier": model_identifier,
-                    "input": input_data,
-                    "output": output,
-                    "context": context,
-                })
-                logger.debug("Governed sync call passed: %s", fn.__name__)
-                return output
+                    pre_call_inv = {
+                        "policy_file": policy_file,
+                        "role": role,
+                        "model_provider": model_provider,
+                        "model_identifier": model_identifier,
+                        "input": input_data,
+                        "context": context,
+                    }
 
-            return sync_wrapper
+                    # Phase A — raises on FAIL, blocking the wrapped function
+                    pre_call_result = enforce_pre_call(pre_call_inv)
+
+                    # Function executes only after Phase A PASS
+                    try:
+                        output = fn(*args, **kwargs)
+                    except Exception as fn_exc:
+                        emit_split_fn_failure_artifact(pre_call_result, fn_exc)
+                        raise
+
+                    # Phase B
+                    enforce_post_call(pre_call_result, output)
+                    logger.debug(
+                        "Governed split sync call passed: %s", fn.__name__,
+                    )
+                    return output
+
+                return sync_wrapper_split
+            else:
+                @functools.wraps(fn)
+                def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+                    input_data, context = _extract_args(fn, args, kwargs)
+
+                    output = fn(*args, **kwargs)
+
+                    from aigc._internal.enforcement import enforce_invocation
+                    enforce_invocation({
+                        "policy_file": policy_file,
+                        "role": role,
+                        "model_provider": model_provider,
+                        "model_identifier": model_identifier,
+                        "input": input_data,
+                        "output": output,
+                        "context": context,
+                    })
+                    logger.debug("Governed sync call passed: %s", fn.__name__)
+                    return output
+
+                return sync_wrapper
 
     return decorator

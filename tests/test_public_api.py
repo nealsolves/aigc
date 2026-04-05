@@ -28,7 +28,7 @@ from aigc.sinks import (
 
 def test_public_api_imports():
     assert callable(enforce_invocation)
-    assert __version__ == "0.3.1"
+    assert __version__ == "0.3.2"
     assert InvocationValidationError.__name__ == "InvocationValidationError"
 
 
@@ -189,6 +189,34 @@ def test_telemetry_reexport_stub():
     """aigc.telemetry re-export is importable from the public path."""
     from aigc.telemetry import is_otel_available
     assert callable(is_otel_available)
+
+
+def test_split_enforcement_exports():
+    """Split enforcement symbols are importable from top-level aigc package."""
+    from aigc import (
+        PreCallResult,
+        enforce_pre_call,
+        enforce_post_call,
+        enforce_pre_call_async,
+        enforce_post_call_async,
+    )
+    assert PreCallResult is not None
+    assert callable(enforce_pre_call)
+    assert callable(enforce_post_call)
+    assert callable(enforce_pre_call_async)
+    assert callable(enforce_post_call_async)
+
+
+def test_split_enforcement_top_level_hasattr():
+    """Split enforcement symbols accessible via hasattr on aigc."""
+    for name in (
+        "PreCallResult",
+        "enforce_pre_call",
+        "enforce_post_call",
+        "enforce_pre_call_async",
+        "enforce_post_call_async",
+    ):
+        assert hasattr(aigc, name), f"aigc.{name} not exported"
 
 
 def test_all_list_completeness():

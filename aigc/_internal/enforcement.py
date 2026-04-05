@@ -638,6 +638,7 @@ def _run_phase_b(
             risk_score=(
                 risk_result.score if risk_result is not None else None
             ),
+            enforcement_mode=enforcement_mode,
         )
         logger.info(
             "Enforcement complete: PASS [policy=%s, role=%s]",
@@ -732,6 +733,7 @@ def _run_phase_b(
             span, "FAIL",
             policy_file=invocation.get("policy_file"),
             role=invocation.get("role"),
+            enforcement_mode=enforcement_mode,
         )
         logger.error(
             "Enforcement failed at gate '%s': %s",
@@ -870,6 +872,7 @@ def _run_pipeline(
                 span, "FAIL",
                 policy_file=invocation.get("policy_file"),
                 role=invocation.get("role"),
+                enforcement_mode="unified",
             )
             logger.error(
                 "Enforcement failed at gate '%s': %s",
@@ -1076,6 +1079,7 @@ def enforce_pre_call(
                 span, "FAIL",
                 policy_file=invocation.get("policy_file"),
                 role=invocation.get("role"),
+                enforcement_mode="split",
             )
             logger.error(
                 "Enforcement failed at gate '%s': %s",
@@ -1105,6 +1109,7 @@ def enforce_pre_call(
             span, "PASS_PHASE_A",
             policy_file=invocation.get("policy_file"),
             role=invocation.get("role"),
+            enforcement_mode="split",
         )
 
         return PreCallResult(
@@ -1345,6 +1350,7 @@ async def enforce_pre_call_async(
                 span, "FAIL",
                 policy_file=invocation.get("policy_file"),
                 role=invocation.get("role"),
+                enforcement_mode="split",
             )
             logger.error(
                 "Enforcement failed at gate '%s': %s",
@@ -1373,6 +1379,7 @@ async def enforce_pre_call_async(
             span, "PASS_PHASE_A",
             policy_file=invocation.get("policy_file"),
             role=invocation.get("role"),
+            enforcement_mode="split",
         )
 
         return PreCallResult(
@@ -1740,6 +1747,7 @@ class AIGC:
                     span, "FAIL",
                     policy_file=invocation.get("policy_file"),
                     role=invocation.get("role"),
+                    enforcement_mode="split",
                 )
                 logger.error(
                     "Enforcement failed during Phase A: %s", exc,
@@ -1766,6 +1774,7 @@ class AIGC:
                 span, "PASS_PHASE_A",
                 policy_file=invocation.get("policy_file"),
                 role=invocation.get("role"),
+                enforcement_mode="split",
             )
 
             return PreCallResult(
@@ -2048,6 +2057,7 @@ class AIGC:
                     span, "FAIL",
                     policy_file=invocation.get("policy_file"),
                     role=invocation.get("role"),
+                    enforcement_mode="split",
                 )
                 logger.error(
                     "Enforcement failed during Phase A: %s", exc,
@@ -2074,6 +2084,7 @@ class AIGC:
                 span, "PASS_PHASE_A",
                 policy_file=invocation.get("policy_file"),
                 role=invocation.get("role"),
+                enforcement_mode="split",
             )
 
             return PreCallResult(

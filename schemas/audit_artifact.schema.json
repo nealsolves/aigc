@@ -75,7 +75,37 @@
     },
     "metadata": {
       "type": "object",
-      "maxProperties": 100
+      "maxProperties": 100,
+      "properties": {
+        "enforcement_mode": {
+          "type": "string",
+          "enum": ["unified", "split", "split_pre_call_only"],
+          "description": "Execution mode used for this artifact"
+        },
+        "pre_call_gates_evaluated": {
+          "type": "array",
+          "items": { "type": "string" },
+          "maxItems": 1000,
+          "description": "Ordered list of Phase A gates completed"
+        },
+        "post_call_gates_evaluated": {
+          "type": "array",
+          "items": { "type": "string" },
+          "maxItems": 1000,
+          "description": "Ordered list of Phase B gates completed"
+        },
+        "pre_call_timestamp": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Unix epoch seconds when Phase A completed"
+        },
+        "post_call_timestamp": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Unix epoch seconds when Phase B completed"
+        }
+      },
+      "additionalProperties": true
     },
     "risk_score": {
       "type": ["number", "null"],

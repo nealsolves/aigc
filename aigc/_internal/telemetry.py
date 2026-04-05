@@ -91,6 +91,7 @@ def record_enforcement_result(
     policy_file: str | None = None,
     role: str | None = None,
     risk_score: float | None = None,
+    enforcement_mode: str | None = None,
 ) -> None:
     """Record enforcement result attributes on an OTel span.
 
@@ -99,6 +100,7 @@ def record_enforcement_result(
     :param policy_file: Policy file path
     :param role: Invocation role
     :param risk_score: Computed risk score
+    :param enforcement_mode: "unified" or "split"
     """
     if span is None:
         return
@@ -111,5 +113,7 @@ def record_enforcement_result(
             span.set_attribute("aigc.enforcement.role", role)
         if risk_score is not None:
             span.set_attribute("aigc.enforcement.risk_score", risk_score)
+        if enforcement_mode is not None:
+            span.set_attribute("aigc.enforcement_mode", enforcement_mode)
     except Exception:  # noqa: BLE001
         logger.debug("Failed to record enforcement result")

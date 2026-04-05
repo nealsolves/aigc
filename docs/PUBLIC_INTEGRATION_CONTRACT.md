@@ -792,7 +792,67 @@ artifact = await aigc.enforce_async(invocation)
 The instance owns its policy cache and never mutates global state. Multiple `AIGC` instances
 can coexist in the same process with different configurations.
 
-### 3.15 Planned extension points (not yet available)
+### 3.15 Split enforcement (v0.3.2+)
+
+Split enforcement divides the pipeline into two phases so that authorization
+gates run before the model call and output-side gates run after it. This
+avoids spending tokens on invocations that would fail authorization.
+
+**Module-level functions (sync and async):**
+
+```python
+enforce_pre_call(invocation: dict) -> PreCallResult
+enforce_post_call(pre_call_result: PreCallResult, output: dict) -> dict
+enforce_pre_call_async(invocation: dict) -> PreCallResult
+enforce_post_call_async(pre_call_result: PreCallResult, output: dict) -> dict
+```
+
+The `invocation` dict passed to `enforce_pre_call` uses the same shape as
+`enforce_invocation` **except** that the `output` key is omitted — it is not
+available until after the model call.
+
+**`PreCallResult` contract:** `PreCallResult` is a logically immutable handoff
+token produced by `enforce_pre_call`. It carries the loaded policy, resolved
+guards, gate state, and phase-A timestamps needed for phase B. It is not a
+public data carrier — do not inspect its internals. It is single-use: calling
+`enforce_post_call` a second time with the same token raises
+`InvocationValidationError`.
+
+**`AIGC` instance methods:**
+
+```python
+aigc.enforce_pre_call(invocation)          # sync
+aigc.enforce_post_call(pre_result, output) # sync
+await aigc.enforce_pre_call_async(invocation)
+await aigc.enforce_post_call_async(pre_result, output)
+```
+
+These have the same contract as the module-level functions and respect the
+instance's sink, signer, gates, and policy loader configuration.
+
+**Decorator opt-in:**
+
+```python
+@governed(
+    policy_file="policies/my_policy.yaml",
+    role="assistant",
+    model_provider="anthropic",
+    model_identifier="claude-sonnet-4-6",
+    pre_call_enforcement=True,
+)
+def run_model(input_data, context):
+    return model.generate(input_data)
+```
+
+When `pre_call_enforcement=True`, phase A runs before the wrapped function and
+blocks execution on failure. Phase B runs after the function returns. Without
+this parameter, `@governed` behaves identically to previous releases.
+
+**Compatibility:** Unified mode (`enforce_invocation`, `enforce_invocation_async`,
+`@governed` without `pre_call_enforcement`) is unchanged. No migration is
+required for existing integrations.
+
+### 3.16 Planned extension points (not yet available)
 
 The following extension mechanisms appear in architecture documentation but are **not yet
 implemented** in the current SDK. Do not attempt to import them:
@@ -982,7 +1042,7 @@ in tests):
 
 | Field | Description |
 | ----- | ----------- |
-| `audit_schema_version` | Schema version (e.g., `"1.2"`) |
+| `audit_schema_version` | Schema version (e.g., `"1.3"`) |
 | `policy_file` | Path to the policy file used |
 | `policy_version` | Value of `policy_version` from the policy YAML |
 | `policy_schema_version` | JSON Schema draft used to validate the policy |
@@ -1002,6 +1062,16 @@ Fields added by v0.3.0 extension points (present when the feature is active):
 | `chain_index` | Audit chain | 0-based position in chain |
 | `previous_audit_checksum` | Audit chain | SHA-256 of prior artifact (null for first) |
 | `metadata.custom_gate_metadata` | Custom gates | Dict of gate-specific metadata merged from `GateResult.metadata` |
+
+Fields added by v0.3.2 split enforcement (present when split mode is used):
+
+| Field | Description |
+| ----- | ----------- |
+| `metadata.enforcement_mode` | `"unified"` or `"split"` |
+| `metadata.pre_call_timestamp` | Unix epoch of phase-A completion |
+| `metadata.post_call_timestamp` | Unix epoch of phase-B completion |
+| `metadata.pre_call_gates_evaluated` | Gates evaluated during phase A |
+| `metadata.post_call_gates_evaluated` | Gates evaluated during phase B |
 
 Volatile fields (do not assert in tests without normalization):
 

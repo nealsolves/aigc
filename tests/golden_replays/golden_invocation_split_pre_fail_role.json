@@ -1,0 +1,8 @@
+{
+  "policy_file": "tests/golden_replays/golden_policy_v1.yaml",
+  "model_provider": "openai",
+  "model_identifier": "gpt-test-model",
+  "role": "unauthorized_role",
+  "input": {"task": "test"},
+  "context": {"role_declared": true, "schema_exists": true}
+}

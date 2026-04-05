@@ -19,7 +19,7 @@ export default function ArchitecturePage() {
         className="font-mono font-light text-xs tracking-widest mb-1"
         style={{ color: 'var(--ibm-cyan-30)', textTransform: 'uppercase' }}
       >
-        AIGC v0.3.0
+        AIGC v0.3.2
       </div>
       <div
         className="font-mono font-light text-xs mb-14"
@@ -39,7 +39,7 @@ export default function ArchitecturePage() {
       <DiagramSection
         num="02"
         title="Enforcement Pipeline"
-        description="The sequential gate order for the core enforcement pipeline. Core governance gates are fail-closed; risk scoring may be blocking or audit-only depending on mode."
+        description="The current runtime boundary for v0.3.2. Phase A runs before the model call in split mode, Phase B runs after output exists, and unified mode keeps the same ordered gates inside one call."
         src={pipelineSvg}
         alt="AIGC Enforcement Pipeline"
       />
@@ -54,8 +54,11 @@ export default function ArchitecturePage() {
             marginTop: 20,
           }}
         >
-          <NoteCard label="Post-Call Governance">
-            <Code>@governed</Code> is post-call. The wrapped function runs first, then AIGC assembles the invocation and enforces policy on the result.
+          <NoteCard label="Decorator Modes">
+            <Code>@governed</Code> defaults to unified post-call enforcement for backward compatibility. Set <Code>pre_call_enforcement=True</Code> to run Phase A before the wrapped function and Phase B after it returns.
+          </NoteCard>
+          <NoteCard label="Phase A / Phase B">
+            Split mode moves the model call boundary between <Code>post_authorization</Code> and <Code>pre_output</Code>. Unified mode still evaluates the same ordered gates in one enforcement call.
           </NoteCard>
           <NoteCard label="Audit Chain">
             <Code>AuditChain</Code> is not part of the automatic enforcement pipeline. It is an opt-in utility the host applies to artifacts after enforcement.
@@ -65,6 +68,9 @@ export default function ArchitecturePage() {
           </NoteCard>
           <NoteCard label="Pre-Pipeline Failures">
             Pre-pipeline failures produce schema-valid FAIL artifacts with <Code>policy_version: &quot;unknown&quot;</Code>, but bypass the core gate sequence.
+          </NoteCard>
+          <NoteCard label="Async + Instance APIs">
+            <Code>enforce_invocation_async</Code>, <Code>enforce_pre_call_async</Code>, <Code>enforce_post_call_async</Code>, and the matching <Code>AIGC</Code> instance methods ship in the v0.3.2 runtime.
           </NoteCard>
         </div>
       </div>

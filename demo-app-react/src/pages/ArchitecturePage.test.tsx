@@ -26,12 +26,19 @@ describe('ArchitecturePage', () => {
     expect(screen.getByText('Key Boundaries')).toBeInTheDocument()
   })
 
-  it('renders all four Key Boundary note cards', () => {
+  it('renders the current v0.3.2 boundary notes', () => {
     renderPage()
-    expect(screen.getByText('Post-Call Governance')).toBeInTheDocument()
+    expect(screen.getByText('Decorator Modes')).toBeInTheDocument()
+    expect(screen.getByText('Phase A / Phase B')).toBeInTheDocument()
     expect(screen.getByText('Audit Chain')).toBeInTheDocument()
     expect(screen.getByText('Compliance Export')).toBeInTheDocument()
     expect(screen.getByText('Pre-Pipeline Failures')).toBeInTheDocument()
+    expect(screen.getByText('Async + Instance APIs')).toBeInTheDocument()
+  })
+
+  it('labels the page as v0.3.2', () => {
+    renderPage()
+    expect(screen.getByText('AIGC v0.3.2')).toBeInTheDocument()
   })
 
   it('renders diagram images', () => {

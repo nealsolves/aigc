@@ -1,8 +1,11 @@
 """Tests for compliance export CLI (M2 feature)."""
 import json
-import pytest
 from pathlib import Path
 
+import pytest
+
+from aigc import CallbackAuditSink, get_audit_sink, set_audit_sink
+from aigc.decorators import governed
 from aigc._internal.cli import main, _cmd_compliance_export
 from aigc._internal.audit import generate_audit_artifact
 
@@ -214,3 +217,67 @@ def test_compliance_export_all_invalid_no_output_file_written(tmp_path):
     ])
     assert exit_code == 1
     assert not output_file.exists()
+
+
+def test_compliance_export_wrapped_function_error_artifact_is_valid(tmp_path):
+    """A real split-decorator wrapped_function_error artifact passes compliance export.
+
+    Regression for Finding 1 (2026-04-05 audit): packaged aigc/schemas/audit_artifact.schema.json
+    was missing 'wrapped_function_error' in the failure_gate enum, causing CLI compliance
+    export to reject all split-decorator wrapped-function FAIL artifacts as schema-invalid.
+    """
+    collected: list[dict] = []
+    old_sink = get_audit_sink()
+    set_audit_sink(CallbackAuditSink(lambda artifact: collected.append(artifact)))
+    try:
+        @governed(
+            policy_file="tests/golden_replays/golden_policy_v1.yaml",
+            role="planner",
+            model_provider="anthropic",
+            model_identifier="claude-sonnet-4-5-20250929",
+            pre_call_enforcement=True,
+        )
+        def raising_fn(input_data, context):
+            raise RuntimeError("simulated LLM failure")
+
+        with pytest.raises(RuntimeError, match="simulated LLM failure"):
+            raising_fn(
+                {"task": "analyse system"},
+                {"role_declared": True, "schema_exists": True},
+            )
+    finally:
+        set_audit_sink(old_sink)
+
+    assert len(collected) == 1
+    artifact = collected[0]
+    assert artifact["enforcement_result"] == "FAIL"
+    assert artifact["failure_gate"] == "wrapped_function_error"
+    assert artifact["metadata"]["enforcement_mode"] == "split"
+    assert artifact["metadata"]["pre_call_gates_evaluated"] == [
+        "guard_evaluation",
+        "role_validation",
+        "precondition_validation",
+        "tool_constraint_validation",
+    ]
+    assert set(artifact["metadata"]) == {
+        "enforcement_mode",
+        "pre_call_gates_evaluated",
+    }
+
+    input_file = tmp_path / "wrapped_fn.jsonl"
+    _write_jsonl(input_file, [artifact])
+
+    output_file = tmp_path / "report.json"
+    exit_code = main([
+        "compliance", "export",
+        "--input", str(input_file),
+        "--output", str(output_file),
+    ])
+    assert exit_code == 0, (
+        "CLI rejected a runtime-emitted wrapped_function_error artifact as schema-invalid"
+    )
+    report = json.loads(output_file.read_text())
+    assert report["total_artifacts"] == 1
+    assert report["invalid_artifacts"] == 0
+    assert report["fail_count"] == 1
+    assert "wrapped_function_error" in report["failure_gates_summary"]

@@ -15,7 +15,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Fix: Process-local consumption registry prevents deepcopy/pickle clone replay; per-token nonce ensures unique HMAC per invocation (Finding 3)
 - Fix: FAIL artifact identity fields sourced from verified evidence bytes, not mutable `_frozen_invocation_snapshot` (Finding 4)
 - Fix: Non-mapping invocations now emit FAIL artifacts at all 8 entry points (Finding 5)
-- Docs: Updated README test count from 776 to 797 (Finding 6)
+- Docs: Normalized release metrics to `818 tests` and coverage above the `90%` CI gate (Finding 6)
 
 ### Added
 
@@ -23,7 +23,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`PreCallResult`**: Logically immutable handoff token from Phase A to Phase B. One-time use; second use raises `InvocationValidationError`.
 - **`@governed(pre_call_enforcement=True)`**: Opt-in split mode for the decorator — Phase A runs before the wrapped function; Phase A failure blocks execution.
 - **Instance-scoped split methods**: `AIGC.enforce_pre_call()` and `AIGC.enforce_post_call()` (sync + async) with the same contract as module-level functions.
-- **Audit schema v1.3**: Additive `metadata` fields: `enforcement_mode`, `pre_call_gates_evaluated`, `post_call_gates_evaluated`, `pre_call_timestamp`, `post_call_timestamp`. All new fields optional; v1.2 artifacts remain valid.
+- **Audit schema v1.3**: Additive `metadata` fields: `enforcement_mode`, `pre_call_gates_evaluated`, `post_call_gates_evaluated`, `pre_call_timestamp`, `post_call_timestamp`, plus additive `failure_gate="wrapped_function_error"` for wrapped-function split failures. Prior artifacts remain valid.
 - **Telemetry split spans**: `aigc.enforce_pre_call` and `aigc.enforce_post_call` span names with `aigc.enforcement_mode` attribute.
 
 ### Changed
@@ -42,15 +42,15 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `InvocationValidationError` with an attached FAIL artifact rather than a raw
   `TypeError`.
 - **Failure-gate taxonomy clarification**: `failure_gate="wrapped_function_error"`
-  is now explicitly documented as the value emitted when the wrapped function raises
-  in `@governed(pre_call_enforcement=True)` mode. This value existed before v0.3.2;
-  split mode extends its use to the pre-call decorator path. No schema changes
-  required.
+  is a new additive `v0.3.2` value emitted when the wrapped function raises in
+  `@governed(pre_call_enforcement=True)` mode after Phase A PASS and before
+  Phase B. Consumers that enumerate `failure_gate` values must add it.
 
 ### Unchanged
 
 - `enforce_invocation()`, `enforce_invocation_async()`, and `@governed()` (without `pre_call_enforcement`) are fully backward-compatible.
-- Unified mode behavior, exception types, and artifact contract are unchanged.
+- Unified mode behavior and exception types are unchanged.
+- Unified artifacts now add optional `metadata.enforcement_mode = "unified"` under the additive `v1.3` schema contract.
 - Gate ordering invariants are preserved.
 
 ---

@@ -8,53 +8,56 @@ The enforcement pipeline is deterministic and fail-closed.
 
 ## High Level Flow
 
+Unified mode remains supported and is still the default compatibility path.
+`v0.3.2` adds split mode by moving the model-call boundary between the
+authorization-side gates and the output-side gates.
+
 ```
 Application
 │
-▼
-AIGC Enforcement Engine
+├─ unified mode (default)
+│  ▼
+│  AIGC Enforcement Engine
+│  ▼
+│  Policy Load
+│  ▼
+│  pre_authorization custom gates
+│  ▼
+│  Guard Evaluation
+│  ▼
+│  Role Validation
+│  ▼
+│  Precondition Validation
+│  ▼
+│  Tool Constraint Validation
+│  ▼
+│  post_authorization custom gates
+│  ▼
+│  pre_output custom gates
+│  ▼
+│  Output Schema Validation
+│  ▼
+│  Postcondition Validation
+│  ▼
+│  post_output custom gates
+│  ▼
+│  Risk Scoring (if configured)
+│  ▼
+│  Audit Artifact Generation
 │
-▼
-Policy Load
-│
-▼
-Custom Gates (pre_authorization)
-│
-▼
-Guard Evaluation
-│
-▼
-Role Validation
-│
-▼
-Precondition Validation
-│
-▼
-Tool Constraint Validation
-│
-▼
-Custom Gates (post_authorization)
-│
-▼
-Custom Gates (pre_output)
-│
-▼
-Output Schema Validation
-│
-▼
-Postcondition Validation
-│
-▼
-Custom Gates (post_output)
-│
-▼
-Risk Scoring (if configured)
-│
-▼
-Audit Artifact Generation
-│
-▼
-Result Returned
+└─ split mode (opt-in)
+   ▼
+   Phase A / enforce_pre_call
+   ▼
+   Policy Load -> pre_authorization -> Guard Evaluation -> Role Validation
+   -> Precondition Validation -> Tool Constraint Validation -> post_authorization
+   ▼
+   Model Call Boundary
+   ▼
+   Phase B / enforce_post_call
+   ▼
+   pre_output -> Output Schema Validation -> Postcondition Validation
+   -> post_output -> Risk Scoring -> Audit Artifact Generation
 ```
 
 ---
@@ -198,9 +201,13 @@ Both PASS and FAIL artifacts are emitted.
 
 ## Pre-Action Boundary Proof
 
-Audit artifacts contain:
+Audit artifacts record the ordered gates that ran before the call boundary.
 
-`metadata.gates_evaluated`
+- Unified mode uses `metadata.gates_evaluated`.
+- Split mode uses `metadata.pre_call_gates_evaluated` and, when Phase B runs,
+  `metadata.post_call_gates_evaluated`.
+
+Unified example:
 
 Example:
 
@@ -213,7 +220,9 @@ Example:
 ]
 ```
 
-This proves enforcement occurred before action.
+This proves enforcement occurred before action. In split mode, the Phase A list
+is the explicit proof that the authorization-side gates completed before the
+wrapped model call executed.
 
 ---
 

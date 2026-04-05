@@ -2,7 +2,7 @@
 
 **Auditable Intelligence Governance Contract**
 
-Version: 1.2.0 | Status: Authoritative | Last Updated: 2026-04-04
+Version: 1.3.0 | Status: Authoritative | Last Updated: 2026-04-05
 
 ---
 

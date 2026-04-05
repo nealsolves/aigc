@@ -685,6 +685,7 @@ def _run_phase_b(
             fail_metadata: dict[str, Any] = {
                 "gates_evaluated": all_gates,
                 "redacted_fields": redacted_fields,
+                "enforcement_mode": "unified",
             }
         else:
             post_call_timestamp = int(_time.time())
@@ -842,6 +843,7 @@ def _run_pipeline(
             fail_metadata: dict[str, Any] = {
                 "gates_evaluated": list(phase_a_gates),
                 "redacted_fields": redacted_fields,
+                "enforcement_mode": "unified",
             }
             if isinstance(exc, RiskThresholdError) and isinstance(
                 getattr(exc, "details", None), dict,

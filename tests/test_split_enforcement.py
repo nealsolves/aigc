@@ -267,6 +267,24 @@ class TestUnifiedBackwardCompat:
         # gates_evaluated is still present as before
         assert "gates_evaluated" in audit["metadata"]
 
+    def test_unified_fail_artifact_enforcement_mode_is_unified(self):
+        """Unified FAIL artifacts also set enforcement_mode='unified'.
+
+        Per design spec Section 11.2, enforcement_mode must be set on all
+        unified mode artifacts, including FAIL artifacts.
+        """
+        from aigc._internal.errors import GovernanceViolationError
+
+        inv = _unified_invocation()
+        inv["role"] = "unauthorized_role"  # triggers role validation failure
+
+        with pytest.raises(GovernanceViolationError) as exc_info:
+            enforce_invocation(inv)
+
+        artifact = exc_info.value.audit_artifact
+        assert artifact["enforcement_result"] == "FAIL"
+        assert artifact["metadata"]["enforcement_mode"] == "unified"
+
 
 # ── Async parity ────────────────────────────────────────────────
 

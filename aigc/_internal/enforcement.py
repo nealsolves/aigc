@@ -103,10 +103,45 @@ def _record_gate(gates: list[str], gate_id: str) -> None:
 
 # ── PreCallResult handoff token ──────────────────────────────────
 
-# Module-private sentinel. Only code inside this module can set
-# _origin to this value. A directly-constructed PreCallResult gets
+
+class _EnforcementToken:
+    """Singleton sentinel used as the provenance marker on PreCallResult.
+
+    Provenance check threat model: misuse-detection only.
+    This sentinel prevents accidental construction of PreCallResult outside
+    enforce_pre_call() (e.g. typos, copy-paste errors). It does NOT prevent
+    hostile in-process code that imports module internals — Python offers no
+    language-level mechanism for that. Cross-process or multi-tenant isolation
+    is the host's responsibility (spec Section 10.6).
+
+    Pickle and deepcopy survival: __reduce__ and __deepcopy__ return the
+    module-level singleton so identity-based checks remain valid after
+    pickle round-trips and deepcopy operations (spec Section 10.5).
+    """
+
+    __slots__ = ()
+
+    def __copy__(self) -> "_EnforcementToken":
+        return self
+
+    def __deepcopy__(self, _memo: dict) -> "_EnforcementToken":
+        return self
+
+    def __reduce__(self) -> tuple:
+        # Unpickling calls _get_enforcement_token() which returns the
+        # module-level singleton, preserving object identity.
+        return (_get_enforcement_token, ())
+
+
+def _get_enforcement_token() -> "_EnforcementToken":
+    """Return the module-level _ENFORCEMENT_TOKEN singleton (pickle helper)."""
+    return _ENFORCEMENT_TOKEN
+
+
+# Module-private sentinel. Only code inside this module sets _origin to this
+# value via object.__setattr__. A directly-constructed PreCallResult gets
 # _origin=None (the field default) and is rejected by post-call.
-_ENFORCEMENT_TOKEN: object = object()
+_ENFORCEMENT_TOKEN: _EnforcementToken = _EnforcementToken()
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,19 +172,29 @@ class PreCallResult:
         init=False, default=None, repr=False, compare=False,
     )
     # Provenance marker — set to _ENFORCEMENT_TOKEN only by this
-    # module.  A directly-constructed PreCallResult gets None here
-    # and is rejected by enforce_post_call (forgery prevention).
-    _origin: object = field(
+    # module via object.__setattr__.  A directly-constructed PreCallResult
+    # gets None here and is rejected by enforce_post_call.
+    _origin: "_EnforcementToken | None" = field(
         init=False, default=None, repr=False, compare=False,
     )
     # Private deep-frozen copies taken at Phase A completion time.
     # Phase B reads exclusively from these, so caller mutations to
     # the public effective_policy / invocation_snapshot fields after
-    # Phase A have no effect on Phase B enforcement (Finding 3).
+    # Phase A have no effect on Phase B enforcement.
     _frozen_effective_policy: Any = field(
         init=False, default=None, repr=False, compare=False,
     )
     _frozen_invocation_snapshot: Any = field(
+        init=False, default=None, repr=False, compare=False,
+    )
+    # Canonical JSON serializations of Phase A state.  A bytes object
+    # cannot have its contents mutated, so Phase B deserialization is
+    # immune to any post-Phase-A mutations of _frozen_effective_policy
+    # or phase_a_metadata (Findings 1 & 2, Round 2 audit).
+    _frozen_policy_bytes: Any = field(
+        init=False, default=None, repr=False, compare=False,
+    )
+    _frozen_phase_a_metadata: Any = field(
         init=False, default=None, repr=False, compare=False,
     )
 
@@ -964,6 +1009,9 @@ def enforce_invocation(invocation: Mapping[str, Any]) -> dict[str, Any]:
         policy = load_policy(invocation["policy_file"])
     except AIGCError as exc:
         artifact = _generate_pre_pipeline_fail_artifact(invocation, exc)
+        # Unified entry point: stamp enforcement_mode so consumers can
+        # branch consistently (Round 2 audit Finding 4, spec §11.2).
+        artifact.setdefault("metadata", {})["enforcement_mode"] = "unified"
         exc.audit_artifact = artifact
         try:
             emit_to_sink(artifact)
@@ -1005,6 +1053,7 @@ async def enforce_invocation_async(
         )
     except AIGCError as exc:
         artifact = _generate_pre_pipeline_fail_artifact(invocation, exc)
+        artifact.setdefault("metadata", {})["enforcement_mode"] = "unified"
         exc.audit_artifact = artifact
         try:
             emit_to_sink(artifact)
@@ -1180,6 +1229,20 @@ def enforce_pre_call(
             token, "_frozen_invocation_snapshot",
             copy.deepcopy(token.invocation_snapshot),
         )
+        # Serialize effective_policy to immutable bytes (Round 2 audit
+        # Finding 1): even if a caller mutates _frozen_effective_policy's
+        # nested dicts, Phase B deserializes a fresh copy from these bytes.
+        object.__setattr__(
+            token, "_frozen_policy_bytes",
+            json.dumps(token.effective_policy, sort_keys=True).encode(),
+        )
+        # Deep-copy phase_a_metadata so Phase B artifact evidence cannot
+        # be forged by mutating the public phase_a_metadata field
+        # (Round 2 audit Finding 2).
+        object.__setattr__(
+            token, "_frozen_phase_a_metadata",
+            copy.deepcopy(phase_a_metadata),
+        )
         return token
 
 
@@ -1253,7 +1316,9 @@ def enforce_post_call(
             "enforce_post_call() output must be a dict",
             details={"field": "output"},
         )
-        safe_inv = dict(pre_call_result.invocation_snapshot)
+        # Use frozen snapshot — not the mutable public field — so callers
+        # cannot forge FAIL artifact identity (Round 2 audit Finding 2).
+        safe_inv = dict(pre_call_result._frozen_invocation_snapshot)
         safe_inv["output"] = {}
         artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
         artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
@@ -1279,7 +1344,7 @@ def enforce_post_call(
             f"{json_exc}",
             details={"field": "output"},
         )
-        safe_inv = dict(pre_call_result.invocation_snapshot)
+        safe_inv = dict(pre_call_result._frozen_invocation_snapshot)
         safe_inv["output"] = {}
         artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
         artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
@@ -1300,7 +1365,7 @@ def enforce_post_call(
             "create a new one via enforce_pre_call()",
             details={"field": "pre_call_result"},
         )
-        safe_inv = dict(pre_call_result.invocation_snapshot)
+        safe_inv = dict(pre_call_result._frozen_invocation_snapshot)
         safe_inv["output"] = {}
         artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
         artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
@@ -1319,12 +1384,14 @@ def enforce_post_call(
     # 5. Build full invocation for Phase B.
     # Read from the frozen snapshot captured at Phase A completion so
     # that caller mutations to invocation_snapshot after Phase A have
-    # no effect on Phase B enforcement (Finding 3).
+    # no effect on Phase B enforcement.
     full_invocation = dict(pre_call_result._frozen_invocation_snapshot)
     full_invocation["output"] = output
 
-    # 6. Recover Phase A state
-    phase_a_meta = dict(pre_call_result.phase_a_metadata)
+    # 6. Recover Phase A state from the frozen deep-copy (Round 2 audit
+    # Finding 2): reading from phase_a_metadata (public, mutable) would
+    # allow callers to forge pre_call_gates_evaluated in the artifact.
+    phase_a_meta = copy.deepcopy(pre_call_result._frozen_phase_a_metadata)
     phase_a_gates = list(
         phase_a_meta.get("gates_evaluated", []),
     )
@@ -1332,10 +1399,10 @@ def enforce_post_call(
         phase_a_meta.get("all_custom_metadata", {}),
     )
 
-    # Use the frozen effective_policy captured at Phase A completion so
-    # that caller mutations after Phase A do not weaken enforcement
-    # (Finding 3).
-    original_policy = dict(pre_call_result._frozen_effective_policy)
+    # Deserialize effective_policy from immutable bytes (Round 2 audit
+    # Finding 1): even if _frozen_effective_policy's nested dicts were
+    # mutated by the caller, this fresh deserialization is unaffected.
+    original_policy = json.loads(pre_call_result._frozen_policy_bytes)
 
     with enforcement_span(
         "aigc.enforce_post_call",
@@ -1346,7 +1413,7 @@ def enforce_post_call(
         },
     ) as span:
         return _run_phase_b(
-            dict(pre_call_result._frozen_effective_policy),
+            json.loads(pre_call_result._frozen_policy_bytes),
             original_policy,
             full_invocation,
             phase_a_gates=phase_a_gates,
@@ -1516,6 +1583,14 @@ async def enforce_pre_call_async(
         object.__setattr__(
             token, "_frozen_invocation_snapshot",
             copy.deepcopy(token.invocation_snapshot),
+        )
+        object.__setattr__(
+            token, "_frozen_policy_bytes",
+            json.dumps(token.effective_policy, sort_keys=True).encode(),
+        )
+        object.__setattr__(
+            token, "_frozen_phase_a_metadata",
+            copy.deepcopy(phase_a_metadata),
         )
         return token
 
@@ -1744,6 +1819,9 @@ class AIGC:
                 invocation, exc,
                 redaction_patterns=self._redaction_patterns,
             )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                "unified"
+            )
             exc.audit_artifact = artifact
             try:
                 emit_to_sink(
@@ -1925,6 +2003,14 @@ class AIGC:
                 token, "_frozen_invocation_snapshot",
                 copy.deepcopy(token.invocation_snapshot),
             )
+            object.__setattr__(
+                token, "_frozen_policy_bytes",
+                json.dumps(token.effective_policy, sort_keys=True).encode(),
+            )
+            object.__setattr__(
+                token, "_frozen_phase_a_metadata",
+                copy.deepcopy(phase_a_metadata),
+            )
             return token
 
     def enforce_post_call(
@@ -2019,7 +2105,7 @@ class AIGC:
                 "enforce_post_call() output must be a dict",
                 details={"field": "output"},
             )
-            safe_inv = dict(pre_call_result.invocation_snapshot)
+            safe_inv = dict(pre_call_result._frozen_invocation_snapshot)
             safe_inv["output"] = {}
             artifact = _generate_pre_pipeline_fail_artifact(
                 safe_inv, exc,
@@ -2051,7 +2137,7 @@ class AIGC:
                 f"{json_exc}",
                 details={"field": "output"},
             )
-            safe_inv = dict(pre_call_result.invocation_snapshot)
+            safe_inv = dict(pre_call_result._frozen_invocation_snapshot)
             safe_inv["output"] = {}
             artifact = _generate_pre_pipeline_fail_artifact(
                 safe_inv, exc,
@@ -2081,7 +2167,7 @@ class AIGC:
                 "create a new one via enforce_pre_call()",
                 details={"field": "pre_call_result"},
             )
-            safe_inv = dict(pre_call_result.invocation_snapshot)
+            safe_inv = dict(pre_call_result._frozen_invocation_snapshot)
             safe_inv["output"] = {}
             artifact = _generate_pre_pipeline_fail_artifact(
                 safe_inv, exc,
@@ -2107,20 +2193,22 @@ class AIGC:
         # 4. Mark consumed
         object.__setattr__(pre_call_result, "_consumed", True)
 
-        # 5. Build full invocation for Phase B (Finding 3: frozen copy).
+        # 5. Build full invocation for Phase B using frozen snapshot.
         full_invocation = dict(pre_call_result._frozen_invocation_snapshot)
         full_invocation["output"] = output
 
-        # 6. Recover Phase A state
-        phase_a_meta = dict(pre_call_result.phase_a_metadata)
+        # 6. Recover Phase A state from the frozen deep-copy so callers
+        # cannot forge pre_call_gates_evaluated by mutating phase_a_metadata.
+        phase_a_meta = copy.deepcopy(pre_call_result._frozen_phase_a_metadata)
         phase_a_gates = list(
             phase_a_meta.get("gates_evaluated", []),
         )
         all_custom_metadata = dict(
             phase_a_meta.get("all_custom_metadata", {}),
         )
-        # Use frozen effective_policy (Finding 3).
-        original_policy = dict(pre_call_result._frozen_effective_policy)
+        # Deserialize effective_policy from bytes; immune to nested-dict
+        # mutation of _frozen_effective_policy.
+        original_policy = json.loads(pre_call_result._frozen_policy_bytes)
 
         with enforcement_span(
             "aigc.enforce_post_call",
@@ -2131,7 +2219,7 @@ class AIGC:
             },
         ) as span:
             return _run_phase_b(
-                dict(pre_call_result._frozen_effective_policy),
+                json.loads(pre_call_result._frozen_policy_bytes),
                 original_policy,
                 full_invocation,
                 phase_a_gates=phase_a_gates,
@@ -2308,9 +2396,13 @@ class AIGC:
                 model_identifier=invocation["model_identifier"],
                 role=invocation["role"],
             )
+            # Use grouped_gates captured BEFORE Phase A, not a fresh sort
+            # of self._custom_gates (Round 2 audit Finding 3): if a Phase A
+            # gate mutates self._custom_gates, re-sorting would produce a
+            # different gate set for Phase B than Phase A used.
             object.__setattr__(
                 token, "_phase_b_grouped_gates",
-                sort_gates(self._custom_gates),
+                grouped_gates,
             )
             object.__setattr__(token, "_origin", _ENFORCEMENT_TOKEN)
             object.__setattr__(
@@ -2320,6 +2412,14 @@ class AIGC:
             object.__setattr__(
                 token, "_frozen_invocation_snapshot",
                 copy.deepcopy(token.invocation_snapshot),
+            )
+            object.__setattr__(
+                token, "_frozen_policy_bytes",
+                json.dumps(token.effective_policy, sort_keys=True).encode(),
+            )
+            object.__setattr__(
+                token, "_frozen_phase_a_metadata",
+                copy.deepcopy(phase_a_metadata),
             )
             return token
 
@@ -2365,6 +2465,9 @@ class AIGC:
             artifact = _generate_pre_pipeline_fail_artifact(
                 invocation, exc,
                 redaction_patterns=self._redaction_patterns,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                "unified"
             )
             exc.audit_artifact = artifact
             try:

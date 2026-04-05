@@ -181,6 +181,13 @@ def _make_token_signer() -> tuple:
 
 _token_sign, _token_verify = _make_token_signer()
 
+# Process-local registry of consumed token HMACs (Finding 3, 2026-04-05).
+# Prevents replay via deepcopy/pickle clone of an unconsumed token.
+# Keyed by _token_hmac bytes (unique per session key + evidence content).
+# Thread safety: Python's GIL protects individual set.add/in operations.
+# Threat model: process-local misuse detection (spec Section 10.6).
+_consumed_token_registry: set[bytes] = set()
+
 
 def _gate_fingerprint(grouped_gates: Any) -> dict[str, list[dict[str, str]]]:
     """Compute a JSON-serializable fingerprint of the gate manifest.
@@ -1265,6 +1272,9 @@ def enforce_pre_call(
 
     grouped_gates = sort_gates(custom_gates or [])
     pre_call_timestamp = int(_time.time())
+    # Unique per-token nonce ensures _token_hmac is unique even for
+    # identical invocations in the same second (Finding 3, 2026-04-05).
+    _token_nonce = os.urandom(16).hex()
 
     with enforcement_span(
         "aigc.enforce_pre_call",
@@ -1407,6 +1417,9 @@ def enforce_pre_call(
                     "effective_policy": dict(token.effective_policy),
                     # Finding 2: gate fingerprint so Phase B can verify _phase_b_grouped_gates.
                     "gate_fingerprint": _gate_fingerprint(grouped_gates),
+                    # Finding 3: unique per-token nonce so _token_hmac is unique
+                    # even for identical invocations within the same second.
+                    "token_nonce": _token_nonce,
                 },
                 sort_keys=True,
             ).encode()
@@ -1597,6 +1610,28 @@ def enforce_post_call(
                 )
             raise exc
 
+    # 1f. Clone replay check — rejects second consumption of the same logical token
+    # (whether original or clone). Keyed by _token_hmac (unique per session + content).
+    # audit Finding 3, 2026-04-05.
+    _nonce = pre_call_result._token_hmac
+    if _nonce in _consumed_token_registry:
+        exc = InvocationValidationError(
+            "Token replay attempt detected; this token or a clone "
+            "of it has already been consumed",
+            details={"field": "pre_call_result"},
+        )
+        safe_inv = dict(_verified_snap)
+        artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
+        artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+        exc.audit_artifact = artifact
+        try:
+            emit_to_sink(artifact)
+        except AuditSinkError as sink_exc:
+            logger.error(
+                "Sink emission failed on clone replay FAIL path: %s", sink_exc,
+            )
+        raise exc
+
     # 2. Output type validation
     if not isinstance(output, dict):
         exc = InvocationValidationError(
@@ -1672,8 +1707,8 @@ def enforce_post_call(
         except (TypeError, ValueError):
             original_policy = {}
 
-    # 5. Mark consumed AFTER validating token state (frozen dataclass
-    # requires object.__setattr__).
+    # 5. Register nonce and mark consumed (Finding 3: replay prevention).
+    _consumed_token_registry.add(pre_call_result._token_hmac)
     object.__setattr__(pre_call_result, "_consumed", True)
 
     full_invocation = dict(evidence["invocation_snapshot"])
@@ -1783,6 +1818,9 @@ async def enforce_pre_call_async(
     # We loaded the policy async above; now run the rest synchronously.
     grouped_gates = sort_gates(custom_gates or [])
     pre_call_timestamp = int(_time.time())
+    # Unique per-token nonce ensures _token_hmac is unique even for
+    # identical invocations in the same second (Finding 3, 2026-04-05).
+    _token_nonce = os.urandom(16).hex()
 
     with enforcement_span(
         "aigc.enforce_pre_call",
@@ -1905,6 +1943,9 @@ async def enforce_pre_call_async(
                     "effective_policy": dict(token.effective_policy),
                     # Finding 2: gate fingerprint so Phase B can verify _phase_b_grouped_gates.
                     "gate_fingerprint": _gate_fingerprint(grouped_gates),
+                    # Finding 3: unique per-token nonce so _token_hmac is unique
+                    # even for identical invocations within the same second.
+                    "token_nonce": _token_nonce,
                 },
                 sort_keys=True,
             ).encode()
@@ -2349,6 +2390,9 @@ class AIGC:
 
         grouped_gates = sort_gates(self._custom_gates)
         pre_call_timestamp = int(_time.time())
+        # Unique per-token nonce ensures _token_hmac is unique even for
+        # identical invocations in the same second (Finding 3, 2026-04-05).
+        _token_nonce = os.urandom(16).hex()
 
         with enforcement_span(
             "aigc.enforce_pre_call",
@@ -2475,6 +2519,9 @@ class AIGC:
                         "effective_policy": dict(token.effective_policy),
                         # Finding 2: gate fingerprint so Phase B can verify _phase_b_grouped_gates.
                         "gate_fingerprint": _gate_fingerprint(grouped_gates),
+                        # Finding 3: unique per-token nonce so _token_hmac is unique
+                        # even for identical invocations within the same second.
+                        "token_nonce": _token_nonce,
                     },
                     sort_keys=True,
                 ).encode()
@@ -2721,6 +2768,31 @@ class AIGC:
                     )
                 raise exc
 
+        # 1f. Clone replay check — rejects second consumption of the same logical token
+        # (whether original or clone). Keyed by _token_hmac (unique per session + content).
+        # audit Finding 3, 2026-04-05.
+        _nonce = pre_call_result._token_hmac
+        if _nonce in _consumed_token_registry:
+            exc = InvocationValidationError(
+                "Token replay attempt detected; this token or a clone "
+                "of it has already been consumed",
+                details={"field": "pre_call_result"},
+            )
+            safe_inv = dict(_verified_snap)
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+            exc.audit_artifact = artifact
+            try:
+                emit_to_sink(artifact, sink=self._sink, failure_mode=self._on_sink_failure)
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on clone replay FAIL path: %s", sink_exc,
+                )
+            raise exc
+
         # 2. Output type validation
         if not isinstance(output, dict):
             exc = InvocationValidationError(
@@ -2821,7 +2893,8 @@ class AIGC:
             except (TypeError, ValueError):
                 original_policy = {}
 
-        # 5. Mark consumed AFTER validating token state.
+        # 5. Register nonce and mark consumed (Finding 3: replay prevention).
+        _consumed_token_registry.add(pre_call_result._token_hmac)
         object.__setattr__(pre_call_result, "_consumed", True)
 
         full_invocation = dict(evidence["invocation_snapshot"])
@@ -2955,6 +3028,9 @@ class AIGC:
 
         grouped_gates = sort_gates(self._custom_gates)
         pre_call_timestamp = int(_time.time())
+        # Unique per-token nonce ensures _token_hmac is unique even for
+        # identical invocations in the same second (Finding 3, 2026-04-05).
+        _token_nonce = os.urandom(16).hex()
 
         with enforcement_span(
             "aigc.enforce_pre_call",
@@ -3086,6 +3162,9 @@ class AIGC:
                         "effective_policy": dict(token.effective_policy),
                         # Finding 2: gate fingerprint so Phase B can verify _phase_b_grouped_gates.
                         "gate_fingerprint": _gate_fingerprint(grouped_gates),
+                        # Finding 3: unique per-token nonce so _token_hmac is unique
+                        # even for identical invocations within the same second.
+                        "token_nonce": _token_nonce,
                     },
                     sort_keys=True,
                 ).encode()

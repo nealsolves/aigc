@@ -346,3 +346,76 @@ class TestFinding2GateManifestTamperPrevention:
         )
         with pytest.raises(InvocationValidationError, match="[Gg]ate"):
             engine.enforce_post_call(pre, _valid_output())
+
+
+# ── Finding 3: Clone replay via deepcopy/pickle ───────────────────────────────
+
+
+class TestFinding3CloneReplayPrevention:
+    """Cloning an unconsumed token (via pickle or deepcopy) and consuming
+    both original and clone must be detected and rejected.
+
+    The second consumption attempt — regardless of which object (original
+    or clone) goes first — must raise InvocationValidationError.
+    """
+
+    def test_pickle_clone_second_use_rejected(self):
+        """Original consumed first; pickle clone is rejected as replay."""
+        pre = enforce_pre_call(_pre_call_inv())
+        clone = pickle.loads(pickle.dumps(pre))
+        enforce_post_call(pre, _valid_output())  # consume original
+        with pytest.raises(InvocationValidationError) as exc_info:
+            enforce_post_call(clone, _valid_output())
+        msg = str(exc_info.value).lower()
+        assert "replay" in msg or "consumed" in msg
+
+    def test_pickle_clone_original_rejected_when_clone_consumed_first(self):
+        """Clone consumed first; original is rejected as replay."""
+        pre = enforce_pre_call(_pre_call_inv())
+        clone = pickle.loads(pickle.dumps(pre))
+        enforce_post_call(clone, _valid_output())
+        with pytest.raises(InvocationValidationError):
+            enforce_post_call(pre, _valid_output())
+
+    def test_deepcopy_clone_second_use_rejected(self):
+        """deepcopy clone: second consumption rejected."""
+        pre = enforce_pre_call(_pre_call_inv())
+        clone = copy.deepcopy(pre)
+        enforce_post_call(pre, _valid_output())
+        with pytest.raises(InvocationValidationError):
+            enforce_post_call(clone, _valid_output())
+
+    def test_deepcopy_clone_original_rejected_when_clone_consumed_first(self):
+        """deepcopy clone consumed first; original rejected."""
+        pre = enforce_pre_call(_pre_call_inv())
+        clone = copy.deepcopy(pre)
+        enforce_post_call(clone, _valid_output())
+        with pytest.raises(InvocationValidationError):
+            enforce_post_call(pre, _valid_output())
+
+    def test_fail_artifact_attached_on_clone_replay(self):
+        """Clone replay exception has attached FAIL artifact."""
+        pre = enforce_pre_call(_pre_call_inv())
+        clone = pickle.loads(pickle.dumps(pre))
+        enforce_post_call(pre, _valid_output())
+        with pytest.raises(InvocationValidationError) as exc_info:
+            enforce_post_call(clone, _valid_output())
+        artifact = exc_info.value.audit_artifact
+        assert artifact is not None
+        assert artifact["enforcement_result"] == "FAIL"
+
+    def test_legitimate_pickle_roundtrip_still_works(self):
+        """Single pickle round-trip (no prior consumption) still PASS."""
+        pre = enforce_pre_call(_pre_call_inv())
+        restored = pickle.loads(pickle.dumps(pre))
+        artifact = enforce_post_call(restored, _valid_output())
+        assert artifact["enforcement_result"] == "PASS"
+
+    def test_aigc_pickle_clone_second_use_rejected(self):
+        """AIGC instance: pickle clone replay rejected."""
+        engine = AIGC()
+        pre = engine.enforce_pre_call(_pre_call_inv())
+        clone = pickle.loads(pickle.dumps(pre))
+        engine.enforce_post_call(pre, _valid_output())
+        with pytest.raises(InvocationValidationError):
+            engine.enforce_post_call(clone, _valid_output())

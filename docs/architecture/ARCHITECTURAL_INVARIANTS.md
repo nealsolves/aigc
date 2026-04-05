@@ -112,9 +112,11 @@ Pipeline ordering must never change without an ADR.
 
 Audit artifacts must prove enforcement occurred before action.
 
-Each artifact must include:
+Each artifact must include ordered gate evidence:
 
-`metadata.gates_evaluated`
+* unified mode: `metadata.gates_evaluated`
+* split mode: `metadata.pre_call_gates_evaluated`
+* split mode Phase B completion: `metadata.post_call_gates_evaluated`
 
 This ordered list shows which gates executed.
 
@@ -235,6 +237,22 @@ The enforcement system must not depend on:
 AIGC governs invocation boundaries.
 
 Not model providers.
+
+---
+
+## 12. Split Enforcement Execution Mode
+
+Split enforcement is an additive execution mode introduced in `v0.3.2`.
+
+It does not change any architectural invariant. Specifically:
+
+* Gate ordering remains fixed (Invariant 4). Phase A executes authorization gates; Phase B executes output gates; the model call occurs at the boundary between them.
+* Fail-closed behavior remains unchanged (Invariant 2). Phase A FAIL stops execution before the model call.
+* Exactly one audit artifact is emitted per invocation attempt (Invariant 6). A Phase-A-only FAIL produces one FAIL artifact. A complete split invocation produces one final artifact.
+* Unified mode remains backward-compatible and fully supported.
+* Policy evaluation in Phase B must use the Phase A effective policy — no reload from disk.
+
+Hosts that do not opt in to split mode are unaffected by this addition.
 
 ---
 

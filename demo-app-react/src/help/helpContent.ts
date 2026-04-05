@@ -30,6 +30,7 @@ export const helpContent: Record<number, LabHelp> = {
     whatThisLabShows: [
       'Where the host app, model provider, policy layer, and SDK enforcement core sit at runtime.',
       'Which checks belong to the core fail-closed pipeline and which capabilities are opt-in utilities.',
+      'How unified default mode and opt-in split enforcement share the same ordered gates.',
       'Why AIGC is provider-agnostic: it wraps model calls instead of replacing the model itself.',
     ],
     howToNavigate: [
@@ -45,7 +46,7 @@ export const helpContent: Record<number, LabHelp> = {
           'Your app, agent, or orchestrator calls a model through the SDK. The SDK loads the policy, ' +
           'runs the enforcement core, then returns the governance result and audit artifact to your app. ' +
           'The model provider still does the generation in the middle; AIGC governs the call boundary around it.',
-        tip: 'The @governed decorator is post-call: the wrapped function runs first, then AIGC enforces on the result.',
+        tip: 'The @governed decorator defaults to unified post-call enforcement. Set pre_call_enforcement=True to run Phase A before the wrapped function executes.',
       },
       {
         title: 'Enforcement Pipeline - the gate sequence',
@@ -54,6 +55,13 @@ export const helpContent: Record<number, LabHelp> = {
           'role check -> precondition check -> tool constraints -> post_authorization gates -> pre_output gates -> ' +
           'schema validation -> postcondition check -> post_output gates -> risk scoring -> audit artifact emission. ' +
           'The core gates are fail-closed: a violation stops the pipeline and produces a FAIL artifact.',
+      },
+      {
+        title: 'Phase boundary in v0.3.2',
+        instruction:
+          'Split mode moves the model-call boundary between post_authorization and pre_output. ' +
+          'Phase A is authorize-before-call; Phase B is validate-after-output. Unified mode still uses the same gate order, but inside one enforcement call.',
+        tip: 'Look for Phase A / Phase B labeling on the pipeline view when you want to reason about token-spend avoidance.',
       },
       {
         title: 'Risk scoring is the last gate',
@@ -73,8 +81,9 @@ export const helpContent: Record<number, LabHelp> = {
       'AIGC is not another model. It is a deterministic governance wrapper that makes AI invocation rules enforceable and auditable.',
     glossary: [
       { term: 'enforce_invocation()', definition: 'The SDK entry point. Accepts policy, input, output, context, model identity, and role, then returns an audit artifact or raises with one attached.' },
+      { term: 'enforce_pre_call()', definition: 'The split-mode Phase A entry point. It authorizes the invocation before the model call and returns a PreCallResult token for Phase B.' },
       { term: 'Audit artifact', definition: 'The immutable record produced after each enforcement run. It contains checksums, policy metadata, result, and supporting evidence.' },
-      { term: '@governed', definition: 'A decorator that assembles an invocation around a function call and enforces policy on the result after the wrapped function returns.' },
+      { term: '@governed', definition: 'A decorator that defaults to unified post-call enforcement and can opt into split pre/post enforcement with pre_call_enforcement=True.' },
       { term: 'Fail-closed', definition: 'If a core governance check fails, the invocation is rejected and a FAIL artifact is emitted. The system does not silently continue.' },
     ],
   },

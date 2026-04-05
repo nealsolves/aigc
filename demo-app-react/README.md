@@ -1,7 +1,8 @@
 # AIGC Interactive Demo
 
 Interactive companion to the [AIGC SDK](https://github.com/nealsolves/aigc) — seven
-hands-on labs covering every v0.3.0 governance capability.
+hands-on labs for the M2 governance capabilities plus a v0.3.2 architecture guide
+covering unified default mode and opt-in split enforcement.
 
 **Live demo:** [https://nealsolves.github.io/aigc/](https://nealsolves.github.io/aigc/)
 
@@ -23,8 +24,6 @@ The demo has two deployed components:
 
 - **React frontend** — built with Vite, deployed to GitHub Pages via `.github/workflows/deploy-demo-react.yml` on every push to `main` that touches `demo-app-react/`. The API URL is baked in at build time via the `VITE_API_URL` GitHub secret.
 - **FastAPI backend** (`demo-app-api/`) — deployed on Render at `https://aigc-2oaf.onrender.com`. The React app calls this backend for all lab enforcement, signing, chaining, composition, and loader operations. No user API keys are required.
-
-`demo-app-streamlit/` is retained in the repository as deprecated reference material for historical and local-development context. It is not the forward product surface.
 
 ## Development
 

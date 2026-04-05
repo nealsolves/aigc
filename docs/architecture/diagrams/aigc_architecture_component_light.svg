@@ -257,7 +257,7 @@
 
   <rect width="1100" height="820" fill="#ffffff" rx="8"/>
 
-  <text class="title mono" x="54" y="40">AIGC v0.3.0</text>
+  <text class="title mono" x="54" y="40">AIGC v0.3.2</text>
   <text class="subtitle mono" x="54" y="58">Runtime Architecture - Component View</text>
 
   <rect class="host-wrap" x="52" y="82" width="996" height="74" rx="6"/>
@@ -336,21 +336,25 @@
     <text class="section mono" x="68" y="96">HOST APPLICATION</text>
     <text class="label" x="157.5" y="132" text-anchor="middle">App / Orchestrator</text>
     <text class="label mono" x="407.5" y="124" text-anchor="middle">@governed</text>
-    <text class="detail" x="407.5" y="137" text-anchor="middle">post-call wrapper</text>
+    <text class="detail" x="407.5" y="137" text-anchor="middle">default unified / split opt-in</text>
     <text class="label" x="675" y="124" text-anchor="middle">Model Provider</text>
     <text class="detail" x="675" y="137" text-anchor="middle">OpenAI / Anthropic / local</text>
     <text class="tiny" x="278" y="120" text-anchor="middle">decorated call</text>
     <text class="tiny" x="538" y="110" text-anchor="middle">calls wrapped function</text>
     <text class="tiny" x="538" y="149" text-anchor="middle">model output</text>
 
-    <text class="section-blue mono" x="56" y="194">AIGC SDK v0.3.0</text>
+    <text class="section-blue mono" x="56" y="194">AIGC SDK v0.3.2</text>
     <text class="tiny" x="120" y="154">direct integration</text>
     <text class="tiny" x="256" y="176">instance integration</text>
-    <text class="tiny" x="328" y="154">assembles invocation after wrapped call returns</text>
+    <text class="tiny" x="328" y="154">default unified after wrapped call; split opt-in</text>
 
-    <text class="section-blue mono" x="86" y="221">INVOCATION BOUNDARY</text>
+    <text class="section-blue mono" x="86" y="221">INVOCATION BOUNDARY (UNIFIED + SPLIT)</text>
     <text class="label-mid mono" x="167" y="241" text-anchor="middle">enforce_invocation()</text>
     <text class="label-mid mono" x="343" y="241" text-anchor="middle">AIGC.enforce()</text>
+    <text class="tiny" x="167" y="255" text-anchor="middle">split: enforce_pre_call()</text>
+    <text class="tiny" x="167" y="265" text-anchor="middle">then enforce_post_call()</text>
+    <text class="tiny" x="343" y="255" text-anchor="middle">split: AIGC.enforce_pre_call()</text>
+    <text class="tiny" x="343" y="265" text-anchor="middle">then enforce_post_call()</text>
 
     <text class="section-blue mono" x="504" y="221">POLICY LAYER</text>
     <text class="detail" x="552" y="241" text-anchor="middle">Policy YAML</text>
@@ -364,9 +368,10 @@
     <text class="tiny" x="870" y="277" text-anchor="middle">composition / restriction semantics</text>
 
     <text class="section-blue mono" x="88" y="334">DETERMINISTIC ENFORCEMENT CORE</text>
-    <text class="note" x="538" y="334" text-anchor="middle">core gates fail-closed; risk mode may be non-blocking</text>
-    <text class="group-label mono" x="88" y="348">AUTHORIZATION PHASE</text>
-    <text class="group-label mono" x="88" y="428">OUTPUT PHASE</text>
+    <text class="note" x="538" y="334" text-anchor="middle">unified is the default; split preserves the same ordered gates</text>
+    <text class="group-label mono" x="88" y="348">PHASE A / PRE-CALL</text>
+    <text class="group-label mono" x="88" y="428">PHASE B / POST-CALL</text>
+    <text class="tiny" x="538" y="414" text-anchor="middle">model call boundary in split mode</text>
 
     <text class="purple mono" x="150" y="372" text-anchor="middle">pre_authorization</text>
     <text class="purple-sub" x="150" y="384" text-anchor="middle">custom gates</text>

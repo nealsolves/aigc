@@ -2,7 +2,7 @@
 
 **Auditable Intelligence Governance Contract**
 
-Version: 1.1.0 | Status: Authoritative | Last Updated: 2026-03-15
+Version: 1.3.0 | Status: Authoritative | Last Updated: 2026-04-05
 
 ---
 
@@ -220,12 +220,25 @@ invocation = {
 ### 5.3 Enforcement
 
 **Enforcement** is the core pipeline that evaluates an invocation against its
-policy. It is the single entry point to the SDK.
+policy. The primary entry point is `enforce_invocation`:
 
 ```python
 from aigc import enforce_invocation
 
 audit = enforce_invocation(invocation)
+```
+
+**v0.3.2 — Split enforcement (opt-in):** `enforce_pre_call()` and
+`enforce_post_call()` divide the pipeline into two phases so that authorization
+gates run before the model call and output-side gates run after it. Unified
+mode (`enforce_invocation`) remains the default; no migration is required.
+
+```python
+from aigc import enforce_pre_call, enforce_post_call
+
+pre_result = enforce_pre_call(invocation_without_output)
+output = model.generate(...)
+audit = enforce_post_call(pre_result, output)
 ```
 
 The pipeline is detailed in Section 6.
@@ -351,7 +364,45 @@ enforce_invocation(invocation)
 └─ RETURN audit_artifact
 ```
 
-### 6.1 Gate Ordering Rationale
+### 6.1 Split Enforcement Pipeline (v0.3.2+)
+
+`enforce_pre_call` and `enforce_post_call` split the unified pipeline at the
+model call boundary. The gate ordering and invariants are identical; only the
+entry point changes.
+
+```text
+enforce_pre_call(invocation_without_output)
+│
+├─ 1.  LOAD POLICY
+├─ 2.  RUN CUSTOM GATES (pre_authorization)
+├─ 3.  RESOLVE GUARDS
+├─ 4.  VALIDATE ROLE
+├─ 5.  VALIDATE PRECONDITIONS
+├─ 6.  VALIDATE TOOL CONSTRAINTS
+├─ 7.  RUN CUSTOM GATES (post_authorization)
+│
+└─ RETURN PreCallResult (handoff token)
+
+            [ model call happens here ]
+
+enforce_post_call(pre_call_result, output)
+│
+├─ 8.  RUN CUSTOM GATES (pre_output)
+├─ 9.  VALIDATE OUTPUT SCHEMA
+├─ 10. VALIDATE POSTCONDITIONS
+├─ 11. RUN CUSTOM GATES (post_output)
+├─ 12. COMPUTE RISK SCORE
+├─ 13. GENERATE AUDIT ARTIFACT
+│       (includes pre_call_timestamp, post_call_timestamp,
+│        enforcement_mode = "split")
+│
+└─ RETURN audit_artifact
+```
+
+`PreCallResult` is a single-use handoff token. Calling `enforce_post_call`
+twice with the same token raises `InvocationValidationError`.
+
+### 6.2 Gate Ordering Rationale
 
 The gate order is intentional:
 
@@ -376,7 +427,7 @@ The gate order is intentional:
    every enforcement attempt regardless of outcome (see CLAUDE.md
    §Audit Artifact Guarantee)
 
-### 6.2 Exception Hierarchy
+### 6.3 Exception Hierarchy
 
 ```text
 AIGCError (base)

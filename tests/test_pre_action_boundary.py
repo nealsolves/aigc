@@ -20,6 +20,8 @@ from aigc._internal.enforcement import (
     GATE_TOOLS,
     OUTPUT_GATES,
     enforce_invocation,
+    enforce_post_call,
+    enforce_pre_call,
 )
 from aigc._internal.errors import ToolConstraintViolationError
 
@@ -159,3 +161,63 @@ class TestGateConstants:
 
     def test_output_gates_tuple(self):
         assert OUTPUT_GATES == (GATE_SCHEMA, GATE_POSTCONDS)
+
+
+class TestSplitModeGateOrdering:
+    """Verify that split mode preserves the gate ordering contract.
+
+    Phase A gates (authorization) must all appear before Phase B gates
+    (output) when the two gate lists are concatenated.
+    """
+
+    def _split_invocation(self, **overrides):
+        inv = {
+            "model_provider": "anthropic",
+            "model_identifier": "claude-sonnet-4",
+            "role": "planner",
+            "policy_file": "tests/golden_replays/policy_with_tools.yaml",
+            "input": {"task": "research topic"},
+            "context": {"role_declared": True},
+            "tool_calls": [
+                {"name": "search_knowledge_base", "call_id": "tc-1"},
+            ],
+        }
+        inv.update(overrides)
+        return inv
+
+    def test_split_mode_phase_a_before_phase_b(self):
+        """In split mode, all Phase A gates precede all Phase B gates."""
+        inv = self._split_invocation()
+        pre = enforce_pre_call(inv)
+        audit = enforce_post_call(
+            pre, {"result": "research complete", "confidence": 0.92},
+        )
+
+        meta = audit["metadata"]
+        pre_gates = meta["pre_call_gates_evaluated"]
+        post_gates = meta["post_call_gates_evaluated"]
+
+        # Every Phase A gate is an authorization gate
+        for gate in pre_gates:
+            assert gate in AUTHORIZATION_GATES, (
+                f"Phase A gate {gate!r} is not an authorization gate"
+            )
+
+        # Every Phase B gate is an output gate
+        for gate in post_gates:
+            assert gate in OUTPUT_GATES, (
+                f"Phase B gate {gate!r} is not an output gate"
+            )
+
+        # Concatenating them preserves auth-before-output ordering
+        combined = pre_gates + post_gates
+        for auth_gate in AUTHORIZATION_GATES:
+            if auth_gate in combined:
+                for out_gate in OUTPUT_GATES:
+                    if out_gate in combined:
+                        assert combined.index(auth_gate) < (
+                            combined.index(out_gate)
+                        ), (
+                            f"{auth_gate} must precede {out_gate} "
+                            "in split mode"
+                        )

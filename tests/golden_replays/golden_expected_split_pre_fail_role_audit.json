@@ -1,0 +1,11 @@
+{
+  "audit_schema_version": "1.3",
+  "model_provider": "openai",
+  "model_identifier": "gpt-test-model",
+  "role": "unauthorized_role",
+  "enforcement_result": "FAIL",
+  "failure_gate": "role_validation",
+  "metadata": {
+    "enforcement_mode": "split_pre_call_only"
+  }
+}

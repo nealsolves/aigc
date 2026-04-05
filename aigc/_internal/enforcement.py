@@ -16,10 +16,14 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import hashlib
+import hmac as _hmac_mod
 import json
 import logging
+import os
 import re
 import time as _time
+import types
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
@@ -144,6 +148,40 @@ def _get_enforcement_token() -> "_EnforcementToken":
 _ENFORCEMENT_TOKEN: _EnforcementToken = _EnforcementToken()
 
 
+def _make_token_signer() -> tuple:
+    """Return (sign_fn, verify_fn) with the HMAC session key in a closure.
+
+    The key is not exposed as a module-level attribute; extracting it requires
+    explicit closure introspection rather than a straightforward import.
+    Combined with the _origin sentinel check, this provides defense-in-depth
+    against trivial in-process token forgery (audit Finding #1, 2026-04-05).
+
+    Note: Python in-process security is inherently limited — a determined
+    hostile caller with full module-import access can still bypass these
+    checks via gc introspection.  The intended threat model is misuse
+    detection (accidental direct construction, copy-paste errors), not
+    adversarial in-process attackers.
+    """
+    _key = os.urandom(32)
+
+    def _sign(payload: bytes) -> bytes:
+        return _hmac_mod.digest(_key, payload, hashlib.sha256)
+
+    def _verify(payload: bytes, digest: bytes) -> bool:
+        if not isinstance(payload, bytes) or not isinstance(digest, bytes):
+            return False
+        try:
+            expected = _hmac_mod.digest(_key, payload, hashlib.sha256)
+            return _hmac_mod.compare_digest(expected, digest)
+        except Exception:
+            return False
+
+    return _sign, _verify
+
+
+_token_sign, _token_verify = _make_token_signer()
+
+
 @dataclass(frozen=True, slots=True)
 class PreCallResult:
     """Opaque handoff token from enforce_pre_call() to enforce_post_call().
@@ -197,6 +235,53 @@ class PreCallResult:
     _frozen_phase_a_metadata: Any = field(
         init=False, default=None, repr=False, compare=False,
     )
+    # Canonical JSON serialization of invocation_snapshot, phase_a_metadata,
+    # guards_evaluated_engine, and conditions_resolved.  A bytes object cannot
+    # be mutated, so Phase B deserialization is immune to any post-Phase-A
+    # mutations of _frozen_invocation_snapshot, _frozen_phase_a_metadata,
+    # resolved_guards, or resolved_conditions (Round 3 audit Finding 2).
+    _frozen_evidence_bytes: Any = field(
+        init=False, default=None, repr=False, compare=False,
+    )
+    # HMAC-SHA256 of _frozen_evidence_bytes, keyed by a session secret held
+    # in the _make_token_signer() closure.  Phase B rejects tokens whose HMAC
+    # does not verify, providing forgery resistance beyond the _origin sentinel
+    # (audit Finding #1, 2026-04-05).  Default b"" is never a valid 32-byte
+    # digest, so an un-signed token is rejected automatically.
+    _token_hmac: bytes = field(
+        init=False, default=b"", repr=False, compare=False,
+    )
+
+    def __getstate__(self) -> dict:
+        """Pickle support: serialize all slots, converting MappingProxyType to dict."""
+        state = {
+            slot: getattr(self, slot)
+            for slot in self.__slots__
+            if hasattr(self, slot)
+        }
+        # MappingProxyType is not picklable; convert to plain dict with
+        # list values so __setstate__ can rebuild the immutable proxy.
+        gates = state.get("_phase_b_grouped_gates")
+        if isinstance(gates, types.MappingProxyType):
+            state["_phase_b_grouped_gates"] = {
+                pt: list(gl) for pt, gl in gates.items()
+            }
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        """Pickle support: restore all slots, re-wrapping gates as MappingProxyType."""
+        for key, value in state.items():
+            object.__setattr__(self, key, value)
+        # Re-wrap gates in the immutable proxy that __getstate__ flattened.
+        gates = state.get("_phase_b_grouped_gates")
+        if isinstance(gates, dict):
+            object.__setattr__(
+                self,
+                "_phase_b_grouped_gates",
+                types.MappingProxyType(
+                    {pt: tuple(gl) for pt, gl in gates.items()}
+                ),
+            )
 
 
 # ── Invocation validation (three layers) ─────────────────────────
@@ -244,7 +329,7 @@ def _validate_invocation_core(invocation: Mapping[str, Any]) -> None:
 
     for key in ("input", "context"):
         try:
-            json.dumps(invocation[key])
+            json.dumps(invocation[key], allow_nan=False, sort_keys=True)
         except (TypeError, ValueError) as e:
             raise InvocationValidationError(
                 f"Invocation field '{key}' is not JSON-serializable: {e}",
@@ -266,7 +351,7 @@ def _validate_invocation(invocation: Mapping[str, Any]) -> None:
             details={"field": "output"},
         )
     try:
-        json.dumps(invocation["output"])
+        json.dumps(invocation["output"], allow_nan=False, sort_keys=True)
     except (TypeError, ValueError) as e:
         raise InvocationValidationError(
             f"Invocation field 'output' is not JSON-serializable: {e}",
@@ -999,10 +1084,25 @@ def enforce_invocation(invocation: Mapping[str, Any]) -> dict[str, Any]:
     :raises: AIGCError subclasses on governance violation (after audit emission)
     """
     if not isinstance(invocation, Mapping):
-        raise InvocationValidationError(
+        _exc = InvocationValidationError(
             "Invocation must be a mapping object",
             details={"received_type": type(invocation).__name__},
         )
+        _safe = {
+            "policy_file": "unknown", "model_provider": "unknown",
+            "model_identifier": "unknown", "role": "unknown",
+            "input": {}, "output": {}, "context": {},
+        }
+        _artifact = _generate_pre_pipeline_fail_artifact(_safe, _exc)
+        _artifact.setdefault("metadata", {})["enforcement_mode"] = "unified"
+        _exc.audit_artifact = _artifact
+        try:
+            emit_to_sink(_artifact)
+        except AuditSinkError as _sink_exc:
+            logger.error(
+                "Sink emission failed on pre-pipeline FAIL path: %s", _sink_exc,
+            )
+        raise _exc
 
     try:
         _validate_invocation(invocation)
@@ -1041,10 +1141,25 @@ async def enforce_invocation_async(
     :raises: AIGCError subclasses on governance violation (after audit emission)
     """
     if not isinstance(invocation, Mapping):
-        raise InvocationValidationError(
+        _exc = InvocationValidationError(
             "Invocation must be a mapping object",
             details={"received_type": type(invocation).__name__},
         )
+        _safe = {
+            "policy_file": "unknown", "model_provider": "unknown",
+            "model_identifier": "unknown", "role": "unknown",
+            "input": {}, "output": {}, "context": {},
+        }
+        _artifact = _generate_pre_pipeline_fail_artifact(_safe, _exc)
+        _artifact.setdefault("metadata", {})["enforcement_mode"] = "unified"
+        _exc.audit_artifact = _artifact
+        try:
+            emit_to_sink(_artifact)
+        except AuditSinkError as _sink_exc:
+            logger.error(
+                "Sink emission failed on pre-pipeline FAIL path: %s", _sink_exc,
+            )
+        raise _exc
 
     try:
         _validate_invocation(invocation)
@@ -1087,10 +1202,27 @@ def enforce_pre_call(
              (FAIL artifact emitted)
     """
     if not isinstance(invocation, Mapping):
-        raise InvocationValidationError(
+        _exc = InvocationValidationError(
             "Invocation must be a mapping object",
             details={"received_type": type(invocation).__name__},
         )
+        _safe = {
+            "policy_file": "unknown", "model_provider": "unknown",
+            "model_identifier": "unknown", "role": "unknown",
+            "input": {}, "output": {}, "context": {},
+        }
+        _artifact = _generate_pre_pipeline_fail_artifact(_safe, _exc)
+        _artifact.setdefault("metadata", {})["enforcement_mode"] = (
+            "split_pre_call_only"
+        )
+        _exc.audit_artifact = _artifact
+        try:
+            emit_to_sink(_artifact)
+        except AuditSinkError as _sink_exc:
+            logger.error(
+                "Sink emission failed on pre-pipeline FAIL path: %s", _sink_exc,
+            )
+        raise _exc
 
     try:
         _validate_pre_call_invocation(invocation)
@@ -1214,8 +1346,14 @@ def enforce_pre_call(
         # Stamp Phase B gates, provenance marker, and frozen copies.
         # All are init=False so object.__setattr__ is required on a
         # frozen dataclass.
+        # Wrap in MappingProxyType (outer) + tuples (inner) so callers
+        # cannot replace or append to gate lists after Phase A PASS
+        # (Round 3 audit Finding 1).
         object.__setattr__(
-            token, "_phase_b_grouped_gates", grouped_gates,
+            token, "_phase_b_grouped_gates",
+            types.MappingProxyType(
+                {pt: tuple(gl) for pt, gl in grouped_gates.items()}
+            ),
         )
         object.__setattr__(token, "_origin", _ENFORCEMENT_TOKEN)
         # Take a second independent deep copy of the already-copied
@@ -1229,13 +1367,54 @@ def enforce_pre_call(
             token, "_frozen_invocation_snapshot",
             copy.deepcopy(token.invocation_snapshot),
         )
-        # Serialize effective_policy to immutable bytes (Round 2 audit
-        # Finding 1): even if a caller mutates _frozen_effective_policy's
-        # nested dicts, Phase B deserializes a fresh copy from these bytes.
-        object.__setattr__(
-            token, "_frozen_policy_bytes",
-            json.dumps(token.effective_policy, sort_keys=True).encode(),
-        )
+        # Serialize token state to immutable bytes.  Phase B deserializes
+        # fresh copies from these bytes so any caller mutation of
+        # _frozen_effective_policy, _frozen_invocation_snapshot,
+        # _frozen_phase_a_metadata, resolved_guards, or resolved_conditions
+        # after Phase A has no effect on Phase B enforcement or artifacts
+        # (Round 3 audit Findings 1 & 2).
+        try:
+            frozen_policy_bytes = json.dumps(
+                token.effective_policy, sort_keys=True,
+            ).encode()
+            frozen_evidence_bytes = json.dumps(
+                {
+                    "invocation_snapshot": dict(token.invocation_snapshot),
+                    "phase_a_metadata": phase_a_metadata,
+                    "guards_evaluated_engine": [
+                        dict(g) if isinstance(g, dict) else None
+                        for g in guards_evaluated_engine
+                    ],
+                    "conditions_resolved": dict(conditions_resolved),
+                },
+                sort_keys=True,
+            ).encode()
+        except (TypeError, ValueError) as json_exc:
+            freeze_err = InvocationValidationError(
+                f"Policy contains non-JSON-serializable values; "
+                f"cannot freeze token: {json_exc}",
+                details={"field": "effective_policy"},
+            )
+            safe_inv = dict(invocation)
+            safe_inv.setdefault("output", {})
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, freeze_err,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                "split_pre_call_only"
+            )
+            freeze_err.audit_artifact = artifact
+            try:
+                emit_to_sink(artifact)
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on policy freeze FAIL path: %s",
+                    sink_exc,
+                )
+            raise freeze_err from json_exc
+        object.__setattr__(token, "_frozen_policy_bytes", frozen_policy_bytes)
+        object.__setattr__(token, "_frozen_evidence_bytes", frozen_evidence_bytes)
+        object.__setattr__(token, "_token_hmac", _token_sign(frozen_evidence_bytes))
         # Deep-copy phase_a_metadata so Phase B artifact evidence cannot
         # be forged by mutating the public phase_a_metadata field
         # (Round 2 audit Finding 2).
@@ -1310,6 +1489,35 @@ def enforce_post_call(
             )
         raise exc
 
+    # 1c. HMAC integrity check — rejects tokens where _origin was stamped via
+    # object.__setattr__ without holding the session signing key (audit
+    # Finding #1, 2026-04-05).  Combined with the sentinel check above this
+    # provides defense-in-depth against trivial in-process token forgery.
+    if not _token_verify(
+        pre_call_result._frozen_evidence_bytes,
+        pre_call_result._token_hmac,
+    ):
+        exc = InvocationValidationError(
+            "PreCallResult token integrity check failed; "
+            "token may be forged or corrupted",
+            details={"field": "pre_call_result"},
+        )
+        safe_inv = {
+            "policy_file": "unknown", "model_provider": "unknown",
+            "model_identifier": "unknown", "role": "unknown",
+            "input": {}, "output": {}, "context": {},
+        }
+        artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
+        artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+        exc.audit_artifact = artifact
+        try:
+            emit_to_sink(artifact)
+        except AuditSinkError as sink_exc:
+            logger.error(
+                "Sink emission failed on pre-pipeline FAIL path: %s", sink_exc,
+            )
+        raise exc
+
     # 2. Output type validation
     if not isinstance(output, dict):
         exc = InvocationValidationError(
@@ -1337,7 +1545,7 @@ def enforce_post_call(
     # than a raw TypeError escaping from checksum generation later.
     # Must happen BEFORE _consumed is flipped.
     try:
-        json.dumps(output)
+        json.dumps(output, allow_nan=False, sort_keys=True)
     except (TypeError, ValueError) as json_exc:
         exc = InvocationValidationError(
             f"enforce_post_call() output is not JSON-serializable: "
@@ -1378,31 +1586,50 @@ def enforce_post_call(
             )
         raise exc
 
-    # 4. Mark consumed (frozen dataclass requires object.__setattr__)
+    # 4. Validate and deserialize Phase A evidence BEFORE marking consumed.
+    # Catching TypeError/ValueError here (audit Finding #2, 2026-04-05)
+    # ensures that None or invalid bytes produce a typed FAIL artifact
+    # rather than an unhandled raw exception.
+    try:
+        evidence = json.loads(pre_call_result._frozen_evidence_bytes)
+        original_policy = json.loads(pre_call_result._frozen_policy_bytes)
+    except (TypeError, ValueError) as dec_exc:
+        exc = InvocationValidationError(
+            "PreCallResult contains invalid internal token state; "
+            "token may be corrupted or forged",
+            details={"field": "_frozen_evidence_bytes"},
+        )
+        safe_inv = {
+            "policy_file": "unknown", "model_provider": "unknown",
+            "model_identifier": "unknown", "role": "unknown",
+            "input": {}, "output": {}, "context": {},
+        }
+        artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
+        artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+        exc.audit_artifact = artifact
+        try:
+            emit_to_sink(artifact)
+        except AuditSinkError as sink_exc:
+            logger.error(
+                "Sink emission failed on pre-pipeline FAIL path: %s", sink_exc,
+            )
+        raise exc from dec_exc
+
+    # 5. Mark consumed AFTER validating token state (frozen dataclass
+    # requires object.__setattr__).
     object.__setattr__(pre_call_result, "_consumed", True)
 
-    # 5. Build full invocation for Phase B.
-    # Read from the frozen snapshot captured at Phase A completion so
-    # that caller mutations to invocation_snapshot after Phase A have
-    # no effect on Phase B enforcement.
-    full_invocation = dict(pre_call_result._frozen_invocation_snapshot)
+    full_invocation = dict(evidence["invocation_snapshot"])
     full_invocation["output"] = output
 
-    # 6. Recover Phase A state from the frozen deep-copy (Round 2 audit
-    # Finding 2): reading from phase_a_metadata (public, mutable) would
-    # allow callers to forge pre_call_gates_evaluated in the artifact.
-    phase_a_meta = copy.deepcopy(pre_call_result._frozen_phase_a_metadata)
+    # 6. Recover Phase A state exclusively from the evidence snapshot.
+    phase_a_meta = dict(evidence["phase_a_metadata"])
     phase_a_gates = list(
         phase_a_meta.get("gates_evaluated", []),
     )
     all_custom_metadata = dict(
         phase_a_meta.get("all_custom_metadata", {}),
     )
-
-    # Deserialize effective_policy from immutable bytes (Round 2 audit
-    # Finding 1): even if _frozen_effective_policy's nested dicts were
-    # mutated by the caller, this fresh deserialization is unaffected.
-    original_policy = json.loads(pre_call_result._frozen_policy_bytes)
 
     with enforcement_span(
         "aigc.enforce_post_call",
@@ -1427,10 +1654,10 @@ def enforce_post_call(
                 ),
             },
             guards_evaluated_engine=list(
-                pre_call_result.resolved_guards,
+                evidence.get("guards_evaluated_engine", []),
             ),
             conditions_resolved=dict(
-                pre_call_result.resolved_conditions,
+                evidence.get("conditions_resolved", {}),
             ),
             all_custom_metadata=all_custom_metadata,
             # Pass Phase B custom gates preserved from Phase A (Finding 1).
@@ -1451,10 +1678,27 @@ async def enforce_pre_call_async(
     Policy file I/O runs in a thread pool via asyncio.to_thread.
     """
     if not isinstance(invocation, Mapping):
-        raise InvocationValidationError(
+        _exc = InvocationValidationError(
             "Invocation must be a mapping object",
             details={"received_type": type(invocation).__name__},
         )
+        _safe = {
+            "policy_file": "unknown", "model_provider": "unknown",
+            "model_identifier": "unknown", "role": "unknown",
+            "input": {}, "output": {}, "context": {},
+        }
+        _artifact = _generate_pre_pipeline_fail_artifact(_safe, _exc)
+        _artifact.setdefault("metadata", {})["enforcement_mode"] = (
+            "split_pre_call_only"
+        )
+        _exc.audit_artifact = _artifact
+        try:
+            emit_to_sink(_artifact)
+        except AuditSinkError as _sink_exc:
+            logger.error(
+                "Sink emission failed on pre-pipeline FAIL path: %s", _sink_exc,
+            )
+        raise _exc
 
     try:
         _validate_pre_call_invocation(invocation)
@@ -1573,7 +1817,10 @@ async def enforce_pre_call_async(
             role=invocation["role"],
         )
         object.__setattr__(
-            token, "_phase_b_grouped_gates", grouped_gates,
+            token, "_phase_b_grouped_gates",
+            types.MappingProxyType(
+                {pt: tuple(gl) for pt, gl in grouped_gates.items()}
+            ),
         )
         object.__setattr__(token, "_origin", _ENFORCEMENT_TOKEN)
         object.__setattr__(
@@ -1584,10 +1831,48 @@ async def enforce_pre_call_async(
             token, "_frozen_invocation_snapshot",
             copy.deepcopy(token.invocation_snapshot),
         )
-        object.__setattr__(
-            token, "_frozen_policy_bytes",
-            json.dumps(token.effective_policy, sort_keys=True).encode(),
-        )
+        try:
+            frozen_policy_bytes = json.dumps(
+                token.effective_policy, sort_keys=True,
+            ).encode()
+            frozen_evidence_bytes = json.dumps(
+                {
+                    "invocation_snapshot": dict(token.invocation_snapshot),
+                    "phase_a_metadata": phase_a_metadata,
+                    "guards_evaluated_engine": [
+                        dict(g) if isinstance(g, dict) else None
+                        for g in guards_evaluated_engine
+                    ],
+                    "conditions_resolved": dict(conditions_resolved),
+                },
+                sort_keys=True,
+            ).encode()
+        except (TypeError, ValueError) as json_exc:
+            freeze_err = InvocationValidationError(
+                f"Policy contains non-JSON-serializable values; "
+                f"cannot freeze token: {json_exc}",
+                details={"field": "effective_policy"},
+            )
+            safe_inv = dict(invocation)
+            safe_inv.setdefault("output", {})
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, freeze_err,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                "split_pre_call_only"
+            )
+            freeze_err.audit_artifact = artifact
+            try:
+                emit_to_sink(artifact)
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on policy freeze FAIL path: %s",
+                    sink_exc,
+                )
+            raise freeze_err from json_exc
+        object.__setattr__(token, "_frozen_policy_bytes", frozen_policy_bytes)
+        object.__setattr__(token, "_frozen_evidence_bytes", frozen_evidence_bytes)
+        object.__setattr__(token, "_token_hmac", _token_sign(frozen_evidence_bytes))
         object.__setattr__(
             token, "_frozen_phase_a_metadata",
             copy.deepcopy(phase_a_metadata),
@@ -1667,7 +1952,7 @@ def _generate_pre_pipeline_fail_artifact(
         if not isinstance(v, dict):
             return {}
         try:
-            json.dumps(v)
+            json.dumps(v, allow_nan=False, sort_keys=True)
             return v
         except (TypeError, ValueError):
             return {}
@@ -1707,6 +1992,62 @@ def _generate_pre_pipeline_fail_artifact(
             "pre_pipeline_failure": True,
         },
     )
+
+
+def emit_split_fn_failure_artifact(
+    pre_call_result: "PreCallResult",
+    exc: Exception,
+) -> dict[str, Any]:
+    """Generate and emit a FAIL artifact when the wrapped function raises
+    after Phase A PASS in split decorator mode.
+
+    The artifact captures the Phase A invocation context (no output) and
+    records the wrapped function failure for observability. The exception
+    is NOT modified; callers should re-raise it unchanged.
+
+    :param pre_call_result: Token from enforce_pre_call() (Phase A PASS)
+    :param exc: Exception raised by the wrapped function
+    :return: Emitted FAIL audit artifact
+    """
+    inv_snap = dict(pre_call_result._frozen_invocation_snapshot)
+    inv_snap.setdefault("output", {})
+    policy = dict(pre_call_result._frozen_effective_policy)
+
+    failure_reason, _ = sanitize_failure_message(
+        f"{type(exc).__name__}: {exc}", None,
+    )
+    failures = [
+        {
+            "code": type(exc).__name__,
+            "message": failure_reason,
+            "field": None,
+        }
+    ]
+
+    artifact = generate_audit_artifact(
+        inv_snap,
+        policy,
+        enforcement_result="FAIL",
+        failures=failures,
+        failure_gate="wrapped_function_error",
+        failure_reason=failure_reason,
+        metadata={
+            "enforcement_mode": "split",
+            "pre_call_gates_evaluated": pre_call_result.phase_a_metadata.get(
+                "gates_evaluated", []
+            ),
+        },
+    )
+
+    try:
+        emit_to_sink(artifact)
+    except AuditSinkError as sink_exc:
+        logger.error(
+            "Sink emission failed on wrapped-function FAIL path: %s",
+            sink_exc,
+        )
+
+    return artifact
 
 
 class AIGC:
@@ -1802,10 +2143,33 @@ class AIGC:
         :raises: AIGCError subclasses on governance violation
         """
         if not isinstance(invocation, Mapping):
-            raise InvocationValidationError(
+            _exc = InvocationValidationError(
                 "Invocation must be a mapping object",
                 details={"received_type": type(invocation).__name__},
             )
+            _safe = {
+                "policy_file": "unknown", "model_provider": "unknown",
+                "model_identifier": "unknown", "role": "unknown",
+                "input": {}, "output": {}, "context": {},
+            }
+            _artifact = _generate_pre_pipeline_fail_artifact(
+                _safe, _exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            _artifact.setdefault("metadata", {})["enforcement_mode"] = "unified"
+            _exc.audit_artifact = _artifact
+            try:
+                emit_to_sink(
+                    _artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as _sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    _sink_exc,
+                )
+            raise _exc
 
         try:
             _validate_invocation(invocation)
@@ -1861,10 +2225,35 @@ class AIGC:
         :raises: AIGCError subclasses on governance violation
         """
         if not isinstance(invocation, Mapping):
-            raise InvocationValidationError(
+            _exc = InvocationValidationError(
                 "Invocation must be a mapping object",
                 details={"received_type": type(invocation).__name__},
             )
+            _safe = {
+                "policy_file": "unknown", "model_provider": "unknown",
+                "model_identifier": "unknown", "role": "unknown",
+                "input": {}, "output": {}, "context": {},
+            }
+            _artifact = _generate_pre_pipeline_fail_artifact(
+                _safe, _exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            _artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                "split_pre_call_only"
+            )
+            _exc.audit_artifact = _artifact
+            try:
+                emit_to_sink(
+                    _artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as _sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    _sink_exc,
+                )
+            raise _exc
 
         try:
             _validate_pre_call_invocation(invocation)
@@ -1992,7 +2381,10 @@ class AIGC:
                 role=invocation["role"],
             )
             object.__setattr__(
-                token, "_phase_b_grouped_gates", grouped_gates,
+                token, "_phase_b_grouped_gates",
+                types.MappingProxyType(
+                    {pt: tuple(gl) for pt, gl in grouped_gates.items()}
+                ),
             )
             object.__setattr__(token, "_origin", _ENFORCEMENT_TOKEN)
             object.__setattr__(
@@ -2003,9 +2395,60 @@ class AIGC:
                 token, "_frozen_invocation_snapshot",
                 copy.deepcopy(token.invocation_snapshot),
             )
+            try:
+                frozen_policy_bytes = json.dumps(
+                    token.effective_policy, sort_keys=True,
+                ).encode()
+                frozen_evidence_bytes = json.dumps(
+                    {
+                        "invocation_snapshot": dict(
+                            token.invocation_snapshot,
+                        ),
+                        "phase_a_metadata": phase_a_metadata,
+                        "guards_evaluated_engine": [
+                            dict(g) if isinstance(g, dict) else None
+                            for g in guards_evaluated_engine
+                        ],
+                        "conditions_resolved": dict(conditions_resolved),
+                    },
+                    sort_keys=True,
+                ).encode()
+            except (TypeError, ValueError) as json_exc:
+                freeze_err = InvocationValidationError(
+                    f"Policy contains non-JSON-serializable values; "
+                    f"cannot freeze token: {json_exc}",
+                    details={"field": "effective_policy"},
+                )
+                safe_inv = dict(invocation)
+                safe_inv.setdefault("output", {})
+                artifact = _generate_pre_pipeline_fail_artifact(
+                    safe_inv, freeze_err,
+                    redaction_patterns=self._redaction_patterns,
+                )
+                artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                    "split_pre_call_only"
+                )
+                freeze_err.audit_artifact = artifact
+                try:
+                    emit_to_sink(
+                        artifact,
+                        sink=self._sink,
+                        failure_mode=self._on_sink_failure,
+                    )
+                except AuditSinkError as sink_exc:
+                    logger.error(
+                        "Sink emission failed on policy freeze FAIL path: %s",
+                        sink_exc,
+                    )
+                raise freeze_err from json_exc
             object.__setattr__(
-                token, "_frozen_policy_bytes",
-                json.dumps(token.effective_policy, sort_keys=True).encode(),
+                token, "_frozen_policy_bytes", frozen_policy_bytes,
+            )
+            object.__setattr__(
+                token, "_frozen_evidence_bytes", frozen_evidence_bytes,
+            )
+            object.__setattr__(
+                token, "_token_hmac", _token_sign(frozen_evidence_bytes),
             )
             object.__setattr__(
                 token, "_frozen_phase_a_metadata",
@@ -2099,6 +2542,46 @@ class AIGC:
                 )
             raise exc
 
+        # 1c. HMAC integrity check — rejects tokens where _origin was stamped
+        # via object.__setattr__ without holding the session signing key (audit
+        # Finding #1, 2026-04-05).
+        if not _token_verify(
+            pre_call_result._frozen_evidence_bytes,
+            pre_call_result._token_hmac,
+        ):
+            exc = InvocationValidationError(
+                "PreCallResult token integrity check failed; "
+                "token may be forged or corrupted",
+                details={"field": "pre_call_result"},
+            )
+            safe_inv = {
+                "policy_file": "unknown",
+                "model_provider": "unknown",
+                "model_identifier": "unknown",
+                "role": "unknown",
+                "input": {}, "output": {}, "context": {},
+            }
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                "split"
+            )
+            exc.audit_artifact = artifact
+            try:
+                emit_to_sink(
+                    artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    sink_exc,
+                )
+            raise exc
+
         # 2. Output type validation
         if not isinstance(output, dict):
             exc = InvocationValidationError(
@@ -2130,7 +2613,7 @@ class AIGC:
 
         # 2b. Output serializability check (Finding 4).
         try:
-            json.dumps(output)
+            json.dumps(output, allow_nan=False, sort_keys=True)
         except (TypeError, ValueError) as json_exc:
             exc = InvocationValidationError(
                 f"enforce_post_call() output is not JSON-serializable: "
@@ -2190,25 +2673,57 @@ class AIGC:
                 )
             raise exc
 
-        # 4. Mark consumed
+        # 4. Validate and deserialize Phase A evidence BEFORE marking consumed
+        # (audit Finding #2, 2026-04-05).
+        try:
+            evidence = json.loads(pre_call_result._frozen_evidence_bytes)
+            original_policy = json.loads(pre_call_result._frozen_policy_bytes)
+        except (TypeError, ValueError) as dec_exc:
+            exc = InvocationValidationError(
+                "PreCallResult contains invalid internal token state; "
+                "token may be corrupted or forged",
+                details={"field": "_frozen_evidence_bytes"},
+            )
+            safe_inv = {
+                "policy_file": "unknown",
+                "model_provider": "unknown",
+                "model_identifier": "unknown",
+                "role": "unknown",
+                "input": {}, "output": {}, "context": {},
+            }
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+            exc.audit_artifact = artifact
+            try:
+                emit_to_sink(
+                    artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    sink_exc,
+                )
+            raise exc from dec_exc
+
+        # 5. Mark consumed AFTER validating token state.
         object.__setattr__(pre_call_result, "_consumed", True)
 
-        # 5. Build full invocation for Phase B using frozen snapshot.
-        full_invocation = dict(pre_call_result._frozen_invocation_snapshot)
+        full_invocation = dict(evidence["invocation_snapshot"])
         full_invocation["output"] = output
 
-        # 6. Recover Phase A state from the frozen deep-copy so callers
-        # cannot forge pre_call_gates_evaluated by mutating phase_a_metadata.
-        phase_a_meta = copy.deepcopy(pre_call_result._frozen_phase_a_metadata)
+        # 6. Recover Phase A state exclusively from the evidence snapshot.
+        phase_a_meta = dict(evidence["phase_a_metadata"])
         phase_a_gates = list(
             phase_a_meta.get("gates_evaluated", []),
         )
         all_custom_metadata = dict(
             phase_a_meta.get("all_custom_metadata", {}),
         )
-        # Deserialize effective_policy from bytes; immune to nested-dict
-        # mutation of _frozen_effective_policy.
-        original_policy = json.loads(pre_call_result._frozen_policy_bytes)
 
         with enforcement_span(
             "aigc.enforce_post_call",
@@ -2233,10 +2748,10 @@ class AIGC:
                     ),
                 },
                 guards_evaluated_engine=list(
-                    pre_call_result.resolved_guards,
+                    evidence.get("guards_evaluated_engine", []),
                 ),
                 conditions_resolved=dict(
-                    pre_call_result.resolved_conditions,
+                    evidence.get("conditions_resolved", {}),
                 ),
                 all_custom_metadata=all_custom_metadata,
                 # Use gates captured at Phase A time, consistent with the
@@ -2264,10 +2779,35 @@ class AIGC:
         The enforcement pipeline itself is synchronous (CPU-bound).
         """
         if not isinstance(invocation, Mapping):
-            raise InvocationValidationError(
+            _exc = InvocationValidationError(
                 "Invocation must be a mapping object",
                 details={"received_type": type(invocation).__name__},
             )
+            _safe = {
+                "policy_file": "unknown", "model_provider": "unknown",
+                "model_identifier": "unknown", "role": "unknown",
+                "input": {}, "output": {}, "context": {},
+            }
+            _artifact = _generate_pre_pipeline_fail_artifact(
+                _safe, _exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            _artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                "split_pre_call_only"
+            )
+            _exc.audit_artifact = _artifact
+            try:
+                emit_to_sink(
+                    _artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as _sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    _sink_exc,
+                )
+            raise _exc
 
         try:
             _validate_pre_call_invocation(invocation)
@@ -2400,9 +2940,12 @@ class AIGC:
             # of self._custom_gates (Round 2 audit Finding 3): if a Phase A
             # gate mutates self._custom_gates, re-sorting would produce a
             # different gate set for Phase B than Phase A used.
+            # Also wrap in MappingProxyType (Round 3 audit Finding 1).
             object.__setattr__(
                 token, "_phase_b_grouped_gates",
-                grouped_gates,
+                types.MappingProxyType(
+                    {pt: tuple(gl) for pt, gl in grouped_gates.items()}
+                ),
             )
             object.__setattr__(token, "_origin", _ENFORCEMENT_TOKEN)
             object.__setattr__(
@@ -2413,9 +2956,60 @@ class AIGC:
                 token, "_frozen_invocation_snapshot",
                 copy.deepcopy(token.invocation_snapshot),
             )
+            try:
+                frozen_policy_bytes = json.dumps(
+                    token.effective_policy, sort_keys=True,
+                ).encode()
+                frozen_evidence_bytes = json.dumps(
+                    {
+                        "invocation_snapshot": dict(
+                            token.invocation_snapshot,
+                        ),
+                        "phase_a_metadata": phase_a_metadata,
+                        "guards_evaluated_engine": [
+                            dict(g) if isinstance(g, dict) else None
+                            for g in guards_evaluated_engine
+                        ],
+                        "conditions_resolved": dict(conditions_resolved),
+                    },
+                    sort_keys=True,
+                ).encode()
+            except (TypeError, ValueError) as json_exc:
+                freeze_err = InvocationValidationError(
+                    f"Policy contains non-JSON-serializable values; "
+                    f"cannot freeze token: {json_exc}",
+                    details={"field": "effective_policy"},
+                )
+                safe_inv = dict(invocation)
+                safe_inv.setdefault("output", {})
+                artifact = _generate_pre_pipeline_fail_artifact(
+                    safe_inv, freeze_err,
+                    redaction_patterns=self._redaction_patterns,
+                )
+                artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                    "split_pre_call_only"
+                )
+                freeze_err.audit_artifact = artifact
+                try:
+                    emit_to_sink(
+                        artifact,
+                        sink=self._sink,
+                        failure_mode=self._on_sink_failure,
+                    )
+                except AuditSinkError as sink_exc:
+                    logger.error(
+                        "Sink emission failed on policy freeze FAIL path: %s",
+                        sink_exc,
+                    )
+                raise freeze_err from json_exc
             object.__setattr__(
-                token, "_frozen_policy_bytes",
-                json.dumps(token.effective_policy, sort_keys=True).encode(),
+                token, "_frozen_policy_bytes", frozen_policy_bytes,
+            )
+            object.__setattr__(
+                token, "_frozen_evidence_bytes", frozen_evidence_bytes,
+            )
+            object.__setattr__(
+                token, "_token_hmac", _token_sign(frozen_evidence_bytes),
             )
             object.__setattr__(
                 token, "_frozen_phase_a_metadata",
@@ -2447,10 +3041,33 @@ class AIGC:
         :raises: AIGCError subclasses on governance violation
         """
         if not isinstance(invocation, Mapping):
-            raise InvocationValidationError(
+            _exc = InvocationValidationError(
                 "Invocation must be a mapping object",
                 details={"received_type": type(invocation).__name__},
             )
+            _safe = {
+                "policy_file": "unknown", "model_provider": "unknown",
+                "model_identifier": "unknown", "role": "unknown",
+                "input": {}, "output": {}, "context": {},
+            }
+            _artifact = _generate_pre_pipeline_fail_artifact(
+                _safe, _exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            _artifact.setdefault("metadata", {})["enforcement_mode"] = "unified"
+            _exc.audit_artifact = _artifact
+            try:
+                emit_to_sink(
+                    _artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as _sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    _sink_exc,
+                )
+            raise _exc
 
         try:
             _validate_invocation(invocation)

@@ -1640,6 +1640,468 @@ class AIGC:
             risk_config=self._risk_config,
         )
 
+    def enforce_pre_call(
+        self, invocation: Mapping[str, Any],
+    ) -> PreCallResult:
+        """Enforce pre-call governance checks (Phase A), instance-scoped.
+
+        Uses instance-owned policy cache and configuration.
+        Returns a PreCallResult for use with enforce_post_call().
+
+        :param invocation: Dict with policy_file, model_provider,
+                           model_identifier, role, input, context
+        :return: PreCallResult token
+        :raises: AIGCError subclasses on governance violation
+        """
+        if not isinstance(invocation, Mapping):
+            raise InvocationValidationError(
+                "Invocation must be a mapping object",
+                details={"received_type": type(invocation).__name__},
+            )
+
+        try:
+            _validate_pre_call_invocation(invocation)
+            policy = self._policy_cache.get_or_load(
+                invocation["policy_file"],
+                loader=self._policy_loader,
+            )
+            _validate_policy_strict(policy, self._strict_mode)
+        except AIGCError as exc:
+            safe_inv = dict(invocation)
+            safe_inv.setdefault("output", {})
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                "split_pre_call_only"
+            )
+            exc.audit_artifact = artifact
+            try:
+                emit_to_sink(
+                    artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    sink_exc,
+                )
+            raise
+
+        grouped_gates = sort_gates(self._custom_gates)
+        pre_call_timestamp = int(_time.time())
+
+        with enforcement_span(
+            "aigc.enforce_pre_call",
+            attributes={
+                "aigc.policy_file": invocation.get("policy_file", ""),
+                "aigc.role": invocation.get("role", ""),
+                "aigc.enforcement_mode": "split",
+            },
+        ) as span:
+            phase_a_gates: list[str] = []
+            try:
+                (
+                    effective_policy,
+                    guards_evaluated_engine,
+                    conditions_resolved,
+                    all_custom_metadata,
+                    phase_a_gates,
+                    phase_a_extra,
+                ) = _run_phase_a(
+                    policy, invocation,
+                    grouped_gates=grouped_gates,
+                    span=span,
+                    gates_evaluated=phase_a_gates,
+                )
+            except AIGCError as exc:
+                safe_inv = dict(invocation)
+                safe_inv["output"] = {}
+                audit_record = _build_phase_a_mid_pipeline_fail_artifact(
+                    safe_inv, policy, exc, phase_a_gates,
+                    self._redaction_patterns,
+                )
+                exc.audit_artifact = audit_record
+                try:
+                    emit_to_sink(
+                        audit_record,
+                        sink=self._sink,
+                        failure_mode=self._on_sink_failure,
+                    )
+                except AuditSinkError as sink_exc:
+                    logger.error(
+                        "Sink emission failed on FAIL path "
+                        "(artifact preserved): %s",
+                        sink_exc,
+                    )
+                record_enforcement_result(
+                    span, "FAIL",
+                    policy_file=invocation.get("policy_file"),
+                    role=invocation.get("role"),
+                )
+                logger.error(
+                    "Enforcement failed during Phase A: %s", exc,
+                )
+                raise
+
+            invocation_snapshot = {
+                "policy_file": invocation["policy_file"],
+                "model_provider": invocation["model_provider"],
+                "model_identifier": invocation["model_identifier"],
+                "role": invocation["role"],
+                "input": invocation["input"],
+                "context": invocation["context"],
+            }
+
+            phase_a_metadata = {
+                "gates_evaluated": list(phase_a_gates),
+                "pre_call_timestamp": pre_call_timestamp,
+                **phase_a_extra,
+                "all_custom_metadata": all_custom_metadata,
+            }
+
+            record_enforcement_result(
+                span, "PASS_PHASE_A",
+                policy_file=invocation.get("policy_file"),
+                role=invocation.get("role"),
+            )
+
+            return PreCallResult(
+                effective_policy=effective_policy,
+                resolved_guards=tuple(
+                    dict(g) if isinstance(g, dict) else g
+                    for g in guards_evaluated_engine
+                ),
+                resolved_conditions=dict(conditions_resolved),
+                phase_a_metadata=phase_a_metadata,
+                invocation_snapshot=invocation_snapshot,
+                policy_file=invocation["policy_file"],
+                model_provider=invocation["model_provider"],
+                model_identifier=invocation["model_identifier"],
+                role=invocation["role"],
+            )
+
+    def enforce_post_call(
+        self,
+        pre_call_result: PreCallResult,
+        output: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Enforce post-call governance checks (Phase B), instance-scoped.
+
+        Consumes a PreCallResult from enforce_pre_call(). One-time use.
+
+        :param pre_call_result: Token from enforce_pre_call()
+        :param output: Model output dict
+        :return: PASS audit artifact
+        :raises: AIGCError subclasses on governance violation
+        """
+        # 1. Type check
+        if not isinstance(pre_call_result, PreCallResult):
+            exc = InvocationValidationError(
+                "enforce_post_call() requires a PreCallResult "
+                "from enforce_pre_call()",
+                details={
+                    "received_type": type(pre_call_result).__name__,
+                },
+            )
+            safe_inv = {
+                "policy_file": "unknown",
+                "model_provider": "unknown",
+                "model_identifier": "unknown",
+                "role": "unknown",
+                "input": {}, "output": {}, "context": {},
+            }
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                "split"
+            )
+            exc.audit_artifact = artifact
+            try:
+                emit_to_sink(
+                    artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    sink_exc,
+                )
+            raise exc
+
+        # 2. Output validation
+        if not isinstance(output, dict):
+            exc = InvocationValidationError(
+                "enforce_post_call() output must be a dict",
+                details={"field": "output"},
+            )
+            safe_inv = dict(pre_call_result.invocation_snapshot)
+            safe_inv["output"] = {}
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                "split"
+            )
+            exc.audit_artifact = artifact
+            try:
+                emit_to_sink(
+                    artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    sink_exc,
+                )
+            raise exc
+
+        # 3. Consumption check
+        if pre_call_result._consumed:
+            exc = InvocationValidationError(
+                "PreCallResult has already been consumed; "
+                "create a new one via enforce_pre_call()",
+                details={"field": "pre_call_result"},
+            )
+            safe_inv = dict(pre_call_result.invocation_snapshot)
+            safe_inv["output"] = {}
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                "split"
+            )
+            exc.audit_artifact = artifact
+            try:
+                emit_to_sink(
+                    artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    sink_exc,
+                )
+            raise exc
+
+        # 4. Mark consumed
+        object.__setattr__(pre_call_result, "_consumed", True)
+
+        # 5. Build full invocation for Phase B
+        full_invocation = dict(pre_call_result.invocation_snapshot)
+        full_invocation["output"] = output
+
+        # 6. Recover Phase A state
+        phase_a_meta = dict(pre_call_result.phase_a_metadata)
+        phase_a_gates = list(
+            phase_a_meta.get("gates_evaluated", []),
+        )
+        all_custom_metadata = dict(
+            phase_a_meta.get("all_custom_metadata", {}),
+        )
+        original_policy = dict(pre_call_result.effective_policy)
+
+        with enforcement_span(
+            "aigc.enforce_post_call",
+            attributes={
+                "aigc.policy_file": pre_call_result.policy_file,
+                "aigc.role": pre_call_result.role,
+                "aigc.enforcement_mode": "split",
+            },
+        ) as span:
+            return _run_phase_b(
+                dict(pre_call_result.effective_policy),
+                original_policy,
+                full_invocation,
+                phase_a_gates=phase_a_gates,
+                phase_a_metadata=phase_a_meta,
+                phase_a_extra={
+                    "preconditions_satisfied": phase_a_meta.get(
+                        "preconditions_satisfied", [],
+                    ),
+                    "tool_constraints": phase_a_meta.get(
+                        "tool_constraints", {},
+                    ),
+                },
+                guards_evaluated_engine=list(
+                    pre_call_result.resolved_guards,
+                ),
+                conditions_resolved=dict(
+                    pre_call_result.resolved_conditions,
+                ),
+                all_custom_metadata=all_custom_metadata,
+                sink=self._sink,
+                sink_failure_mode=self._on_sink_failure,
+                redaction_patterns=self._redaction_patterns,
+                signer=self._signer,
+                risk_config=self._risk_config,
+                enforcement_mode="split",
+                pre_call_timestamp=phase_a_meta.get(
+                    "pre_call_timestamp",
+                ),
+                span=span,
+            )
+
+    async def enforce_pre_call_async(
+        self, invocation: Mapping[str, Any],
+    ) -> PreCallResult:
+        """Async equivalent of enforce_pre_call(), instance-scoped.
+
+        Policy file I/O runs in a thread pool via asyncio.to_thread.
+        The enforcement pipeline itself is synchronous (CPU-bound).
+        """
+        if not isinstance(invocation, Mapping):
+            raise InvocationValidationError(
+                "Invocation must be a mapping object",
+                details={"received_type": type(invocation).__name__},
+            )
+
+        try:
+            _validate_pre_call_invocation(invocation)
+            policy = await asyncio.to_thread(
+                self._policy_cache.get_or_load,
+                invocation["policy_file"],
+                None,
+                loader=self._policy_loader,
+            )
+            _validate_policy_strict(policy, self._strict_mode)
+        except AIGCError as exc:
+            safe_inv = dict(invocation)
+            safe_inv.setdefault("output", {})
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = (
+                "split_pre_call_only"
+            )
+            exc.audit_artifact = artifact
+            try:
+                emit_to_sink(
+                    artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    sink_exc,
+                )
+            raise
+
+        grouped_gates = sort_gates(self._custom_gates)
+        pre_call_timestamp = int(_time.time())
+
+        with enforcement_span(
+            "aigc.enforce_pre_call",
+            attributes={
+                "aigc.policy_file": invocation.get("policy_file", ""),
+                "aigc.role": invocation.get("role", ""),
+                "aigc.enforcement_mode": "split",
+            },
+        ) as span:
+            phase_a_gates: list[str] = []
+            try:
+                (
+                    effective_policy,
+                    guards_evaluated_engine,
+                    conditions_resolved,
+                    all_custom_metadata,
+                    phase_a_gates,
+                    phase_a_extra,
+                ) = _run_phase_a(
+                    policy, invocation,
+                    grouped_gates=grouped_gates,
+                    span=span,
+                    gates_evaluated=phase_a_gates,
+                )
+            except AIGCError as exc:
+                safe_inv = dict(invocation)
+                safe_inv["output"] = {}
+                audit_record = _build_phase_a_mid_pipeline_fail_artifact(
+                    safe_inv, policy, exc, phase_a_gates,
+                    self._redaction_patterns,
+                )
+                exc.audit_artifact = audit_record
+                try:
+                    emit_to_sink(
+                        audit_record,
+                        sink=self._sink,
+                        failure_mode=self._on_sink_failure,
+                    )
+                except AuditSinkError as sink_exc:
+                    logger.error(
+                        "Sink emission failed on FAIL path "
+                        "(artifact preserved): %s",
+                        sink_exc,
+                    )
+                record_enforcement_result(
+                    span, "FAIL",
+                    policy_file=invocation.get("policy_file"),
+                    role=invocation.get("role"),
+                )
+                logger.error(
+                    "Enforcement failed during Phase A: %s", exc,
+                )
+                raise
+
+            invocation_snapshot = {
+                "policy_file": invocation["policy_file"],
+                "model_provider": invocation["model_provider"],
+                "model_identifier": invocation["model_identifier"],
+                "role": invocation["role"],
+                "input": invocation["input"],
+                "context": invocation["context"],
+            }
+
+            phase_a_metadata = {
+                "gates_evaluated": list(phase_a_gates),
+                "pre_call_timestamp": pre_call_timestamp,
+                **phase_a_extra,
+                "all_custom_metadata": all_custom_metadata,
+            }
+
+            record_enforcement_result(
+                span, "PASS_PHASE_A",
+                policy_file=invocation.get("policy_file"),
+                role=invocation.get("role"),
+            )
+
+            return PreCallResult(
+                effective_policy=effective_policy,
+                resolved_guards=tuple(
+                    dict(g) if isinstance(g, dict) else g
+                    for g in guards_evaluated_engine
+                ),
+                resolved_conditions=dict(conditions_resolved),
+                phase_a_metadata=phase_a_metadata,
+                invocation_snapshot=invocation_snapshot,
+                policy_file=invocation["policy_file"],
+                model_provider=invocation["model_provider"],
+                model_identifier=invocation["model_identifier"],
+                role=invocation["role"],
+            )
+
+    async def enforce_post_call_async(
+        self,
+        pre_call_result: PreCallResult,
+        output: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Async equivalent of enforce_post_call(), instance-scoped.
+
+        enforce_post_call() is synchronous (CPU-bound); just delegate.
+        """
+        return self.enforce_post_call(pre_call_result, output)
+
     async def enforce_async(
         self, invocation: Mapping[str, Any]
     ) -> dict[str, Any]:

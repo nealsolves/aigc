@@ -142,6 +142,19 @@ def _get_enforcement_token() -> "_EnforcementToken":
     return _ENFORCEMENT_TOKEN
 
 
+def _reconstruct_precall_result(state: dict) -> "PreCallResult":
+    """Pickle reconstruction helper for PreCallResult.
+
+    Creates a blank PreCallResult via object.__new__ (bypassing __init__)
+    and restores state via __setstate__.  Called by PreCallResult.__reduce__
+    to ensure pickle always uses our custom __getstate__/__setstate__ pair
+    regardless of Python version behaviour for frozen+slots dataclasses.
+    """
+    obj = object.__new__(PreCallResult)
+    obj.__setstate__(state)
+    return obj
+
+
 # Module-private sentinel. Only code inside this module sets _origin to this
 # value via object.__setattr__. A directly-constructed PreCallResult gets
 # _origin=None (the field default) and is rejected by post-call.
@@ -278,6 +291,15 @@ class PreCallResult:
     _token_hmac: bytes = field(
         init=False, default=b"", repr=False, compare=False,
     )
+
+    def __reduce__(self) -> tuple:
+        """Explicit pickle protocol.
+
+        Forces pickle to use __getstate__/__setstate__ regardless of Python
+        version behaviour for frozen+slots dataclasses (Python 3.10/3.11 do
+        not always invoke __getstate__ automatically for such classes).
+        """
+        return (_reconstruct_precall_result, (self.__getstate__(),))
 
     def __getstate__(self) -> dict:
         """Pickle support: serialize all slots, converting MappingProxyType to dict."""

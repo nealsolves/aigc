@@ -203,8 +203,8 @@ Both PASS and FAIL artifacts are emitted.
 
 Audit artifacts record the ordered gates that ran before the call boundary.
 
-- Unified mode uses `metadata.gates_evaluated`.
-- Split mode uses `metadata.pre_call_gates_evaluated` and, when Phase B runs,
+* Unified mode uses `metadata.gates_evaluated`.
+* Split mode uses `metadata.pre_call_gates_evaluated` and, when Phase B runs,
   `metadata.post_call_gates_evaluated`.
 
 Unified example:

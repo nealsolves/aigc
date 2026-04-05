@@ -14,7 +14,10 @@ Governance is not documentation. It is runtime enforcement.
 
 **SDK Implementation:** Reference implementation of constitutional governance for AI-assisted systems.
 
-**Status:** v0.3.1 — 597 tests, 95% coverage. M2: risk scoring, signing (HMAC-SHA256), audit chain (opt-in), composition semantics, pluggable PolicyLoader, policy dates, OTel, policy testing, compliance export CLI, custom gates. Audit schema v1.2. React demo at full v0.3.0 feature parity.
+**Status:** v0.3.2 — 687 tests, 95% coverage. M2: risk scoring, signing (HMAC-SHA256), audit chain
+(opt-in), composition semantics, pluggable PolicyLoader, policy dates, OTel, policy testing,
+compliance export CLI, custom gates. Audit schema v1.3. Split enforcement API
+(`enforce_pre_call` / `enforce_post_call`). React demo at full v0.3.0 feature parity.
 
 ---
 
@@ -182,6 +185,44 @@ audit = engine.enforce(invocation)
   async def plan_investigation(input_data: dict, context: dict) -> dict:
       return await llm.generate(input_data)
   ```
+
+### Split Enforcement (v0.3.2+)
+
+Split enforcement separates pre-call authorization from post-call validation:
+
+```python
+from aigc import enforce_pre_call, enforce_post_call
+
+# Phase A: run before the model call
+pre_call_result = enforce_pre_call({
+    "policy_file": "policies/my_policy.yaml",
+    "model_provider": "anthropic",
+    "model_identifier": "claude-sonnet-4-6",
+    "role": "assistant",
+    "input": {"query": user_query},
+    "context": {"session_id": session_id},
+})
+
+# Model call only happens after Phase A passes
+output = model.generate(user_query)
+
+# Phase B: run after the model call
+artifact = enforce_post_call(pre_call_result, output)
+```
+
+The `@governed` decorator also supports split mode:
+
+```python
+@governed(
+    policy_file="policies/my_policy.yaml",
+    role="assistant",
+    model_provider="anthropic",
+    model_identifier="claude-sonnet-4-6",
+    pre_call_enforcement=True,  # opt-in split mode
+)
+def run_model(input_data, context):
+    return model.generate(input_data)
+```
 
 ### Milestone 2 (Governance Hardening)
 

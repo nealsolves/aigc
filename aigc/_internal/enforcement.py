@@ -184,7 +184,10 @@ _token_sign, _token_verify = _make_token_signer()
 # Process-local registry of consumed token HMACs (Finding 3, 2026-04-05).
 # Prevents replay via deepcopy/pickle clone of an unconsumed token.
 # Keyed by _token_hmac bytes (unique per session key + evidence content).
-# Thread safety: Python's GIL protects individual set.add/in operations.
+# Thread safety: individual set.add/in operations are GIL-protected, but the
+# check-then-add sequence (step 1f → step 5) is NOT atomic across threads.
+# Concurrent calls with the same-token clone may both pass the check before
+# either registers. Use external locking if calling from multiple threads.
 # Threat model: process-local misuse detection (spec Section 10.6).
 _consumed_token_registry: set[bytes] = set()
 
@@ -1613,8 +1616,7 @@ def enforce_post_call(
     # 1f. Clone replay check — rejects second consumption of the same logical token
     # (whether original or clone). Keyed by _token_hmac (unique per session + content).
     # audit Finding 3, 2026-04-05.
-    _nonce = pre_call_result._token_hmac
-    if _nonce in _consumed_token_registry:
+    if pre_call_result._token_hmac in _consumed_token_registry:
         exc = InvocationValidationError(
             "Token replay attempt detected; this token or a clone "
             "of it has already been consumed",
@@ -1707,7 +1709,10 @@ def enforce_post_call(
         except (TypeError, ValueError):
             original_policy = {}
 
-    # 5. Register nonce and mark consumed (Finding 3: replay prevention).
+    # 5. Register in replay registry BEFORE marking _consumed — order matters:
+    # registry add must happen first so that a concurrent clone cannot sneak through
+    # the step 1f check in the window between registration and consumed-flag flip.
+    # (audit Finding 3, 2026-04-05)
     _consumed_token_registry.add(pre_call_result._token_hmac)
     object.__setattr__(pre_call_result, "_consumed", True)
 
@@ -2771,8 +2776,7 @@ class AIGC:
         # 1f. Clone replay check — rejects second consumption of the same logical token
         # (whether original or clone). Keyed by _token_hmac (unique per session + content).
         # audit Finding 3, 2026-04-05.
-        _nonce = pre_call_result._token_hmac
-        if _nonce in _consumed_token_registry:
+        if pre_call_result._token_hmac in _consumed_token_registry:
             exc = InvocationValidationError(
                 "Token replay attempt detected; this token or a clone "
                 "of it has already been consumed",
@@ -2893,7 +2897,10 @@ class AIGC:
             except (TypeError, ValueError):
                 original_policy = {}
 
-        # 5. Register nonce and mark consumed (Finding 3: replay prevention).
+        # 5. Register in replay registry BEFORE marking _consumed — order matters:
+        # registry add must happen first so that a concurrent clone cannot sneak through
+        # the step 1f check in the window between registration and consumed-flag flip.
+        # (audit Finding 3, 2026-04-05)
         _consumed_token_registry.add(pre_call_result._token_hmac)
         object.__setattr__(pre_call_result, "_consumed", True)
 

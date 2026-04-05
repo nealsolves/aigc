@@ -419,3 +419,13 @@ class TestFinding3CloneReplayPrevention:
         engine.enforce_post_call(pre, _valid_output())
         with pytest.raises(InvocationValidationError):
             engine.enforce_post_call(clone, _valid_output())
+
+    @pytest.mark.asyncio
+    async def test_aigc_async_pre_call_pickle_clone_rejected(self):
+        """AIGC async pre_call: pickle clone replay rejected."""
+        engine = AIGC()
+        pre = await engine.enforce_pre_call_async(_pre_call_inv())
+        clone = pickle.loads(pickle.dumps(pre))
+        engine.enforce_post_call(pre, _valid_output())
+        with pytest.raises(InvocationValidationError):
+            engine.enforce_post_call(clone, _valid_output())

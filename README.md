@@ -2,77 +2,65 @@
 
 ![AIGC Banner](graphics/AIGC_banner.png)
 
-AIGC makes AI invocation governance deterministic, enforceable, and auditable by design.
+AIGC is a Python SDK for deterministic, fail-closed governance of AI model
+invocations. It validates every invocation against a declared policy, enforces
+role and schema constraints, evaluates optional custom gates and risk scoring,
+and emits a tamper-evident audit artifact for every pass or fail path.
 
-AIGC enforces deterministic, fail-closed policy evaluation over every model invocation. No silent fallbacks. No prompt-based governance. Core governance gates are unconditionally fail-closed; configured exceptions (risk scoring `warn_only`, sink failure `log` mode) are explicitly scoped and audited.
+Governance in AIGC is runtime enforcement, not documentation and not prompting.
 
-Every model call is validated against a declared policy, checked for role authorization, schema compliance, and tool constraints, and produces a tamper-evident audit artifact.
+## At a Glance
 
-Governance is not documentation. It is runtime enforcement.
+- Package: `pip install aigc-sdk`
+- Import: `import aigc`
+- Current release: `v0.3.2` on `2026-04-05`
+- Current release scope: split enforcement, audit schema `v1.3`, token
+  integrity hardening, unified-mode compatibility retained
+- Verification baseline: `818 tests`, coverage above the `90%` CI gate
 
----
+## Why This Repo Exists
 
-**SDK Implementation:** Reference implementation of constitutional governance for AI-assisted systems.
+Most AI governance guidance stays advisory. AIGC is opinionated about turning
+governance into an executable contract:
 
-**Status:** v0.3.2 — 818 tests, coverage above the 90% CI gate. M2: risk scoring, signing (HMAC-SHA256), audit chain
-(opt-in), composition semantics, pluggable PolicyLoader, policy dates, OTel, policy testing,
-compliance export CLI, custom gates. Audit schema v1.3. Split enforcement API
-(`enforce_pre_call` / `enforce_post_call`). Demo surfaces aligned with the
-shipping v0.3.2 runtime.
+- Policies are declarative YAML and validated against JSON Schema.
+- Enforcement is deterministic and fail-closed.
+- Audit artifacts are mandatory, structured, and checksum-based.
+- Governance is model- and provider-agnostic.
+- Split enforcement is available when hosts need pre-call authorization before
+  token spend.
 
----
+If a model call cannot be justified by policy and evidenced by an audit record,
+AIGC treats it as invalid.
 
-## Governance Invariant
+## Runtime Model
 
-> **No AI-influenced behavior is valid unless it is:**
->
-> 1. Explicitly specified
-> 2. Deterministically enforceable
-> 3. Externally observable
-> 4. Replayable and auditable
-> 5. Governed independently of any specific model or provider
+AIGC sits at the invocation boundary between the host application and the model
+provider.
 
-This invariant is not aspirational. Every enforcement path in this SDK is
-designed to satisfy all five conditions or fail closed.
+1. The host assembles an invocation and selects a policy.
+2. AIGC loads and resolves the policy, enforces ordered governance gates, and
+   computes audit metadata.
+3. AIGC returns or emits a PASS/FAIL audit artifact that can be stored,
+   exported, chained, or inspected offline.
 
-## Five Governance Layers
+Unified mode is still the default. `v0.3.2` adds split mode so pre-call checks
+can run before the model executes while preserving the same gate ordering.
 
-| Layer | Concern | Implementation |
-| ----- | ------- | -------------- |
-| Behavioral Specification | No implicit behavior | YAML policies validated against JSON Schema (Draft-07) |
-| Deterministic Enforcement | Machine-verifiable constraints | `enforce_invocation()` pipeline — fail-closed on any violation |
-| Observability | Structured, persistent artifacts | SHA-256 checksummed audit records per invocation |
-| Replay & Audit | Replayable execution paths | Golden replays + deterministic artifact generation |
-| Model-Independent Governance | Provider-agnostic control | Roles, schemas, and policies — not prompts |
+## Release Narrative
 
----
+This is the versioned story of the repo as it ships today.
 
-## Interactive Demo
+| Release | Date | What changed for users |
+| ------- | ---- | ---------------------- |
+| `0.1.0` | 2026-02-16 | Initial SDK: policy loading, role allowlists, preconditions, output schema validation, postconditions, deterministic audit artifacts |
+| `0.1.1` to `0.1.3` | 2026-02-17 to 2026-02-23 | Installation and integration stabilization: context in audit artifacts, absolute policy paths, packaged schemas, public API guidance, `aigc-sdk` PyPI package name |
+| `0.2.0` | 2026-03-06 | SDK ergonomics and operability: instance-scoped `AIGC`, typed preconditions, exception sanitization, policy caching, sink failure modes, audit schema `v1.2`, `InvocationBuilder`, AST-based guards, policy CLI |
+| `0.3.0` | 2026-03-15 | Governance hardening: risk scoring, artifact signing, audit chain utility, pluggable `PolicyLoader`, policy dates, telemetry, policy testing, compliance export, custom gate isolation and metadata preservation |
+| `0.3.1` | 2026-04-04 | Demo parity release: React demo and FastAPI backend became the maintained hands-on surface for all 7 labs |
+| `0.3.2` | 2026-04-05 | Split enforcement release: `enforce_pre_call()` / `enforce_post_call()`, `PreCallResult`, split decorator mode, audit schema `v1.3`, and post-release security hardening from the 2026-04-05 audit |
 
-An interactive companion to the SDK is deployed at:
-
-**[https://nealsolves.github.io/aigc/](https://nealsolves.github.io/aigc/)**
-
-The demo is a React application with seven hands-on labs for the M2 governance
-capabilities plus a v0.3.2 architecture guide that explains unified default mode
-and opt-in split enforcement. It is backed by a FastAPI API server deployed on
-Render — no user API keys are required. The React frontend plus FastAPI backend
-are the maintained demo surface.
-
-| Lab | Topic | What it demonstrates |
-| --- | ----- | -------------------- |
-| 1 | Risk Scoring | `strict`, `risk_scored`, and `warn_only` modes; threshold behavior |
-| 2 | Signing & Verification | HMAC-SHA256 artifact signing; tamper detection |
-| 3 | Audit Chain | Hash-chained audit artifacts; chain continuity verification |
-| 4 | Policy Composition | `intersect`, `union`, and `replace` composition strategies |
-| 5 | Loaders & Versioning | Pluggable `PolicyLoader`; `effective_date` / `expiration_date` enforcement |
-| 6 | Custom Gates | `EnforcementGate` plugins at all four pipeline insertion points |
-| 7 | Compliance Dashboard | `aigc compliance export`-style report from a JSONL audit trail |
-
-The demo deploys automatically on every push to `main` that touches `demo-app-react/`
-via `.github/workflows/deploy-demo-react.yml`.
-
----
+For the full change log, use [CHANGELOG.md](CHANGELOG.md).
 
 ## Installation
 
@@ -80,13 +68,7 @@ via `.github/workflows/deploy-demo-react.yml`.
 pip install aigc-sdk
 ```
 
-The import name is `aigc`:
-
-```python
-from aigc import enforce_invocation
-```
-
-**From source** (editable install with dev dependencies):
+Editable install from source:
 
 ```bash
 python3 -m venv aigc-env
@@ -95,258 +77,115 @@ python -m pip install --upgrade pip setuptools wheel
 pip install --no-build-isolation -e '.[dev]'
 ```
 
-**Note:** The `--no-build-isolation` flag is required in network-restricted
-environments. It uses the already-installed `setuptools` and `wheel` instead of
-trying to download them fresh into an isolated build environment.
+The `--no-build-isolation` flag keeps editable installs working in
+network-restricted environments by reusing already-installed build tools.
 
-If using an internal PyPI mirror or wheelhouse, ensure `pip`, `setuptools`, and
-`wheel` are available before running the editable install.
+## Quick Start
 
-## Public API
-
-Preferred imports:
+Unified enforcement remains the simplest integration path:
 
 ```python
-from aigc import (
-    enforce_invocation,
-    AIGC,
-    InvocationValidationError,
-    PreconditionError,
-    SchemaValidationError,
-    GovernanceViolationError,
+from aigc import enforce_invocation
+
+artifact = enforce_invocation(
+    {
+        "policy_file": "policies/base_policy.yaml",
+        "model_provider": "anthropic",
+        "model_identifier": "claude-sonnet-4-6",
+        "role": "assistant",
+        "input": {"query": "Summarize this incident"},
+        "output": {"result": "Summary text", "confidence": 0.94},
+        "context": {"role_declared": True, "schema_exists": True},
+    }
 )
 ```
 
-Instance-scoped enforcement (recommended for new code):
+For new code that needs isolated configuration, use the instance API:
 
 ```python
-from aigc import AIGC
-from aigc import JsonFileAuditSink
+from aigc import AIGC, JsonFileAuditSink
 
 engine = AIGC(sink=JsonFileAuditSink("audit.jsonl"))
-audit = engine.enforce(invocation)
+artifact = engine.enforce(invocation)
 ```
 
-## Enforced Controls
+## Split Enforcement in `v0.3.2`
 
-### Phase 1 (Core Pipeline)
-
-- Invocation shape validation (typed errors, no raw `KeyError`)
-- Policy loading with safe YAML + Draft-07 schema validation
-- Role allowlist enforcement
-- Preconditions + output schema validation
-- Postcondition enforcement (`output_schema_valid`)
-- Deterministic audit artifact generation with canonical SHA-256 checksums
-- FAIL audit artifacts emitted before exception propagation
-
-### Phase 2 (Full DSL)
-
-- **Conditional guards** — `when/then` rules expand effective policy from
-  runtime context; evaluated before role validation; effects are additive
-- **Named conditions** — boolean flags resolved from invocation context with
-  defaults and required enforcement
-- **Tool constraints** — per-tool `max_calls` cap and tool allowlist
-  enforcement; violations emit FAIL audits
-- **Retry policy** — opt-in `with_retry()` wrapper for transient
-  `SchemaValidationError` failures with linear backoff
-- **Policy composition** — `extends` inheritance with recursive merge
-  (arrays append, dicts recurse, scalars replace) and cycle detection
-
-### Phase 3 (Production Readiness)
-
-- **Async enforcement** — `enforce_invocation_async()` runs policy I/O off the
-  event loop via `asyncio.to_thread`; identical governance behavior to sync
-- **Pluggable audit sinks** — every enforcement emits to the configured
-  sink automatically; configurable failure mode (`log` or `raise`).
-  Prefer instance-scoped configuration:
-
-  ```python
-  from aigc import AIGC
-  from aigc import JsonFileAuditSink
-  engine = AIGC(sink=JsonFileAuditSink("audit.jsonl"))
-  ```
-
-  The global `set_audit_sink()` function is retained for backward
-  compatibility but is not recommended for new code.
-
-- **Instance-scoped enforcement** — `AIGC` class for thread-safe, isolated
-  configuration (sink, failure mode, strict mode, redaction patterns)
-- **Structured logging** — `aigc.*` logger namespace with `NullHandler` default;
-  host applications configure log levels and handlers
-- **`@governed` decorator** — wraps sync and async LLM call sites:
-
-  ```python
-  from aigc import governed
-
-  @governed(
-      policy_file="policies/governance.yaml",
-      role="planner",
-      model_provider="anthropic",
-      model_identifier="claude-sonnet-4-5-20250929",
-  )
-  async def plan_investigation(input_data: dict, context: dict) -> dict:
-      return await llm.generate(input_data)
-  ```
-
-### Split Enforcement (v0.3.2+)
-
-Split enforcement separates pre-call authorization from post-call validation:
+Split mode lets you authorize before the model call and validate output after
+the call:
 
 ```python
-from aigc import enforce_pre_call, enforce_post_call
+from aigc import enforce_post_call, enforce_pre_call
 
-# Phase A: run before the model call
-pre_call_result = enforce_pre_call({
-    "policy_file": "policies/my_policy.yaml",
-    "model_provider": "anthropic",
-    "model_identifier": "claude-sonnet-4-6",
-    "role": "assistant",
-    "input": {"query": user_query},
-    "context": {"session_id": session_id},
-})
+pre = enforce_pre_call(
+    {
+        "policy_file": "policies/base_policy.yaml",
+        "model_provider": "anthropic",
+        "model_identifier": "claude-sonnet-4-6",
+        "role": "assistant",
+        "input": {"query": "Summarize this incident"},
+        "context": {"role_declared": True, "schema_exists": True},
+    }
+)
 
-# Model call only happens after Phase A passes
-output = model.generate(user_query)
-
-# Phase B: run after the model call
-artifact = enforce_post_call(pre_call_result, output)
+output = model.generate(...)
+artifact = enforce_post_call(pre, output)
 ```
 
-The `@governed` decorator also supports split mode:
+The decorator also supports split mode:
 
 ```python
+from aigc import governed
+
 @governed(
-    policy_file="policies/my_policy.yaml",
+    policy_file="policies/base_policy.yaml",
     role="assistant",
     model_provider="anthropic",
     model_identifier="claude-sonnet-4-6",
-    pre_call_enforcement=True,  # opt-in split mode
+    pre_call_enforcement=True,
 )
 def run_model(input_data, context):
     return model.generate(input_data)
 ```
 
-### Milestone 2 (Governance Hardening)
+## Interactive Demo
 
-- **Risk scoring engine** — factor-based risk computation with
-  `strict`, `risk_scored`, and `warn_only` modes; `RiskThresholdError`
-  raised in strict mode when threshold exceeded
-- **Artifact signing** — HMAC-SHA256 signing via pluggable
-  `ArtifactSigner` interface; constant-time signature verification
-- **Tamper-evident audit chain** — opt-in `AuditChain` utility for
-  hash-chaining artifacts with `chain_id`, `chain_index`,
-  `previous_audit_checksum` fields; manual integration by the host
-- **Composition restriction semantics** — `intersect`, `union`, and
-  `replace` strategies for policy inheritance via `composition_strategy`
-- **Pluggable PolicyLoader** — `PolicyLoaderBase` ABC for custom policy
-  sources (database, API, vault); `FilePolicyLoader` default
-- **Policy version dates** — `effective_date` / `expiration_date`
-  enforcement with injectable clock for testing
-- **OpenTelemetry integration** — optional spans and gate events; no-op
-  when OTel is not installed; governance unaffected by telemetry
-- **Policy testing framework** — `PolicyTestCase`, `PolicyTestSuite`,
-  `expect_pass()`, `expect_fail()` for policy validation
-- **Compliance export CLI** — `aigc compliance export` generates JSON
-  compliance reports from JSONL audit trails
-- **Custom EnforcementGate plugins** — `EnforcementGate` ABC with four
-  insertion points (`pre_authorization`, `post_authorization`,
-  `pre_output`, `post_output`) for host-specific gates
+The maintained demo is a React frontend plus FastAPI backend:
 
-## Audit Artifact Contract
+- Site: [https://nealsolves.github.io/aigc/](https://nealsolves.github.io/aigc/)
+- Coverage: 7 labs across risk scoring, signing, audit chain, composition,
+  loaders and policy dates, custom gates, and compliance export
+- Purpose: hands-on orientation to the runtime that shipped in `v0.3.x`
 
-Audit artifacts follow `schemas/audit_artifact.schema.json` and include:
+## CLI Surface
 
-- policy identity: `policy_file`, `policy_version`, `policy_schema_version`
-- model identity: `model_provider`, `model_identifier`, `role`
-- result: `enforcement_result`, structured `failures`
-- integrity + auditability: `input_checksum`, `output_checksum`, `timestamp`
-- deterministic metadata container: `metadata`
+The `aigc` console script exposes three practical commands:
 
-## CI Gates
+- `aigc policy lint <file...>` for syntax and schema checks
+- `aigc policy validate <file...>` for semantic validation, including
+  composition and cycle detection
+- `aigc compliance export --input audit.jsonl [--output report.json]` for
+  offline compliance reporting over stored audit trails
 
-`.github/workflows/sdk_ci.yml` enforces:
+## Repo Guide
 
-- build-tool bootstrap (`pip`, `setuptools`, `wheel`) and editable install with
-  `--no-build-isolation` for restricted-environment parity
-- `python -m pytest` with coverage gate (`--cov-fail-under=90`)
-- `flake8` for `aigc`
-- markdown lint
-- policy YAML validation against the Draft-07 policy schema
+If you are new to the repo, start here:
 
-## Release Checklist
+| Document | Why it matters |
+| -------- | -------------- |
+| [PROJECT.md](PROJECT.md) | Best repo-level orientation: architecture diagram, repo map, and release-by-release narrative |
+| [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | Authoritative runtime design and invariants |
+| [Integration Guide](docs/INTEGRATION_GUIDE.md) | Host integration patterns, split-mode guidance, and compliance checklist |
+| [Policy DSL Spec](policies/policy_dsl_spec.md) | Full policy format reference |
+| [Cookbook](docs/USAGE.md) | Task-oriented recipes for common integration patterns |
+| [Public Integration Contract](docs/PUBLIC_INTEGRATION_CONTRACT.md) | End-to-end runnable integration contract |
 
-Before tagging a release, confirm all gates pass locally:
+## Development Gates
+
+Before release, the repo expects these checks to pass locally:
 
 ```bash
 python -m pytest --cov=aigc --cov-report=term-missing --cov-fail-under=90
 flake8 aigc
 npx markdownlint-cli2 "**/*.md"
-python - <<'PY'
-import json; from pathlib import Path; import yaml; from jsonschema import Draft7Validator, validate
-schema = json.loads(Path("schemas/policy_dsl.schema.json").read_text())
-[validate(yaml.safe_load(p.read_text()), schema) or print(f"ok: {p}") for p in Path("policies").glob("*.yaml")]
-PY
 ```
-
-Then tag and push to trigger CI + PyPI publish:
-
-```bash
-git tag v<version>
-git push origin v<version>
-```
-
-## CLI Reference
-
-The `aigc` console script exposes three command groups:
-
-### `aigc policy lint <file...>`
-
-Checks one or more policy YAML files for syntax errors and JSON Schema compliance.
-Exits non-zero if any file fails.
-
-```bash
-aigc policy lint policies/my_policy.yaml
-# OK    policies/my_policy.yaml
-
-aigc policy lint policies/*.yaml
-```
-
-### `aigc policy validate <file...>`
-
-Runs lint plus full semantic validation, including `extends` composition and cycle
-detection. Use this before deploying a new policy.
-
-```bash
-aigc policy validate policies/my_policy.yaml
-# OK    policies/my_policy.yaml
-```
-
-### `aigc compliance export --input <audit.jsonl> [--output <report.json>]`
-
-Reads a JSONL audit trail produced by the SDK and generates a structured JSON
-compliance report (pass/fail counts, compliance rate, failure-gate breakdown,
-per-policy summary).
-
-```bash
-# Print report to stdout
-aigc compliance export --input audit.jsonl
-
-# Write report to a file
-aigc compliance export --input audit.jsonl --output report.json
-
-# Include individual artifact records in the report
-aigc compliance export --input audit.jsonl --output report.json --include-artifacts
-```
-
----
-
-## Documentation
-
-| Document | Purpose |
-| -------- | ------- |
-| [Integration Contract](docs/PUBLIC_INTEGRATION_CONTRACT.md) | Runnable hello-world, end-to-end example, extension points, troubleshooting |
-| [PROJECT.md](PROJECT.md) | Authoritative structure and architecture |
-| [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | Enforcement pipeline and design principles |
-| [Integration Guide](docs/INTEGRATION_GUIDE.md) | Host system integration patterns and compliance checklist |
-| [Policy DSL Spec](policies/policy_dsl_spec.md) | Full policy YAML specification |
-| [Usage Guide](docs/USAGE.md) | Code examples and best practices |

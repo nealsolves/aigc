@@ -2,173 +2,362 @@
 
 ## The Framework
 
-AIGC (Auditable Intelligence Governance Contract) enforces three governance functions at the AI invocation boundary. Every AI model call passes through all three. No exceptions.
+AIGC (Auditable Intelligence Governance Contract) enforces three governance
+functions at the AI invocation boundary:
 
-These three functions are the minimum viable governance for any AI system operating in production.
+- `Contract`: what the system is allowed to do
+- `Control`: how the system enforces those rules
+- `Check`: what evidence the system produces
+
+These are not optional features layered on after deployment. Together they form
+the minimum governance architecture for a production AI system.
 
 **Contract. Control. Check.**
+
+This document is intentionally evolutionary. Each section starts with the base
+capability and then shows how later releases extended it.
 
 ---
 
 ## 1. Contract: Policy-as-Code
 
-The Contract defines what the AI system is allowed to do. Not as a guideline. Not as a PDF reviewed quarterly. As a declarative policy that the system enforces at runtime.
+The Contract defines what the AI system is allowed to do. Not as a guideline.
+Not as a PDF. As a declarative policy enforced at runtime.
 
-**What it governs:**
+### What Contract governs
 
-Role authorization. Which agents, services, or users can invoke which AI capabilities. Unlisted roles are rejected. The allowlist is exhaustive.
+- role authorization
+- output schema
+- preconditions and postconditions
+- conditional guards and policy expansion
+- policy composition and policy lifecycle boundaries
 
-Output schema. What shape the AI's response must take. If the model returns a narrative when the system requires structured data, the Contract rejects it before the output reaches any downstream process.
+### How Contract evolved
 
-Preconditions and postconditions. What must be true before the AI is invoked and what must be true after. These are not optional checks. They are enforcement gates.
+#### `v0.1.0`: the core contract
 
-Conditional guards. Runtime context triggers policy expansion. An enterprise-tier customer invocation can activate stricter postconditions than a standard invocation. The base policy is never weakened. Guards only add constraints.
+The first release established the basic governance contract:
 
-**The engineering principle:**
+- YAML policy files as the source of truth
+- Draft-07 JSON Schema validation at load time
+- exhaustive role allowlists
+- required preconditions and postconditions
+- output schemas as enforceable runtime contracts
 
-Governance is data, not code. The Contract is a declarative YAML file validated against JSON Schema at load time. There is no executable policy logic. No Turing-complete expression language. No side effects.
+This is the foundation of AIGC's design principle: governance is data, not
+application code.
 
-This means a compliance officer, an auditor, or a regulator can read the policy file and understand exactly what the system enforces. The governance logic is not buried in application code. It is visible, versioned, and schema-validated.
+#### `v0.2.0`: a stronger, more usable contract
 
-**What this replaces:**
+The next major step made the policy layer more expressive and more practical:
 
-Governance-by-documentation. The common pattern where AI policies exist in SharePoint, are reviewed annually, and have no enforcement mechanism. Contract makes governance executable at the speed of the system it governs.
+- typed preconditions replaced purely string-based checks as the preferred form
+- guard expressions moved to an AST-based evaluator
+- policy lint and validate commands made the contract easier to check before
+  deployment
+- `InvocationBuilder` and stricter validation improved how host code assembled
+  compliant invocations
+
+At this point, Contract was no longer just declarative; it was easier to
+author, validate, and integrate consistently.
+
+#### `v0.3.0`: contract hardening
+
+`v0.3.0` expanded the policy layer into a fuller governance DSL:
+
+- policy composition strategies: `intersect`, `union`, `replace`
+- policy effective and expiration dates
+- pluggable `PolicyLoader` support for loading policy from sources other than
+  the filesystem
+- policy testing helpers for evaluating contract behavior before release
+
+This matters because the contract in a real system is not static. It changes by
+tenant, by release, by effective date, and by operational source. `v0.3.0`
+made those realities explicit without abandoning declarative governance.
+
+#### `v0.3.2`: contract preserved across split execution
+
+`v0.3.2` did not redefine what the Contract is. It changed where enforcement
+can happen around the model call.
+
+The key architectural point is that split enforcement preserves the same
+effective policy across both phases. Phase B does not reload or reinterpret the
+policy from scratch. It continues from the contract resolved in Phase A.
+
+### The engineering principle
+
+The Contract must be externally readable and structurally enforceable. An
+auditor should be able to inspect a policy file and understand the declared
+boundaries without reverse-engineering application code.
+
+### What this replaces
+
+Governance-by-documentation: AI policies written in prose, reviewed manually,
+and never enforced by the running system.
 
 ---
 
 ## 2. Control: Fail-Closed Enforcement
 
-The Control function determines what happens when something violates the Contract. The answer is always the same: the system stops.
+Control answers the operational question: what happens when the invocation does
+not satisfy the Contract?
 
-**Fail-closed is the default behavior for all core governance gates.**
+For AIGC's core governance gates, the answer is fail-closed.
 
-Missing preconditions. The system stops. Invalid output schema. The system stops. Unauthorized role. The system stops. Tool call exceeding its budget. The system stops.
+### What Control enforces
 
-Core governance gates (role validation, preconditions, schema validation, postconditions, tool constraints) are unconditionally fail-closed. There is no advisory mode for these gates. The default answer is no.
+- policy load validity
+- role authorization
+- preconditions
+- tool constraints
+- output schema validity
+- postconditions
+- ordered gate execution
 
-v0.3.2 adds the split enforcement API: `enforce_pre_call()` / `enforce_post_call()` allow host
-code to interleave the actual model call between governance Phase A (authorization) and Phase B
-(output validation), while preserving full enforcement parity with the unified path.
+### How Control evolved
 
-v0.3.0 introduces two explicitly configured non-blocking behaviors in defined scenarios:
+#### `v0.1.0`: unified fail-closed enforcement
 
-- **Risk scoring `warn_only` mode.** When a policy declares
-  `risk.mode: "warn_only"`, risk threshold exceedances are logged and
-  recorded in the audit artifact without blocking enforcement. Core
-  governance gates remain fail-closed regardless of risk mode.
-  Only `strict` mode blocks enforcement on threshold exceedance.
-  `risk_scored` records the exceedance in the audit artifact and continues
-  without blocking; `warn_only` records without blocking.
-- **Sink failure `log` mode.** When `on_sink_failure` is set to `"log"`
-  (the default), audit sink emission failures are logged as warnings
-  without blocking the enforcement result. The `"raise"` mode propagates
-  sink errors as `AuditSinkError`. In either mode, the enforcement
-  decision itself is unaffected — sink failure handling governs
-  persistence, not policy evaluation.
+The original release established the core enforcement model:
 
-**The enforcement pipeline:**
+- one ordered runtime pipeline
+- deterministic pass/fail behavior
+- immediate stop on governance violations
+- no advisory fallback for core gates
 
-Every AI invocation passes through an ordered sequence of validation gates:
+Missing preconditions, invalid output schemas, and unauthorized roles did not
+generate warnings. They produced enforcement failures.
 
-Policy loading and schema validation. Guard evaluation and conditional expansion. Role authorization. Precondition validation. Tool constraint enforcement. Output schema validation. Postcondition enforcement. Audit artifact generation.
+That baseline is still the heart of AIGC.
 
-All gates run or none do. Exceptions short-circuit the pipeline. The policy is never mutated during enforcement.
+#### `v0.2.0`: operational control without weakening enforcement
 
-**Inbound and outbound enforcement:**
+`v0.2.0` made Control easier to embed safely in real applications:
 
-Control operates in both directions. Before the AI model is invoked, preconditions validate that the request is authorized,
-properly structured, and contextually valid. After the model responds, postconditions and schema validation confirm the output
-meets the Contract before it reaches any user, system, or downstream process.
+- instance-scoped `AIGC` configuration reduced dependence on global mutable
+  state
+- sink failure handling became explicitly configurable with `"log"` and
+  `"raise"` modes
+- strict mode gave hosts a tighter validation profile
+- async enforcement and the decorator made the control boundary easier to apply
+  in orchestrators and wrapped call sites
 
-The AI model never sees an unauthorized request. The user never sees a non-compliant response.
+These changes improved operational reliability, but the enforcement model
+remained fail-closed for the core governance gates.
 
-**The engineering principle:**
+#### `v0.3.0`: controlled extensibility
 
-Enforcement is deterministic. Given the same invocation and the same policy, the system produces the same pass or fail decision. Every time. The governance layer introduces zero probabilistic behavior. That is the entire architectural purpose: a deterministic boundary around a probabilistic core.
+`v0.3.0` introduced two important expansions of Control.
 
-**What this replaces:**
+First, it added controlled extensibility:
 
-Advisory governance. The pattern where AI guardrails log warnings but do not prevent action. Control makes governance structural rather than observational. It does not monitor violations. It prevents them.
+- custom gates at `pre_authorization`, `post_authorization`, `pre_output`, and
+  `post_output`
+- read-only views of invocation and policy
+- deterministic ordering with append-only failures
+
+Second, it added explicitly scoped non-blocking behavior where the design
+permits it:
+
+- risk scoring can run in `strict`, `risk_scored`, or `warn_only` mode
+- sink failures can be logged instead of raised when configured with
+  `on_sink_failure="log"`
+
+Those are not general escapes from fail-closed governance. They are narrow,
+explicitly configured behaviors around risk assessment and artifact
+persistence. Core authorization and validation gates remain blocking.
+
+#### `v0.3.2`: split control without reordered gates
+
+`v0.3.2` is the biggest evolution of Control in the current release line.
+
+It adds:
+
+- `enforce_pre_call()` for authorization-side enforcement before token spend
+- `enforce_post_call()` for output-side enforcement after the model responds
+- `PreCallResult` as the single-use handoff token between phases
+- split-mode support in `@governed(pre_call_enforcement=True)`
+
+The critical design constraint is that split mode does not change the relative
+order of governance gates. It moves the host model call boundary, not the
+governance semantics.
+
+### Inbound and outbound control
+
+Control operates in both directions:
+
+- before the model call, it validates that the invocation is authorized and
+  contextually valid
+- after the model call, it validates that the output satisfies the policy
+
+In unified mode, those checks run inside one call. In split mode, they run
+across two phases while preserving the same effective policy and gate order.
+
+### The engineering principle
+
+Control must be deterministic. Given the same invocation and the same policy,
+the system should reach the same governance decision every time.
+
+### What this replaces
+
+Advisory governance: systems that log policy violations but still allow the AI
+action to proceed.
 
 ---
 
 ## 3. Check: Tamper-Evident Audit Trail
 
-The Check function produces forensic evidence. Every enforcement, whether it passes or fails, generates a structured audit artifact.
+Check produces the evidence layer. Every enforcement attempt should leave a
+record that can be inspected, persisted, and verified.
 
-**What the artifact contains:**
+### What Check records
 
-Policy version. Which governance contract was active. Model provider and identifier. Which AI model was called.
-Role. Who or what initiated the invocation. Enforcement result. Pass or fail.
-Input checksum. SHA-256 hash of the request. Output checksum. SHA-256 hash of the response.
-Failure details. If enforcement failed, which gate failed and why.
-Timestamp. When enforcement occurred.
-Context. Session, tenant, and correlation identifiers for downstream tracing.
+- policy identity
+- model provider and model identifier
+- role
+- enforcement result
+- failure gate and failure details
+- input and output checksums
+- timestamp
+- invocation context for correlation
+- additive metadata about how enforcement ran
 
-**Tamper-evidence is structural, not procedural.**
+### How Check evolved
 
-Checksums are computed from canonical JSON (deterministic key ordering, no whitespace variance, UTF-8 encoding). Any party can independently recompute the checksums and verify integrity. If any field in the artifact is altered after generation, the checksums will not match. The record is self-verifying.
+#### `v0.1.0`: deterministic audit artifacts
 
-In v0.3.0 (Milestone 2), artifacts can be cryptographically signed via HMAC-SHA256 and hash-chained into a tamper-evident audit chain for sequential integrity verification.
+The first release established the core artifact model:
 
-**Both PASS and FAIL produce artifacts.**
+- structured audit artifacts generated at enforcement time
+- deterministic checksum generation from canonical JSON
+- replayable evidence tied to the invocation and policy
 
-This is a critical design decision. Failed enforcement attempts are as important to audit as successful ones. An unauthorized role attempting to invoke a restricted AI capability is exactly the kind of event regulators and security teams need to trace. AIGC records it before propagating the exception.
+This was the first step away from reconstructing AI behavior from scattered
+application logs after an incident.
 
-**The engineering principle:**
+#### `v0.1.1` to `v0.1.3`: better evidence for integration reality
 
-Audit is mandatory. There is no silent mode. There is no "lightweight" enforcement path that skips artifact generation. If the system ran, there is a record. Artifacts are append-only. They are created, never updated or deleted.
+The patch releases strengthened the practical usefulness of audit evidence:
 
-**What this replaces:**
+- invocation `context` became part of the artifact for sink correlation
+- schema packaging issues were corrected so installed users could validate
+  artifacts and policies reliably
+- public API guidance reduced accidental reliance on private internals
 
-Retroactive compliance. The pattern where organizations reconstruct what their AI did after an incident, from application logs, user reports, and engineer memory. Check makes compliance contemporaneous. The evidence is generated at the moment of enforcement, not assembled after the fact.
+These are small release notes individually, but they matter because audit
+evidence is only useful when it is stable and portable in real deployments.
+
+#### `v0.2.0`: cleaner and safer artifacts
+
+`v0.2.0` improved artifact quality:
+
+- audit schema moved to `v1.2`
+- forward-compatible fields for `risk_score` and `signature` were introduced
+- exception and audit-message sanitization reduced sensitive-data leakage
+- schema bounds were added for failures, metadata, and context fields
+
+This made Check more operationally safe without changing its core role.
+
+#### `v0.3.0`: verifiable tamper evidence
+
+`v0.3.0` turned the audit record into stronger forensic evidence:
+
+- HMAC-SHA256 artifact signing
+- optional hash-chained artifact sequences through `AuditChain`
+- compliance export for JSONL audit trails
+- custom-gate metadata preservation in emitted artifacts
+
+At this point, Check was no longer just a structured log record. It became a
+tamper-evident evidence package that could be validated and exported.
+
+#### `v0.3.2`: split-mode evidence and post-release hardening
+
+`v0.3.2` extended the audit schema to `v1.3` and added split-mode evidence:
+
+- `enforcement_mode`
+- `pre_call_gates_evaluated`
+- `post_call_gates_evaluated`
+- `pre_call_timestamp`
+- `post_call_timestamp`
+
+It also hardened the integrity model around split tokens and Phase B evidence:
+
+- Phase B reads from verified evidence bytes rather than trusting mutable token
+  state
+- the Phase B gate manifest is checked against signed evidence
+- replay via cloned tokens is blocked
+- FAIL artifact identity fields are sourced from verified evidence
+
+This is the most current expression of Check in AIGC: evidence must be
+structurally hard to forge, not just convenient to emit.
+
+### PASS and FAIL are both evidence
+
+AIGC treats failed invocations as first-class audit events. An unauthorized
+attempt, schema failure, or invalid split token is precisely the kind of event
+that compliance and security teams need to inspect later.
+
+If enforcement fails, the typed exception still carries the FAIL artifact at
+`exc.audit_artifact`.
+
+### The engineering principle
+
+Audit is mandatory. There is no silent mode that bypasses evidence generation.
+
+### What this replaces
+
+Retroactive compliance: reconstructing what the AI did after the fact from
+logs, screenshots, or engineer memory.
 
 ---
 
 ## The Three C's as Architectural Layers
 
-| Function | Governance Question | Enforcement Behavior |
-|----------|-------------------|---------------------|
-| **Contract** | What is allowed? | Declarative policy, schema-validated, versioned |
-| **Control** | What happens when rules are broken? | Fail-closed by default, deterministic, configured exceptions documented |
-| **Check** | What is the evidence? | Tamper-evident artifacts, mandatory, append-only |
+| Function | Governance Question | Current expression |
+| -------- | ------------------- | ------------------ |
+| `Contract` | What is allowed? | Declarative policy, schema-validated, versioned, composable |
+| `Control` | What happens when rules are broken? | Ordered fail-closed enforcement, deterministic execution, split-capable in `v0.3.2` |
+| `Check` | What is the evidence? | Deterministic artifacts, optional signing and chaining, additive split-mode metadata |
 
-These are not optional features. They are not modules to be enabled selectively. They are the minimum governance architecture for production AI.
+The important point is not just that all three exist. It is that they evolved
+together:
 
-Remove the Contract and the system has no declared boundaries.
-Remove the Control and the system has boundaries that do not enforce.
-Remove the Check and the system has enforcement that cannot be proven.
+- Contract became more expressive without becoming arbitrary
+- Control became more deployable without becoming advisory
+- Check became stronger evidence without becoming optional
 
-All three must be present. All three must execute at the speed of the AI system they govern.
+Remove Contract and the system has no declared boundary.
+Remove Control and the boundary does not enforce.
+Remove Check and enforcement cannot be proven.
+
+All three must be present.
 
 ---
 
 ## Provider Independence
 
-AIGC governs invocations, not providers. The Three C's apply identically whether the AI model is from OpenAI, Anthropic, Google, AWS Bedrock, or an internally hosted model.
+AIGC governs invocations, not model vendors. The Three C's apply the same way
+whether the underlying model is from OpenAI, Anthropic, Google, AWS Bedrock, or
+an internally hosted model.
 
-This is an architectural requirement, not a convenience feature. In any enterprise with multiple AI providers across business units, governance must be uniform. A single governance standard across all providers is the only way to maintain auditability at scale.
+That is an architectural requirement:
 
-The Contract does not reference provider-specific APIs. The Control does not depend on provider-specific safety features. The Check does not rely on provider-specific logging.
+- Contract should not depend on provider-specific prompt controls
+- Control should not depend on provider-specific safety features
+- Check should not depend on provider-specific logging formats
 
-Governance is the organization's responsibility. Not the vendor's.
+Governance belongs to the operating system around the model, not to the model
+vendor.
 
 ---
 
 ## Where the Three C's Sit in the Broader Architecture
 
-The Three C's operate within the deterministic wrapper described in the AIGC Production Stack:
+The Three C's are the governance lens over the broader AIGC runtime:
 
-The **Invariant Layer** defines the hard constraints. The Contract encodes them.
+- the policy layer expresses the Contract
+- the enforcement pipeline expresses the Control
+- the audit artifact and reporting path express the Check
 
-**Confidence Gates** route decisions by certainty. The Contract defines the thresholds. The Control enforces them.
-
-The **Evaluation Gate** validates outputs before action. This is Control at the output boundary.
-
-The **Replay Engine** reconstructs decision sequences. The Check provides the forensic data.
-
-**Graceful Degradation** returns the system to a safe state when AI fails. The Control ensures failure is contained, not propagated.
-
-The Three C's are not separate from the five-layer architecture. They are the governance functions that the five layers implement.
-
----
+They are not separate from the runtime design. They are the conceptual summary
+of what the runtime is built to do.

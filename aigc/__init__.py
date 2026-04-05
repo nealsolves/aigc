@@ -4,7 +4,16 @@ Stable public API for the AIGC Governance SDK.
 
 import logging
 
-from aigc.enforcement import enforce_invocation, enforce_invocation_async, AIGC
+from aigc.enforcement import (
+    AIGC,
+    PreCallResult,
+    enforce_invocation,
+    enforce_invocation_async,
+    enforce_post_call,
+    enforce_post_call_async,
+    enforce_pre_call,
+    enforce_pre_call_async,
+)
 from aigc.errors import (
     AIGCError,
     AuditSinkError,
@@ -77,6 +86,7 @@ __version__ = "0.3.1"
 __all__ = [
     "AIGC",
     "AIGCError",
+    "PreCallResult",
     "ArtifactSigner",
     "AuditChain",
     "AuditSink",
@@ -119,6 +129,10 @@ __all__ = [
     "compute_risk_score",
     "enforce_invocation",
     "enforce_invocation_async",
+    "enforce_post_call",
+    "enforce_post_call_async",
+    "enforce_pre_call",
+    "enforce_pre_call_async",
     "expect_fail",
     "expect_pass",
     "get_audit_sink",

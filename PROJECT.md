@@ -25,7 +25,7 @@ See [README.md](README.md) for quick-start, public API, and usage.
   validation
 - **Audit artifact generation** — SHA-256 checksummed records with model,
   role, policy, and invocation context metadata via
-  `schemas/audit_artifact.schema.json` (schema version 1.2; `context` field
+  `schemas/audit_artifact.schema.json` (schema version 1.3; `context` field
   carries caller-supplied session/tenant identifiers for sink correlation;
   `risk_score` populated by the risk scoring engine when policy declares
   risk configuration; `signature` populated by `ArtifactSigner`
@@ -365,7 +365,7 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ### Test Coverage
 
-- **711 tests** (all passing)
+- **818 tests** (all passing)
 - **95% coverage** across all `aigc` modules
 - All DSL features have golden replay regression fixtures
 
@@ -398,7 +398,7 @@ and are not part of this SDK.
 
 ### Phase 3 Test Coverage
 
-- **711 tests** (all passing)
+- **818 tests** (all passing)
 - **95% coverage** across all `aigc` modules
 - Phase 3 runtime features have dedicated test files:
   `test_async_enforcement.py`, `test_audit_sinks.py`, `test_decorators.py`

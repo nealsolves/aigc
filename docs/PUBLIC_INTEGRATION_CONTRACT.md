@@ -72,8 +72,9 @@ violation. No silent fallbacks. No best-effort checks.
 ## 2. Production Integration
 
 This section builds a single, realistic integration from the ground up: a governed analytics
-service that uses every enforcement feature available in v0.3.0. Each subsection extends the
-same example rather than introducing a separate one.
+service that uses the full pre-split governance stack (M2 plus production runtime features).
+The additive v0.3.2 split-enforcement APIs are covered separately in Section 3.15. Each
+subsection extends the same example rather than introducing a separate one.
 
 ### 2.1 Policy with guards, tool constraints, and risk scoring
 
@@ -1063,15 +1064,19 @@ Fields added by v0.3.0 extension points (present when the feature is active):
 | `previous_audit_checksum` | Audit chain | SHA-256 of prior artifact (null for first) |
 | `metadata.custom_gate_metadata` | Custom gates | Dict of gate-specific metadata merged from `GateResult.metadata` |
 
-Fields added by v0.3.2 split enforcement (present when split mode is used):
+Fields added by v0.3.2 enforcement-mode metadata:
+
+`metadata.enforcement_mode` is the only field guaranteed on every split
+artifact. The remaining phase-specific fields are conditional and appear only
+when the corresponding phase completed.
 
 | Field | Description |
 | ----- | ----------- |
-| `metadata.enforcement_mode` | `"unified"` or `"split"` |
-| `metadata.pre_call_timestamp` | Unix epoch of phase-A completion |
-| `metadata.post_call_timestamp` | Unix epoch of phase-B completion |
-| `metadata.pre_call_gates_evaluated` | Gates evaluated during phase A |
-| `metadata.post_call_gates_evaluated` | Gates evaluated during phase B |
+| `metadata.enforcement_mode` | Present on newly emitted v0.3.2 artifacts; `"unified"`, `"split"`, or `"split_pre_call_only"` |
+| `metadata.pre_call_gates_evaluated` | Present after successful Phase A, including wrapped-function-error artifacts |
+| `metadata.post_call_gates_evaluated` | Present only when Phase B runs |
+| `metadata.pre_call_timestamp` | Present only on artifacts emitted after Phase B runs |
+| `metadata.post_call_timestamp` | Present only when Phase B runs |
 
 Volatile fields (do not assert in tests without normalization):
 

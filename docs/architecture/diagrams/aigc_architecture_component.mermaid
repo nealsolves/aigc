@@ -15,7 +15,7 @@ flowchart TB
     subgraph Host["HOST APPLICATION"]
         direction LR
         App["App / Agent / Orchestrator"]
-        Gov["@governed decorator\npost-call wrapper"]
+        Gov["@governed decorator\ndefault unified / split opt-in"]
         Provider["Model Provider\nOpenAI · Anthropic · local"]
 
         App -->|"decorated call"| Gov
@@ -23,13 +23,14 @@ flowchart TB
         Provider -->|"model output"| Gov
     end
 
-    subgraph SDK["AIGC SDK v0.3.0"]
+    subgraph SDK["AIGC SDK v0.3.2"]
         direction TB
 
-        subgraph Entry["INVOCATION BOUNDARY"]
+        subgraph Entry["INVOCATION BOUNDARY (UNIFIED + SPLIT)"]
             direction LR
             E1["enforce_invocation()"]
             E2["AIGC.enforce()"]
+            E3["split APIs\nenforce_pre_call() / enforce_post_call()\nAIGC.enforce_pre_call() / enforce_post_call()"]
         end
 
         subgraph Policy["POLICY LAYER"]
@@ -70,10 +71,13 @@ flowchart TB
 
     App -->|"direct"| E1
     App -->|"instance"| E2
-    Gov -->|"assembles invocation"| E1
+    App -->|"split phases"| E3
+    Gov -->|"default mode"| E1
+    Gov -->|"split mode"| E3
 
     E1 --> Loader
     E2 --> Cache --> Loader
+    E3 --> Loader
     PolicyFile --> Loader
     Schema --> Loader
     Loader --> Rules

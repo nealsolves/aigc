@@ -1,7 +1,7 @@
 """Custom PolicyLoaderBase subclasses for the AIGC demo API.
 
-These loaders demonstrate the pluggable loader architecture introduced in
-AIGC v0.3.0. Pass a loader instance to AIGC(policy_loader=...) to control
+These loaders demonstrate the pluggable loader architecture that ships in the
+current AIGC SDK. Pass a loader instance to AIGC(policy_loader=...) to control
 how policies are resolved — no filesystem path required.
 """
 

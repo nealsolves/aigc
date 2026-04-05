@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIGC v0.3.0 Architecture</title>
+<title>AIGC v0.3.2 Architecture</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
@@ -151,7 +151,7 @@
 <body>
 <div class="page">
 
-  <div class="page-title">AIGC v0.3.0</div>
+  <div class="page-title">AIGC v0.3.2</div>
   <div class="page-subtitle">Runtime Architecture Diagrams</div>
 
   <!-- COMPONENT VIEW -->
@@ -164,8 +164,8 @@
       How the host application, SDK enforcement core, policy layer, and operational utilities connect at runtime.
     </p>
     <div class="diagram-container">
-      <object type="image/svg+xml" data="aigc_architecture_component.svg?v=20260401f">
-        <img src="aigc_architecture_component.svg?v=20260401f" alt="AIGC Component View"/>
+      <object type="image/svg+xml" data="aigc_architecture_component.svg?v=20260405v032">
+        <img src="aigc_architecture_component.svg?v=20260405v032" alt="AIGC Component View"/>
       </object>
     </div>
   </div>
@@ -180,8 +180,8 @@
       The sequential gate order for the core enforcement pipeline. Core governance gates are fail-closed; risk scoring may be blocking or audit-only depending on mode.
     </p>
     <div class="diagram-container">
-      <object type="image/svg+xml" data="aigc_architecture_pipeline.svg?v=20260401f">
-        <img src="aigc_architecture_pipeline.svg?v=20260401f" alt="AIGC Enforcement Pipeline"/>
+      <object type="image/svg+xml" data="aigc_architecture_pipeline.svg?v=20260405v032">
+        <img src="aigc_architecture_pipeline.svg?v=20260405v032" alt="AIGC Enforcement Pipeline"/>
       </object>
     </div>
   </div>
@@ -194,8 +194,12 @@
     </div>
     <div class="notes-grid">
       <div class="note-card">
-        <div class="note-label">Post-Call Governance</div>
-        <p><code>@governed</code> is post-call. The wrapped function runs first, then AIGC assembles the invocation and enforces policy on the result.</p>
+        <div class="note-label">Decorator Modes</div>
+        <p><code>@governed</code> defaults to unified post-call enforcement for backward compatibility. Set <code>pre_call_enforcement=True</code> to run Phase A before the wrapped function and Phase B after it returns.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Phase A / Phase B</div>
+        <p>Split mode moves the model call boundary between <code>post_authorization</code> and <code>pre_output</code>. Unified mode still evaluates the same ordered gates in one enforcement call.</p>
       </div>
       <div class="note-card">
         <div class="note-label">Audit Chain</div>
@@ -214,13 +218,13 @@
         <p>If signing is configured, the same audit artifact is signed before sink emission and before it is returned to the caller. PASS and FAIL artifacts can both carry signatures.</p>
       </div>
       <div class="note-card">
-        <div class="note-label">Async Entry Points</div>
-        <p>The component view highlights the main synchronous boundary for readability. AIGC v0.3.0 also ships <code>enforce_invocation_async()</code> and <code>AIGC.enforce_async()</code>.</p>
+        <div class="note-label">Async + Instance APIs</div>
+        <p><code>enforce_invocation_async()</code>, <code>enforce_pre_call_async()</code>, <code>enforce_post_call_async()</code>, and the matching <code>AIGC</code> instance methods ship in the v0.3.2 runtime.</p>
       </div>
     </div>
   </div>
 
-  <div class="watermark">AIGC v0.3.0 · github.com/nealsolves/aigc · MIT License</div>
+  <div class="watermark">AIGC v0.3.2 · github.com/nealsolves/aigc · MIT License</div>
 
 </div>
 </body>

@@ -112,9 +112,11 @@ Pipeline ordering must never change without an ADR.
 
 Audit artifacts must prove enforcement occurred before action.
 
-Each artifact must include:
+Each artifact must include ordered gate evidence:
 
-`metadata.gates_evaluated`
+* unified mode: `metadata.gates_evaluated`
+* split mode: `metadata.pre_call_gates_evaluated`
+* split mode Phase B completion: `metadata.post_call_gates_evaluated`
 
 This ordered list shows which gates executed.
 

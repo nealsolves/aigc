@@ -126,6 +126,7 @@ def governed(
                     from aigc._internal.enforcement import (
                         enforce_pre_call_async,
                         enforce_post_call_async,
+                        emit_split_fn_failure_artifact,
                     )
 
                     pre_call_inv = {
@@ -141,7 +142,11 @@ def governed(
                     pre_call_result = await enforce_pre_call_async(pre_call_inv)
 
                     # Function executes only after Phase A PASS
-                    output = await fn(*args, **kwargs)
+                    try:
+                        output = await fn(*args, **kwargs)
+                    except Exception as fn_exc:
+                        emit_split_fn_failure_artifact(pre_call_result, fn_exc)
+                        raise
 
                     # Phase B
                     await enforce_post_call_async(pre_call_result, output)
@@ -181,6 +186,7 @@ def governed(
                     from aigc._internal.enforcement import (
                         enforce_pre_call,
                         enforce_post_call,
+                        emit_split_fn_failure_artifact,
                     )
 
                     pre_call_inv = {
@@ -196,7 +202,11 @@ def governed(
                     pre_call_result = enforce_pre_call(pre_call_inv)
 
                     # Function executes only after Phase A PASS
-                    output = fn(*args, **kwargs)
+                    try:
+                        output = fn(*args, **kwargs)
+                    except Exception as fn_exc:
+                        emit_split_fn_failure_artifact(pre_call_result, fn_exc)
+                        raise
 
                     # Phase B
                     enforce_post_call(pre_call_result, output)

@@ -14,12 +14,15 @@ def test_list_scenarios():
     r = client.get("/api/scenarios")
     assert r.status_code == 200
     keys = r.json()["scenarios"]
-    assert len(keys) == 11
+    assert len(keys) == 17
     assert set(keys) == {
         "low_risk_faq", "medium_risk_medical", "high_risk_drug_interaction",
+        "split_precall_block",
         "signing_basic", "chain_entry_1", "chain_entry_2", "chain_entry_3",
-        "gate_high_confidence", "gate_low_confidence", "gate_pii_present",
-        "gate_clean_output",
+        "gate_authorized_session", "gate_unauthorized_session",
+        "gate_allowed_domain", "gate_untrusted_domain",
+        "gate_high_confidence", "gate_low_confidence", "gate_long_response",
+        "gate_pii_present", "gate_clean_output",
     }
 
 
@@ -48,6 +51,32 @@ def test_enforce_low_risk():
     })
     assert r.status_code == 200
     assert r.json()["artifact"]["enforcement_result"] == "PASS"
+
+
+def test_enforce_split_precall_block():
+    r = client.post("/api/enforce", json={
+        "scenario_key": "split_precall_block",
+        "mode": "strict",
+        "flow": "split",
+    })
+    assert r.status_code == 200
+    artifact = r.json()["artifact"]
+    assert artifact["enforcement_result"] == "FAIL"
+    assert artifact["metadata"]["enforcement_mode"] == "split_pre_call_only"
+
+
+def test_enforce_split_pass_includes_phase_metadata():
+    r = client.post("/api/enforce", json={
+        "scenario_key": "medium_risk_medical",
+        "mode": "risk_scored",
+        "flow": "split",
+    })
+    assert r.status_code == 200
+    artifact = r.json()["artifact"]
+    assert artifact["enforcement_result"] in ("PASS", "FAIL")
+    assert artifact["metadata"]["enforcement_mode"] == "split"
+    assert "pre_call_gates_evaluated" in artifact["metadata"]
+    assert "post_call_gates_evaluated" in artifact["metadata"]
 
 
 def test_enforce_unknown_scenario_key():
@@ -265,6 +294,14 @@ def test_get_gate_info():
     assert "source" in data
 
 
+def test_get_pre_authorization_gate_info():
+    r = client.get("/api/gate/session_authorization_gate")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["name"] == "session_authorization_gate"
+    assert data["insertion_point"] == "pre_authorization"
+
+
 def test_gate_run_high_confidence_passes():
     r = client.post("/api/gate/run", json={
         "gate_name": "confidence_gate",
@@ -288,6 +325,35 @@ def test_gate_run_pii_detected():
     r = client.post("/api/gate/run", json={
         "gate_name": "pii_detection_gate",
         "scenario_key": "gate_pii_present",
+    })
+    data = r.json()
+    assert data["gate_result"]["passed"] is False
+
+
+def test_gate_run_unauthorized_session_fails():
+    r = client.post("/api/gate/run", json={
+        "gate_name": "session_authorization_gate",
+        "scenario_key": "gate_unauthorized_session",
+    })
+    data = r.json()
+    assert data["gate_result"]["passed"] is False
+    assert data["gate_result"]["insertion_point"] == "pre_authorization"
+
+
+def test_gate_run_untrusted_domain_fails():
+    r = client.post("/api/gate/run", json={
+        "gate_name": "domain_allowlist_gate",
+        "scenario_key": "gate_untrusted_domain",
+    })
+    data = r.json()
+    assert data["gate_result"]["passed"] is False
+    assert data["gate_result"]["insertion_point"] == "post_authorization"
+
+
+def test_gate_run_long_response_fails():
+    r = client.post("/api/gate/run", json={
+        "gate_name": "response_length_gate",
+        "scenario_key": "gate_long_response",
     })
     data = r.json()
     assert data["gate_result"]["passed"] is False

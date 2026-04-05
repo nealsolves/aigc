@@ -100,10 +100,12 @@ export const helpContent: Record<number, LabHelp> = {
       'Five named risk signals contribute weighted evidence to one final score.',
       'The same score can lead to different outcomes depending on strict, risk_scored, or warn_only mode.',
       'Risk scoring happens after the structural policy checks, so it complements core enforcement instead of replacing it.',
+      'Unified and split enforcement can evaluate the same scenario differently when Phase A blocks before the model call.',
     ],
     howToNavigate: [
       'Start with Low Risk to establish the baseline, then move to Medium Risk and High Risk.',
       'Keep one scenario fixed and switch modes to see how policy treatment changes at the same threshold.',
+      'Use the Enforcement Flow control to compare unified vs split behavior on the same invocation.',
       'Read the score, status badge, threshold, and signal bars together rather than in isolation.',
       'Use the scenario context panel to connect the score back to prompt, policy, model, role, and boolean context flags.',
     ],
@@ -120,6 +122,12 @@ export const helpContent: Record<number, LabHelp> = {
         instruction:
           'Choose strict, risk_scored, or warn_only. This controls what happens when the computed score exceeds the 0.70 threshold.',
         tip: 'Try the same High Risk scenario in strict mode and then in risk_scored mode. The score can stay 1.00 while the decision changes.',
+      },
+      {
+        title: 'Compare unified and split flow',
+        instruction:
+          'Choose Unified to run one enforcement call with output already present, or Split to run Phase A before the model call and Phase B after output exists. The split metadata shows which gates ran in each phase.',
+        tip: 'Use the Split Demo: Missing Role Declaration scenario with Split flow to see a Phase A block before any model output is consumed.',
       },
       {
         title: 'Run Enforcement',
@@ -361,7 +369,7 @@ export const helpContent: Record<number, LabHelp> = {
       'Pick a gate first and read its description before you run anything.',
       'Use the highlighted pipeline row to anchor where that gate sits in the sequence.',
       'Open show source when you want to connect the behavior back to implementation.',
-      'Run contrasting scenarios and compare the gate result panel with the gates_evaluated list in the artifact.',
+      'Run contrasting scenarios for the selected gate and compare the gate result panel with the gates_evaluated list in the artifact.',
     ],
     steps: [
       {
@@ -378,7 +386,7 @@ export const helpContent: Record<number, LabHelp> = {
       {
         title: 'Select a scenario and run',
         instruction:
-          'Choose a scenario such as High Confidence, Low Confidence, PII Present, or Clean Output, then click Run Gate. The SDK runs full enforcement with the selected custom gate active.',
+          'Choose a scenario that matches the selected gate, then click Run Gate. Session authorization and domain allowlist gates demonstrate pre_authorization and post_authorization, while confidence, response length, PII detection, and audit metadata cover the output phases.',
       },
       {
         title: 'Inspect gate result and artifact evidence',

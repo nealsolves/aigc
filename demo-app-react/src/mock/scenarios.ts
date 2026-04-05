@@ -3,12 +3,7 @@
 export interface Scenario {
   prompt: string
   output: { result: string; confidence?: number }
-  context: {
-    domain: string
-    human_review_required: boolean
-    role_declared: boolean
-    schema_exists: boolean
-  }
+  context: Record<string, string | boolean | number>
 }
 
 export const SCENARIOS: Record<string, Scenario> = {
@@ -26,6 +21,11 @@ export const SCENARIOS: Record<string, Scenario> = {
     prompt: 'Can I take warfarin with aspirin?',
     output: { result: 'Concurrent use of warfarin and aspirin significantly increases bleeding risk. This combination is generally contraindicated without specialist oversight.' },
     context: { domain: 'medical', human_review_required: false, role_declared: true, schema_exists: true },
+  },
+  split_precall_block: {
+    prompt: 'Draft discharge instructions for patient #9812.',
+    output: { result: 'Follow up with your primary physician in 7 days and return immediately if symptoms worsen.' },
+    context: { domain: 'medical', human_review_required: true, schema_exists: true },
   },
   signing_basic: {
     prompt: 'Summarise the patient intake form.',
@@ -47,6 +47,26 @@ export const SCENARIOS: Record<string, Scenario> = {
     output: { result: 'CBC within normal limits. HbA1c at 6.2% — pre-diabetic range.' },
     context: { domain: 'medical', human_review_required: true, role_declared: true, schema_exists: true },
   },
+  gate_authorized_session: {
+    prompt: 'Summarise the triage note.',
+    output: { result: 'Triage note reviewed. Patient is stable and cleared for follow-up.' },
+    context: { domain: 'medical', human_review_required: true, role_declared: true, schema_exists: true, session_authorized: true },
+  },
+  gate_unauthorized_session: {
+    prompt: 'Summarise the triage note.',
+    output: { result: 'Triage note reviewed. Patient is stable and cleared for follow-up.' },
+    context: { domain: 'medical', human_review_required: true, role_declared: true, schema_exists: true, session_authorized: false },
+  },
+  gate_allowed_domain: {
+    prompt: 'Summarise the radiology follow-up.',
+    output: { result: 'Radiology follow-up scheduled. No acute findings were reported.' },
+    context: { domain: 'medical', human_review_required: true, role_declared: true, schema_exists: true, session_authorized: true },
+  },
+  gate_untrusted_domain: {
+    prompt: 'Summarise the portfolio rebalance request.',
+    output: { result: 'Portfolio rebalance request received for review.' },
+    context: { domain: 'finance', human_review_required: true, role_declared: true, schema_exists: true, session_authorized: true },
+  },
   gate_high_confidence: {
     prompt: 'What colour is the sky?',
     output: { result: 'The sky appears blue due to Rayleigh scattering.', confidence: 0.95 },
@@ -56,6 +76,11 @@ export const SCENARIOS: Record<string, Scenario> = {
     prompt: 'Will it rain next Thursday?',
     output: { result: 'There is a moderate chance of rain.', confidence: 0.3 },
     context: { domain: 'general', human_review_required: true, role_declared: true, schema_exists: true },
+  },
+  gate_long_response: {
+    prompt: 'Produce a verbose patient education handout.',
+    output: { result: 'L'.repeat(540) },
+    context: { domain: 'medical', human_review_required: true, role_declared: true, schema_exists: true, session_authorized: true },
   },
   gate_pii_present: {
     prompt: 'Summarise the patient record.',

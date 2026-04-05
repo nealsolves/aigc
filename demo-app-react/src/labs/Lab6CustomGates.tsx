@@ -26,13 +26,53 @@ interface GateRunResponse {
   error: string | null
 }
 
-const GATE_NAMES = ['confidence_gate', 'pii_detection_gate', 'response_length_gate', 'audit_metadata_gate']
-const GATE_SCENARIOS = [
-  { key: 'gate_high_confidence', label: 'High Confidence' },
-  { key: 'gate_low_confidence',  label: 'Low Confidence'  },
-  { key: 'gate_pii_present',     label: 'PII Present'     },
-  { key: 'gate_clean_output',    label: 'Clean Output'    },
-]
+type GateName =
+  | 'session_authorization_gate'
+  | 'domain_allowlist_gate'
+  | 'confidence_gate'
+  | 'response_length_gate'
+  | 'pii_detection_gate'
+  | 'audit_metadata_gate'
+
+const GATE_CONFIG: Record<GateName, { scenarios: Array<{ key: string; label: string }> }> = {
+  session_authorization_gate: {
+    scenarios: [
+      { key: 'gate_authorized_session', label: 'Authorized Session' },
+      { key: 'gate_unauthorized_session', label: 'Unauthorized Session' },
+    ],
+  },
+  domain_allowlist_gate: {
+    scenarios: [
+      { key: 'gate_allowed_domain', label: 'Allowed Domain' },
+      { key: 'gate_untrusted_domain', label: 'Untrusted Domain' },
+    ],
+  },
+  confidence_gate: {
+    scenarios: [
+      { key: 'gate_high_confidence', label: 'High Confidence' },
+      { key: 'gate_low_confidence', label: 'Low Confidence' },
+    ],
+  },
+  response_length_gate: {
+    scenarios: [
+      { key: 'gate_clean_output', label: 'Short Output' },
+      { key: 'gate_long_response', label: 'Long Output' },
+    ],
+  },
+  pii_detection_gate: {
+    scenarios: [
+      { key: 'gate_clean_output', label: 'Clean Output' },
+      { key: 'gate_pii_present', label: 'PII Present' },
+    ],
+  },
+  audit_metadata_gate: {
+    scenarios: [
+      { key: 'gate_clean_output', label: 'Metadata Injection' },
+    ],
+  },
+}
+
+const GATE_NAMES = Object.keys(GATE_CONFIG) as GateName[]
 
 const PIPELINE_PHASES = [
   'pre_authorization',
@@ -49,9 +89,9 @@ const PHASE_COLORS: Record<string, string> = {
 }
 
 export default function Lab6CustomGates() {
-  const [gateName,    setGateName]    = useState('confidence_gate')
-  const gateNameRef = useRef('confidence_gate')
-  const [scenarioKey, setScenarioKey] = useState('gate_high_confidence')
+  const [gateName,    setGateName]    = useState<GateName>('session_authorization_gate')
+  const gateNameRef = useRef<GateName>('session_authorization_gate')
+  const [scenarioKey, setScenarioKey] = useState(GATE_CONFIG.session_authorization_gate.scenarios[0].key)
   const [gateInfo,    setGateInfo]    = useState<GateInfo | null>(null)
   const [showSource,  setShowSource]  = useState(false)
   const [runResult,   setRunResult]   = useState<GateRunResponse | null>(null)
@@ -59,7 +99,7 @@ export default function Lab6CustomGates() {
   const { call: callInfo } = useApi<GateInfo>()
   const { call: callRun,  loading: loadingRun  } = useApi<GateRunResponse>()
 
-  const loadGateInfo = async (name: string) => {
+  const loadGateInfo = async (name: GateName) => {
     const res = await callInfo(`/api/gate/${name}`)
     if (res && gateNameRef.current === name) setGateInfo(res)
   }
@@ -74,14 +114,16 @@ export default function Lab6CustomGates() {
     if (res) setRunResult(res)
   }
 
-  const selectGate = (name: string) => {
+  const selectGate = (name: GateName) => {
     gateNameRef.current = name
     setGateName(name)
+    setScenarioKey(GATE_CONFIG[name].scenarios[0].key)
     setRunResult(null)
     loadGateInfo(name)
   }
 
   const gatesEvaluated: string[] = runResult?.artifact?.metadata?.gates_evaluated ?? []
+  const activeScenarios = GATE_CONFIG[gateName].scenarios
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -162,7 +204,7 @@ export default function Lab6CustomGates() {
 
       {/* Scenario selector + run */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {GATE_SCENARIOS.map(s => (
+        {activeScenarios.map(s => (
           <button
             key={s.key}
             onClick={() => { setScenarioKey(s.key); setRunResult(null) }}
@@ -172,9 +214,9 @@ export default function Lab6CustomGates() {
                 ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
                 : { color: 'var(--text-secondary)', border: '1px solid var(--border-ui)' }
             }
-          >
-            {s.label}
-          </button>
+              >
+                {s.label}
+              </button>
         ))}
         <button
           onClick={run}

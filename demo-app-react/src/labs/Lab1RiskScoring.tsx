@@ -7,12 +7,20 @@ import { useApi } from '@/hooks/useApi'
 import { IBM_COLORS } from '@/theme/tokens'
 import type { Artifact } from '@/types/artifact'
 
+type RiskMode = 'strict' | 'risk_scored' | 'warn_only'
+type EnforcementFlow = 'unified' | 'split'
+
 const SCENARIOS = [
-  { key: 'low_risk_faq',               label: 'Low Risk: Simple FAQ',        mode_hint: 'warn_only'   },
-  { key: 'medium_risk_medical',        label: 'Medium Risk: Medical Advice', mode_hint: 'risk_scored' },
-  { key: 'high_risk_drug_interaction', label: 'High Risk: Drug Interaction', mode_hint: 'strict'     },
+  { key: 'low_risk_faq',               label: 'Low Risk: Simple FAQ',               flowHint: 'unified' as const },
+  { key: 'medium_risk_medical',        label: 'Medium Risk: Medical Advice',        flowHint: 'unified' as const },
+  { key: 'high_risk_drug_interaction', label: 'High Risk: Drug Interaction',        flowHint: 'unified' as const },
+  { key: 'split_precall_block',        label: 'Split Demo: Missing Role Declaration', flowHint: 'split' as const },
 ]
-const MODES = ['strict', 'risk_scored', 'warn_only']
+const MODES: RiskMode[] = ['strict', 'risk_scored', 'warn_only']
+const FLOWS: { key: EnforcementFlow; label: string; hint: string }[] = [
+  { key: 'unified', label: 'Unified', hint: 'One enforcement call with output present up front.' },
+  { key: 'split', label: 'Split', hint: 'Phase A authorizes before the model call; Phase B validates after output exists.' },
+]
 
 const SIGNAL_COLORS: Record<string, string> = {
   no_output_schema: IBM_COLORS.purple40,
@@ -31,11 +39,17 @@ interface ScenarioDetail {
   role: string
 }
 
-interface EnforceResponse { artifact: Artifact; error: string | null }
+interface EnforceResponse { artifact: Artifact | null; error: string | null }
+
+function readGateList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.map(v => String(v))
+}
 
 export default function Lab1RiskScoring() {
   const [scenarioIdx,     setScenarioIdx]     = useState(1)
-  const [mode,            setMode]            = useState('risk_scored')
+  const [mode,            setMode]            = useState<RiskMode>('risk_scored')
+  const [flow,            setFlow]            = useState<EnforcementFlow>('unified')
   const [artifact,        setArtifact]        = useState<Artifact | null>(null)
   const [scenarioDetail,  setScenarioDetail]  = useState<ScenarioDetail | null>(null)
 
@@ -57,12 +71,20 @@ export default function Lab1RiskScoring() {
     const res = await call('/api/enforce', {
       scenario_key: SCENARIOS[scenarioIdx].key,
       mode,
+      flow,
     })
-    if (res) setArtifact(res.artifact)
+    if (res) setArtifact(res.artifact ?? null)
   }
 
   const risk = artifact?.metadata?.risk_scoring
   const factors = risk?.basis ?? []
+  const enforcementMode = typeof artifact?.metadata?.enforcement_mode === 'string'
+    ? artifact.metadata.enforcement_mode
+    : null
+  const preCallGates = readGateList(artifact?.metadata?.pre_call_gates_evaluated)
+  const postCallGates = readGateList(artifact?.metadata?.post_call_gates_evaluated)
+  const phaseABlocked = enforcementMode === 'split_pre_call_only'
+  const selectedScenario = SCENARIOS[scenarioIdx]
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -86,6 +108,11 @@ export default function Lab1RiskScoring() {
                 }
               >
                 {s.label}
+                {s.flowHint === 'split' && (
+                  <span className="ml-2 text-[10px]" style={{ color: 'var(--ibm-cyan-30)' }}>
+                    split demo
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -140,6 +167,31 @@ export default function Lab1RiskScoring() {
               </button>
             ))}
           </div>
+          <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>↳ Enforcement Flow</div>
+          <div className="flex flex-col gap-1 mb-3">
+            {FLOWS.map(option => (
+              <button
+                key={option.key}
+                onClick={() => { setFlow(option.key); setArtifact(null) }}
+                className="text-left font-mono text-[13px] px-3 py-2 rounded transition-colors"
+                style={
+                  flow === option.key
+                    ? { background: 'rgba(15,98,254,0.18)', color: 'var(--ibm-cyan-30)', border: '1px solid rgba(15,98,254,0.3)' }
+                    : { color: 'var(--text-secondary)', border: '1px solid var(--border-ui)', background: 'var(--bg-surface)' }
+                }
+              >
+                <div>{option.label}</div>
+                <div className="text-[11px]" style={{ color: flow === option.key ? 'var(--ibm-cyan-30)' : 'var(--text-secondary)' }}>
+                  {option.hint}
+                </div>
+              </button>
+            ))}
+          </div>
+          {selectedScenario.flowHint === 'split' && (
+            <div className="font-mono text-[11px] px-3 py-2 rounded mb-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
+              // this scenario is designed to show a Phase A split-mode block before the model call
+            </div>
+          )}
           <button
             onClick={run}
             disabled={loading}
@@ -159,20 +211,72 @@ export default function Lab1RiskScoring() {
 
       {artifact ? (
         <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-2">
-            <MetricCard value={(risk?.score ?? 0).toFixed(2)} label="RISK SCORE" color={(risk?.score ?? 0) > (risk?.threshold ?? 0.7) ? 'var(--ibm-magenta-40)' : 'var(--ibm-blue-40)'} />
+          <div className="grid grid-cols-4 gap-2">
+            <MetricCard value={risk ? risk.score.toFixed(2) : '—'} label="RISK SCORE" color={risk && risk.score > (risk.threshold ?? 0.7) ? 'var(--ibm-magenta-40)' : 'var(--ibm-blue-40)'} />
             <MetricCard value={mode.toUpperCase()} label="MODE" color="var(--ibm-purple-40)" />
-            <MetricCard value={(risk?.threshold ?? 0.7).toFixed(2)} label="THRESHOLD" color="var(--ibm-teal-60)" />
+            <MetricCard value={flow.toUpperCase()} label="FLOW" color="var(--ibm-cyan-30)" />
+            <MetricCard value={(enforcementMode ?? '—').toUpperCase()} label="ARTIFACT MODE" color="var(--ibm-teal-60)" />
           </div>
 
           <div className="flex items-center gap-2">
             <StatusBadge status={artifact.enforcement_result} />
             <span className="font-mono text-sm" style={{ color: 'var(--text-secondary)' }}>
-              — {artifact.enforcement_result === 'PASS' ? 'policy check passed' : 'policy check failed'}
+              — {phaseABlocked
+                ? 'Phase A blocked before the model call'
+                : enforcementMode === 'split'
+                  ? 'split enforcement completed across Phase A and Phase B'
+                  : artifact.enforcement_result === 'PASS'
+                    ? 'policy check passed'
+                    : 'policy check failed'}
             </span>
           </div>
 
+          {risk && (
+            <div className="font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+              threshold: {risk.threshold.toFixed(2)}
+            </div>
+          )}
+
           {risk && <RiskGauge score={risk.score} threshold={risk.threshold} />}
+
+          {(flow === 'split' || enforcementMode?.startsWith('split')) && (
+            <div className="rounded p-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
+              <div className="font-mono text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>// split boundary evidence</div>
+              <div className="font-mono text-[11px] mb-2">
+                <span style={{ color: 'var(--text-secondary)' }}>enforcement_mode: </span>
+                <span style={{ color: 'var(--ibm-cyan-30)' }}>{enforcementMode ?? 'unknown'}</span>
+              </div>
+              {phaseABlocked && (
+                <div className="font-mono text-[11px] mb-2" style={{ color: 'var(--ibm-magenta-40)' }}>
+                  // model output was never consumed because Phase A failed
+                </div>
+              )}
+              {preCallGates.length > 0 && (
+                <div className="mb-2">
+                  <div className="font-mono text-[11px] mb-1" style={{ color: 'var(--text-secondary)' }}>Phase A gates</div>
+                  <div className="flex flex-wrap gap-2">
+                    {preCallGates.map(gate => (
+                      <span key={gate} className="font-mono text-[11px] px-2 py-0.5 rounded" style={{ color: 'var(--ibm-blue-40)', border: '1px solid var(--border-ui)' }}>
+                        {gate}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {postCallGates.length > 0 && (
+                <div>
+                  <div className="font-mono text-[11px] mb-1" style={{ color: 'var(--text-secondary)' }}>Phase B gates</div>
+                  <div className="flex flex-wrap gap-2">
+                    {postCallGates.map(gate => (
+                      <span key={gate} className="font-mono text-[11px] px-2 py-0.5 rounded" style={{ color: 'var(--ibm-teal-30)', border: '1px solid var(--border-ui)' }}>
+                        {gate}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {factors.length > 0 && (
             <div className="rounded p-3" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)' }}>
@@ -190,7 +294,7 @@ export default function Lab1RiskScoring() {
         </div>
       ) : (
         <div className="font-mono text-xs px-3 py-2 rounded" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-ui)', color: 'var(--text-secondary)' }}>
-          // run enforcement to see results
+          // run enforcement to compare unified vs split behavior
         </div>
       )}
     </div>

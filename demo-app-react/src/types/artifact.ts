@@ -26,6 +26,12 @@ export interface Artifact {
       basis?: RiskFactor[]
     }
     gates_evaluated?: string[]
+    enforcement_mode?: string
+    pre_call_gates_evaluated?: string[]
+    post_call_gates_evaluated?: string[]
+    pre_call_timestamp?: number | string
+    post_call_timestamp?: number | string
+    [key: string]: unknown
   }
   [key: string]: unknown
 }

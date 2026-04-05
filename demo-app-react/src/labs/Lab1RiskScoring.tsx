@@ -106,9 +106,8 @@ export default function Lab1RiskScoring() {
                 key={s.key}
                 onClick={() => {
                   setScenarioIdx(i)
-                  if (scenarioRequiresSplit(s.flowHint)) {
-                    setFlow('split')
-                  }
+                  setFlow(scenarioRequiresSplit(s.flowHint) ? 'split' : 'unified')
+                  setArtifact(null)
                 }}
                 className="text-left font-mono text-[13px] px-3 py-2 rounded transition-colors"
                 style={

@@ -12,8 +12,8 @@ function mockJson(data: unknown) {
 }
 
 describe('Lab1RiskScoring', () => {
-  it('renders split Phase A evidence for the dedicated split demo scenario', async () => {
-    expect.assertions(5)
+  it('auto-switches and locks the split demo scenario to split flow', async () => {
+    expect.assertions(8)
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
 
@@ -70,8 +70,15 @@ describe('Lab1RiskScoring', () => {
       </AigcProvider>,
     )
 
+    await user.click(screen.getByRole('button', { name: /One enforcement call with output present up front/i }))
     await user.click(screen.getByRole('button', { name: /Split Demo: Missing Role Declaration/i }))
-    await user.click(screen.getByRole('button', { name: /Phase A authorizes before the model call/i }))
+
+    const unifiedButton = screen.getByRole('button', { name: /One enforcement call with output present up front/i })
+    const splitButton = screen.getByRole('button', { name: /Phase A authorizes before the model call/i })
+    expect(unifiedButton).toBeDisabled()
+    expect(splitButton).not.toBeDisabled()
+    expect(screen.getByText(/disabled for split demo scenario/i)).toBeInTheDocument()
+
     await user.click(screen.getByRole('button', { name: /Run Enforcement/i }))
 
     expect(await screen.findByText(/Phase A blocked before the model call/i)).toBeInTheDocument()

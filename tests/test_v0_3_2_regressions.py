@@ -337,7 +337,7 @@ class TestFinding4NonSerializableOutput:
         assert exc.audit_artifact is not None, "FAIL artifact must be attached"
         assert exc.audit_artifact["enforcement_result"] == "FAIL"
 
-    def test_non_serializable_output_pre_call_result_is_consumed(self):
+    def test_non_serializable_output_pre_call_result_remains_unconsumed(self):
         """After a non-serializable output error, the token must remain unconsumed."""
         pre = enforce_pre_call(_pre_call_inv())
         with pytest.raises(InvocationValidationError):

@@ -2151,8 +2151,10 @@ class AIGC:
                     pre_call_result.resolved_conditions,
                 ),
                 all_custom_metadata=all_custom_metadata,
-                # Pass instance custom gates for Phase B (Finding 1).
-                grouped_gates=sort_gates(self._custom_gates),
+                # Use gates captured at Phase A time, consistent with the
+                # module-level path. Avoids a reachable bypass if
+                # self._custom_gates is mutated between phases (Finding 1).
+                grouped_gates=pre_call_result._phase_b_grouped_gates,
                 sink=self._sink,
                 sink_failure_mode=self._on_sink_failure,
                 redaction_patterns=self._redaction_patterns,

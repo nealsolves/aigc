@@ -365,7 +365,7 @@ Phase 2 brought all DSL features from schema-declared to runtime-enforced:
 
 ### Test Coverage
 
-- **597 tests** (all passing)
+- **711 tests** (all passing)
 - **95% coverage** across all `aigc` modules
 - All DSL features have golden replay regression fixtures
 
@@ -398,7 +398,7 @@ and are not part of this SDK.
 
 ### Phase 3 Test Coverage
 
-- **597 tests** (all passing)
+- **711 tests** (all passing)
 - **95% coverage** across all `aigc` modules
 - Phase 3 runtime features have dedicated test files:
   `test_async_enforcement.py`, `test_audit_sinks.py`, `test_decorators.py`
@@ -410,6 +410,14 @@ and are not part of this SDK.
 - **Sink failure mode configurable** — `log` (default, backward-compatible) or `raise` (strict)
 - **Instance-scoped `AIGC` class** — eliminates global mutable state for new code
 - **Backward compatible** — all Phase 1 and Phase 2 behavior unchanged; global functions still work
+
+---
+
+## v0.3.2 — Split Enforcement API
+
+v0.3.2 adds the split enforcement API: `enforce_pre_call()` / `enforce_post_call()` allow
+host code to interleave the model call between the two governance phases without sacrificing
+enforcement parity with the unified `enforce_invocation()` path.
 
 ---
 

@@ -220,7 +220,9 @@ This proves enforcement occurred before action.
 ## Custom Enforcement Gates
 
 Custom enforcement gates allow plugins to inject additional governance checks
-at defined points in the pipeline. Available since v0.3.0.
+at defined points in the pipeline. Available since v0.3.0. In split enforcement
+mode (v0.3.2+), custom gates are carried across the pre/post boundary and run
+during Phase B (`pre_output`, `post_output`) as they do in unified mode.
 
 Gates implement the `EnforcementGate` ABC and return `GateResult` objects.
 

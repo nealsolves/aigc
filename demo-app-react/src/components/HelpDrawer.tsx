@@ -11,12 +11,12 @@ interface Props {
 const LABS_LABEL: Record<number, string> = {
   0: 'Architecture',
   1: 'Lab 1 — Risk Scoring',
-  2: 'Lab 2 — Signing',
+  2: 'Lab 2 — Signing & Verification',
   3: 'Lab 3 — Audit Chain',
-  4: 'Lab 4 — Composition',
-  5: 'Lab 5 — Loaders',
+  4: 'Lab 4 — Policy Composition',
+  5: 'Lab 5 — Loaders & Versioning',
   6: 'Lab 6 — Custom Gates',
-  7: 'Lab 7 — Compliance',
+  7: 'Lab 7 — Compliance Dashboard',
 }
 
 export default function HelpDrawer({ labId, isOpen, onClose }: Props) {

@@ -20,6 +20,7 @@
   <text x="101" y="111" fill="#b8e8b8" font-size="9" text-anchor="middle" font-weight="500">Invocation</text>
   <text x="101" y="123" fill="#6a9a6a" font-size="8" text-anchor="middle">or Phase A</text>
 
+  <!-- Connectors -->
   <line x1="146" y1="112" x2="162" y2="112" stroke="#5a6a9a" stroke-width="1" marker-end="url(#arr)"/>
 
   <rect x="168" y="92" width="110" height="40" rx="4" fill="#161828" stroke="#2a3a5a" stroke-width="0.8"/>
@@ -63,13 +64,13 @@
   <text x="1003" y="123" fill="#6a5a8a" font-size="8" text-anchor="middle">custom gates</text>
 
   <!-- Wrap arrow: down and left -->
-  <path d="M 1003 132 L 1003 155 Q 1003 165 993 165 L 146 165 Q 136 165 136 175 L 136 192"
+  <path d="M 1003 132 L 1003 168 Q 1003 178 993 178 L 172 178 L 172 198"
         fill="none" stroke="#5a6a9a" stroke-width="1" marker-end="url(#arr)"/>
 
   <!-- ════ ROW 2: Output Phase ════ -->
   <text x="56" y="190" fill="#4a5a7a" font-size="9" font-weight="600" letter-spacing="1">PHASE B / POST-CALL</text>
-  <text x="1003" y="154" fill="#4a5a7a" font-size="8" text-anchor="end">model call boundary</text>
-  <text x="1003" y="164" fill="#4a4a5e" font-size="7" text-anchor="end">split mode only</text>
+  <text x="988" y="147" fill="#4a5a7a" font-size="8" text-anchor="end">model call boundary</text>
+  <text x="988" y="157" fill="#4a4a5e" font-size="7" text-anchor="end">split mode only</text>
 
   <rect x="118" y="198" width="108" height="40" rx="4" fill="#1a1430" stroke="#4a3a6a" stroke-width="0.8"/>
   <text x="172" y="217" fill="#b8a8e8" font-size="9" text-anchor="middle" font-weight="500">pre_output</text>

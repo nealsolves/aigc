@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from scenarios import SCENARIOS
 from aigc import (
-    AIGC, InvocationBuilder, AIGCError, HMACSigner, verify_artifact, verify_chain,
+    AIGC, AIGCError, HMACSigner, verify_artifact, verify_chain,
     validate_policy_dates, PolicyTestCase, PolicyTestSuite,
 )
 from aigc.policy_loader import (
@@ -49,6 +49,29 @@ MEDICAL_FACTORS = [
 ]
 
 
+def _build_full_invocation(scenario: dict, policy_path: str) -> dict:
+    return {
+        "policy_file": policy_path,
+        "model_provider": scenario["model_provider"],
+        "model_identifier": scenario["model_id"],
+        "role": scenario["role"],
+        "input": {"query": scenario["prompt"]},
+        "output": scenario["output"],
+        "context": scenario["context"],
+    }
+
+
+def _build_pre_call_invocation(scenario: dict, policy_path: str) -> dict:
+    return {
+        "policy_file": policy_path,
+        "model_provider": scenario["model_provider"],
+        "model_identifier": scenario["model_id"],
+        "role": scenario["role"],
+        "input": {"query": scenario["prompt"]},
+        "context": scenario["context"],
+    }
+
+
 @app.get("/api/scenarios/{scenario_key}")
 def get_scenario(scenario_key: str):
     if scenario_key not in SCENARIOS:
@@ -83,6 +106,7 @@ def list_policies():
 class EnforceRequest(BaseModel):
     scenario_key: str
     mode: Literal["strict", "risk_scored", "warn_only"] = "risk_scored"
+    flow: Literal["unified", "split"] = "unified"
 
 
 @app.post("/api/enforce")
@@ -95,19 +119,12 @@ def enforce(req: EnforceRequest):
     aigc = AIGC(
         risk_config={"mode": req.mode, "threshold": 0.7, "factors": MEDICAL_FACTORS}
     )
-    invocation = (
-        InvocationBuilder()
-        .policy(policy_path)
-        .model(scenario["model_provider"], scenario["model_id"])
-        .role(scenario["role"])
-        .input({"query": scenario["prompt"]})
-        .output(scenario["output"])
-        .context(scenario["context"])
-        .build()
-    )
-
     try:
-        artifact = aigc.enforce(invocation)
+        if req.flow == "split":
+            pre_call_result = aigc.enforce_pre_call(_build_pre_call_invocation(scenario, policy_path))
+            artifact = aigc.enforce_post_call(pre_call_result, scenario["output"])
+        else:
+            artifact = aigc.enforce(_build_full_invocation(scenario, policy_path))
         return {"artifact": artifact, "error": None}
     except AIGCError as exc:
         artifact = getattr(exc, "audit_artifact", None)
@@ -137,19 +154,8 @@ def sign_enforce(req: SignEnforceRequest):
     signer = HMACSigner(key=key_bytes)
     aigc = AIGC(signer=signer)
 
-    invocation = (
-        InvocationBuilder()
-        .policy(policy_path)
-        .model(scenario["model_provider"], scenario["model_id"])
-        .role(scenario["role"])
-        .input({"query": scenario["prompt"]})
-        .output(scenario["output"])
-        .context(scenario["context"])
-        .build()
-    )
-
     try:
-        artifact = aigc.enforce(invocation)
+        artifact = aigc.enforce(_build_full_invocation(scenario, policy_path))
         return {"artifact": artifact, "error": None}
     except AIGCError as exc:
         artifact = getattr(exc, "audit_artifact", None)
@@ -194,19 +200,8 @@ def chain_append(req: ChainAppendRequest):
     chain_id = req.chain_id or str(uuid.uuid4())
 
     aigc = AIGC()
-    invocation = (
-        InvocationBuilder()
-        .policy(policy_path)
-        .model(scenario["model_provider"], scenario["model_id"])
-        .role(scenario["role"])
-        .input({"query": scenario["prompt"]})
-        .output(scenario["output"])
-        .context(scenario["context"])
-        .build()
-    )
-
     try:
-        artifact = aigc.enforce(invocation)
+        artifact = aigc.enforce(_build_full_invocation(scenario, policy_path))
     except AIGCError as exc:
         artifact = getattr(exc, "audit_artifact", None)
         if not artifact:
@@ -275,8 +270,8 @@ def compose_policies(req: ComposeRequest):
     # Escalation detection
     base_roles = set(base.get("roles", []))
     merged_roles = set(merged.get("roles", []))
-    base_tools = {t["name"] for t in base.get("tools", {}).get("allowed_tools", [])}
-    merged_tools = {t["name"] for t in merged.get("tools", {}).get("allowed_tools", [])}
+    base_tools = {t["name"] for t in base.get("tools", {}).get("allowed_tools", []) if isinstance(t, dict) and "name" in t}
+    merged_tools = {t["name"] for t in merged.get("tools", {}).get("allowed_tools", []) if isinstance(t, dict) and "name" in t}
     base_post = set(base.get("post_conditions", {}).get("required", []))
     merged_post = set(merged.get("post_conditions", {}).get("required", []))
 
@@ -481,16 +476,7 @@ def run_gate(req: GateRunRequest):
     policy_path = str(SAMPLE_POLICIES_DIR / scenario["policy"])
     aigc = AIGC(custom_gates=[gate])
 
-    invocation = (
-        InvocationBuilder()
-        .policy(policy_path)
-        .model(scenario["model_provider"], scenario["model_id"])
-        .role(scenario["role"])
-        .input({"query": scenario["prompt"]})
-        .output(scenario["output"])
-        .context(scenario["context"])
-        .build()
-    )
+    invocation = _build_full_invocation(scenario, policy_path)
 
     try:
         artifact = aigc.enforce(invocation)

@@ -13,6 +13,7 @@ function mockJson(data: unknown) {
 
 describe('Lab6CustomGates', () => {
   it('surfaces authorization-phase gates and gate-specific scenarios', async () => {
+    expect.assertions(9)
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
 

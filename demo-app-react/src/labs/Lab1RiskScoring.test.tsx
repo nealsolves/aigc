@@ -13,6 +13,7 @@ function mockJson(data: unknown) {
 
 describe('Lab1RiskScoring', () => {
   it('renders split Phase A evidence for the dedicated split demo scenario', async () => {
+    expect.assertions(5)
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
 

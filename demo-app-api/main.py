@@ -270,8 +270,8 @@ def compose_policies(req: ComposeRequest):
     # Escalation detection
     base_roles = set(base.get("roles", []))
     merged_roles = set(merged.get("roles", []))
-    base_tools = {t["name"] for t in base.get("tools", {}).get("allowed_tools", [])}
-    merged_tools = {t["name"] for t in merged.get("tools", {}).get("allowed_tools", [])}
+    base_tools = {t["name"] for t in base.get("tools", {}).get("allowed_tools", []) if isinstance(t, dict) and "name" in t}
+    merged_tools = {t["name"] for t in merged.get("tools", {}).get("allowed_tools", []) if isinstance(t, dict) and "name" in t}
     base_post = set(base.get("post_conditions", {}).get("required", []))
     merged_post = set(merged.get("post_conditions", {}).get("required", []))
 

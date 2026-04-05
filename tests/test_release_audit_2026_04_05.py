@@ -293,7 +293,8 @@ class TestFinding2GateManifestTamperPrevention:
     """
 
     def test_module_gates_field_replacement_is_detected_and_rejected(self):
-        """object.__setattr__ replacement of _phase_b_grouped_gates raises InvocationValidationError."""
+        """object.__setattr__ replacement of _phase_b_grouped_gates raises
+        InvocationValidationError."""
         pre = enforce_pre_call(
             _pre_call_inv(),
             custom_gates=[_AlwaysFailPreOutputGate()],

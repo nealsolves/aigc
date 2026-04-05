@@ -1575,25 +1575,27 @@ def enforce_post_call(
 
     # 1e. Gate fingerprint integrity check — detects object.__setattr__ replacement
     # of _phase_b_grouped_gates after Phase A (audit Finding 2, 2026-04-05).
-    _expected_gate_fp = _pre_verified_evidence.get("gate_fingerprint", {})
-    _actual_gate_fp = _gate_fingerprint(pre_call_result._phase_b_grouped_gates)
-    if _actual_gate_fp != _expected_gate_fp:
-        exc = InvocationValidationError(
-            "Phase B gate manifest was tampered; "
-            "gate fingerprint does not match signed evidence",
-            details={"field": "_phase_b_grouped_gates"},
-        )
-        safe_inv = dict(_verified_snap)
-        artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
-        artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
-        exc.audit_artifact = artifact
-        try:
-            emit_to_sink(artifact)
-        except AuditSinkError as sink_exc:
-            logger.error(
-                "Sink emission failed on gate fingerprint FAIL path: %s", sink_exc,
+    # Skip if absent from evidence (backward compat: old pickled tokens lack this key).
+    _expected_gate_fp = _pre_verified_evidence.get("gate_fingerprint")
+    if _expected_gate_fp is not None:
+        _actual_gate_fp = _gate_fingerprint(pre_call_result._phase_b_grouped_gates)
+        if _actual_gate_fp != _expected_gate_fp:
+            exc = InvocationValidationError(
+                "Phase B gate manifest was tampered; "
+                "gate fingerprint does not match signed evidence",
+                details={"field": "_phase_b_grouped_gates"},
             )
-        raise exc
+            safe_inv = dict(_verified_snap)
+            artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
+            artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+            exc.audit_artifact = artifact
+            try:
+                emit_to_sink(artifact)
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on gate fingerprint FAIL path: %s", sink_exc,
+                )
+            raise exc
 
     # 2. Output type validation
     if not isinstance(output, dict):
@@ -1663,7 +1665,7 @@ def enforce_post_call(
     # _frozen_policy_bytes may have been replaced; evidence bytes are HMAC-verified.
     # Fallback to _frozen_policy_bytes only for backward compat (old pickled tokens).
     evidence = _pre_verified_evidence
-    original_policy = evidence.get("effective_policy") or None
+    original_policy = evidence.get("effective_policy")
     if original_policy is None:
         try:
             original_policy = json.loads(pre_call_result._frozen_policy_bytes)
@@ -2694,28 +2696,30 @@ class AIGC:
 
         # 1e. Gate fingerprint integrity check — detects object.__setattr__ replacement
         # of _phase_b_grouped_gates after Phase A (audit Finding 2, 2026-04-05).
-        _expected_gate_fp = _pre_verified_evidence.get("gate_fingerprint", {})
-        _actual_gate_fp = _gate_fingerprint(pre_call_result._phase_b_grouped_gates)
-        if _actual_gate_fp != _expected_gate_fp:
-            exc = InvocationValidationError(
-                "Phase B gate manifest was tampered; "
-                "gate fingerprint does not match signed evidence",
-                details={"field": "_phase_b_grouped_gates"},
-            )
-            safe_inv = dict(_verified_snap)
-            artifact = _generate_pre_pipeline_fail_artifact(
-                safe_inv, exc,
-                redaction_patterns=self._redaction_patterns,
-            )
-            artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
-            exc.audit_artifact = artifact
-            try:
-                emit_to_sink(artifact, sink=self._sink, failure_mode=self._on_sink_failure)
-            except AuditSinkError as sink_exc:
-                logger.error(
-                    "Sink emission failed on gate fingerprint FAIL path: %s", sink_exc,
+        # Skip if absent from evidence (backward compat: old pickled tokens lack this key).
+        _expected_gate_fp = _pre_verified_evidence.get("gate_fingerprint")
+        if _expected_gate_fp is not None:
+            _actual_gate_fp = _gate_fingerprint(pre_call_result._phase_b_grouped_gates)
+            if _actual_gate_fp != _expected_gate_fp:
+                exc = InvocationValidationError(
+                    "Phase B gate manifest was tampered; "
+                    "gate fingerprint does not match signed evidence",
+                    details={"field": "_phase_b_grouped_gates"},
                 )
-            raise exc
+                safe_inv = dict(_verified_snap)
+                artifact = _generate_pre_pipeline_fail_artifact(
+                    safe_inv, exc,
+                    redaction_patterns=self._redaction_patterns,
+                )
+                artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+                exc.audit_artifact = artifact
+                try:
+                    emit_to_sink(artifact, sink=self._sink, failure_mode=self._on_sink_failure)
+                except AuditSinkError as sink_exc:
+                    logger.error(
+                        "Sink emission failed on gate fingerprint FAIL path: %s", sink_exc,
+                    )
+                raise exc
 
         # 2. Output type validation
         if not isinstance(output, dict):
@@ -2810,7 +2814,7 @@ class AIGC:
         # _frozen_policy_bytes may have been replaced; evidence bytes are HMAC-verified.
         # Fallback to _frozen_policy_bytes only for backward compat (old pickled tokens).
         evidence = _pre_verified_evidence
-        original_policy = evidence.get("effective_policy") or None
+        original_policy = evidence.get("effective_policy")
         if original_policy is None:
             try:
                 original_policy = json.loads(pre_call_result._frozen_policy_bytes)

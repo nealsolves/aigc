@@ -2,13 +2,13 @@
 
 This is the repo-level orientation document for AIGC
 (Auditable Intelligence Governance Contract). It is written for first-time
-visitors who need to understand what ships, how the runtime is organized, and
-how the project evolved release by release.
+visitors who need to understand the current state, how the runtime is
+organized, and how the project evolved release by release.
 
 Use [README.md](README.md) for the quick start. Use this file for structure,
 architecture, and release context.
 
-## What Ships Today
+## Current State
 
 AIGC is a Python SDK that enforces governance at the AI invocation boundary.
 The current release line is `v0.3.2` (`2026-04-05`).
@@ -229,7 +229,7 @@ Use the docs in this order if you are orienting yourself quickly:
 
 | Document | When to use it |
 | -------- | -------------- |
-| [README.md](README.md) | First pass: what AIGC is, what ships, and how to install and call it |
+| [README.md](README.md) | First pass: what AIGC is, the current runtime surface, and how to install and call it |
 | [PROJECT.md](PROJECT.md) | Repo map, architecture snapshot, and release history |
 | [docs/USAGE.md](docs/USAGE.md) | Cookbook for common integration patterns and extension recipes |
 | [docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | Deep design and invariants |

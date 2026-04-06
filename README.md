@@ -49,7 +49,8 @@ can run before the model executes while preserving the same gate ordering.
 
 ## Release Narrative
 
-This is the versioned story of the repo as it ships today.
+This is the versioned story of the repo's current state and how it evolved
+release by release.
 
 | Release | Date | What changed for users |
 | ------- | ---- | ---------------------- |

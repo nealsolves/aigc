@@ -114,3 +114,9 @@ def test_provenance_invalid_value_passes_through():
     """Invalid value passes through unchanged; schema validation owns correctness."""
     artifact = _make_artifact(provenance={"source_ids": "bad-not-a-list"})
     assert artifact["provenance"] == {"source_ids": "bad-not-a-list"}
+
+
+def test_audit_schema_version_is_1_4():
+    """Artifact emits audit_schema_version 1.4."""
+    artifact = _make_artifact()
+    assert artifact["audit_schema_version"] == "1.4"

@@ -22,7 +22,7 @@ logger = logging.getLogger("aigc.audit")
 
 
 POLICY_SCHEMA_VERSION = "http://json-schema.org/draft-07/schema#"
-AUDIT_SCHEMA_VERSION = "1.3"
+AUDIT_SCHEMA_VERSION = "1.4"
 
 MAX_FAILURES = 1000
 MAX_METADATA_KEYS = 100

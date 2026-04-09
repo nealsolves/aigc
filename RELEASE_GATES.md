@@ -14,10 +14,10 @@ Checklist:
 
 - [x] `docs/decisions/ADR-0010-governed-agentic-workflows.md` accepted or ready
       for acceptance review
-- [x] `docs/dev/pr_context.md` defines the active docs-only PR boundary
-- [x] `docs/plans/v0.3.3_IMPLEMENTATION_PLAN.md` defines the dependency sequence
-- [x] `docs/plans/v0.3.3_DOCS_ONLY_PR_PLAN.md` constrains PR-01 to groundwork
-- [x] `implementation_status.md` includes `v0.3.3` planning entries
+- [ ] `docs/dev/pr_context.md` defines the active docs-only PR boundary
+- [ ] `docs/plans/v0.3.3_IMPLEMENTATION_PLAN.md` defines the dependency sequence
+- [ ] `docs/plans/v0.3.3_DOCS_ONLY_PR_PLAN.md` constrains PR-01 to groundwork
+- [ ] `implementation_status.md` includes `v0.3.3` planning entries
 - [x] no runtime behavior changed in PR-01
 - [x] no schema behavior changed in PR-01
 

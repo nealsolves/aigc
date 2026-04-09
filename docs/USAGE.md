@@ -374,5 +374,7 @@ aigc compliance export \
   --lineage
 ```
 
-The report gains a `"lineage"` key with `total_nodes`, `root_count`, `leaf_count`,
-`orphan_count`, `has_cycle`, and checksum lists `roots`, `leaves`, `orphans`.
+The report gains a `"lineage"` key with `total_nodes`, `duplicate_artifacts`,
+`root_count`, `leaf_count`, `orphan_count`, `has_cycle`, and checksum lists
+`roots`, `leaves`, `orphans`. `total_nodes == total_artifacts - duplicate_artifacts`
+always holds.

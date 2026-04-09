@@ -345,6 +345,56 @@ def test_lineage_edges_work_with_stored_checksums():
 # Duplicate-key topology reset
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Malformed JSONL input validation
+# ---------------------------------------------------------------------------
+
+def test_string_derived_from_checksums_raises_value_error():
+    """derived_from_audit_checksums as a string must raise ValueError.
+
+    If the persisted value is a bare string (e.g. "deadbeef"), iterating it
+    yields individual characters, silently building a corrupt DAG.  The loader
+    must reject this at call time rather than propagating wrong parent edges.
+    """
+    import pytest
+    lineage = AuditLineage()
+    artifact = _make_artifact(
+        provenance={"derived_from_audit_checksums": "deadbeef"}
+    )
+    with pytest.raises(ValueError, match="derived_from_audit_checksums"):
+        lineage.add_artifact(artifact)
+
+
+def test_non_string_checksum_field_raises_value_error():
+    """Stored checksum field that is not a str raises ValueError.
+
+    An integer checksum (e.g. {"checksum": 123}) is truthy and would be
+    returned as-is, inserting an int key into _artifacts/_parents/_children
+    and breaking all subsequent str-keyed lookups.
+    """
+    import pytest
+    lineage = AuditLineage()
+    artifact = _make_artifact(checksum=123)
+    with pytest.raises(ValueError, match="checksum"):
+        lineage.add_artifact(artifact)
+
+
+def test_non_string_element_in_checksums_list_raises_value_error():
+    """Non-string element inside derived_from_audit_checksums must raise ValueError.
+
+    A list like [123] passes the isinstance(raw_parents, list) guard but inserts
+    an int as a parent key, poisoning _parents and _children with non-string entries
+    that break all later str-keyed lookups.
+    """
+    import pytest
+    lineage = AuditLineage()
+    artifact = _make_artifact(
+        provenance={"derived_from_audit_checksums": [123]}
+    )
+    with pytest.raises(ValueError, match="derived_from_audit_checksums"):
+        lineage.add_artifact(artifact)
+
+
 def test_add_artifact_duplicate_key_resets_parent_edges():
     """Re-adding an artifact with the same stored checksum clears stale parent edges.
 
@@ -381,3 +431,71 @@ def test_add_artifact_duplicate_key_resets_parent_edges():
     assert pa_key not in lineage._parents[child_key], "stale parent_a edge must be cleared"
     assert pb_key in lineage._parents[child_key], "new parent_b edge must be present"
     assert child_key not in lineage._children[pa_key], "parent_a must not list child anymore"
+
+
+# ---------------------------------------------------------------------------
+# Rollback invariant: failed add_artifact() must not mutate the graph
+# ---------------------------------------------------------------------------
+
+def test_failed_add_new_artifact_leaves_graph_unchanged():
+    """add_artifact() with invalid provenance must not insert the node.
+
+    Regression for the pre-validation order bug: mutations were applied before
+    the ValueError checks, so a failed call could insert a bad node into
+    _artifacts and leave _parents/_children in an inconsistent state.
+    """
+    import pytest
+    lineage = AuditLineage()
+    bad = _make_artifact(
+        input_checksum="f" * 64,
+        provenance={"derived_from_audit_checksums": "not-a-list"},
+    )
+    with pytest.raises(ValueError):
+        lineage.add_artifact(bad)
+
+    # Graph must be completely empty — the node must not have been inserted.
+    assert len(lineage) == 0
+    assert lineage._artifacts == {}
+    assert lineage._parents == {}
+    assert lineage._children == {}
+
+
+def test_failed_overwrite_preserves_existing_edges():
+    """A failed overwrite attempt must leave the original node's edges intact.
+
+    If a node already exists and a second add_artifact() call fails validation,
+    the original node's parent/child edges must be unchanged — a partial
+    overwrite that destroys existing edges while raising is worse than doing
+    nothing.
+    """
+    import pytest
+    lineage = AuditLineage()
+    parent = _make_artifact(input_checksum="a" * 64)
+    parent_key = lineage.add_artifact(parent)
+
+    shared_checksum = "cc" * 32  # 64 hex chars
+    child_v1 = _make_artifact(
+        checksum=shared_checksum,
+        input_checksum="b" * 64,
+        provenance={"derived_from_audit_checksums": [parent_key]},
+    )
+    lineage.add_artifact(child_v1)
+
+    # Confirm edges are wired before the attempted overwrite.
+    assert parent_key in lineage._parents[shared_checksum]
+    assert shared_checksum in lineage._children[parent_key]
+
+    # Attempt to overwrite the child with invalid provenance.
+    bad_overwrite = _make_artifact(
+        checksum=shared_checksum,
+        input_checksum="b" * 64,
+        provenance={"derived_from_audit_checksums": [999]},  # int, not str
+    )
+    with pytest.raises(ValueError):
+        lineage.add_artifact(bad_overwrite)
+
+    # Original edges must still be intact.
+    assert parent_key in lineage._parents[shared_checksum], \
+        "parent edge must survive a failed overwrite"
+    assert shared_checksum in lineage._children[parent_key], \
+        "child back-edge must survive a failed overwrite"

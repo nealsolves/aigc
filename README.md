@@ -168,8 +168,8 @@ The `aigc` console script exposes three practical commands:
   composition and cycle detection
 - `aigc compliance export --input audit.jsonl [--output report.json] [--lineage]`
   for offline compliance reporting over stored audit trails; add `--lineage` to
-  include DAG-level lineage analysis (node counts, root/leaf/orphan lists, cycle
-  detection)
+  include DAG-level lineage analysis (node counts, duplicate detection,
+  root/leaf/orphan lists, cycle detection)
 
 ## Repo Guide
 

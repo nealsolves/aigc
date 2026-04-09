@@ -257,6 +257,7 @@ def _cmd_compliance_export(args: argparse.Namespace) -> int:
         orphan_keys = [lin.checksum_of(a) for a in lin.orphans()]
         report["lineage"] = {
             "total_nodes": len(lin),
+            "duplicate_artifacts": len(artifacts) - len(lin),
             "root_count": len(root_keys),
             "leaf_count": len(leaf_keys),
             "orphan_count": len(orphan_keys),

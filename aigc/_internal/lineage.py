@@ -34,8 +34,13 @@ def _artifact_checksum(artifact: dict[str, Any]) -> str:
     fall back to sha256(canonical_json(artifact)).
     """
     stored = artifact.get("checksum")
-    if stored:
-        return stored
+    if stored is not None:
+        if not isinstance(stored, str):
+            raise ValueError(
+                f"checksum field must be a str, got {type(stored).__name__!r}"
+            )
+        if stored:
+            return stored
     return hashlib.sha256(canonical_json_bytes(artifact)).hexdigest()
 
 
@@ -64,8 +69,28 @@ class AuditLineage:
 
         Returns the artifact's checksum (its node key). If an artifact with
         the same checksum already exists it is silently overwritten.
+
+        Raises ValueError (without mutating the graph) if the artifact's
+        provenance fields are malformed.
         """
         key = _artifact_checksum(artifact)
+
+        # Validate provenance before any graph mutation so that a bad artifact
+        # cannot corrupt an otherwise-valid graph state.
+        provenance = artifact.get("provenance") or {}
+        raw_parents = provenance.get("derived_from_audit_checksums") or []
+        if not isinstance(raw_parents, list):
+            raise ValueError(
+                f"derived_from_audit_checksums must be a list, got {type(raw_parents).__name__!r}"
+            )
+        for item in raw_parents:
+            if not isinstance(item, str):
+                raise ValueError(
+                    f"derived_from_audit_checksums entries must be str, got {type(item).__name__!r}"
+                )
+        parent_keys: list[str] = raw_parents
+
+        # Mutation begins here — validation passed.
         self._artifacts[key] = artifact
 
         # Clear stale parent edges when overwriting an existing key so that
@@ -80,9 +105,6 @@ class AuditLineage:
         if key not in self._children:
             self._children[key] = []
 
-        # Wire up parent edges from provenance
-        provenance = artifact.get("provenance") or {}
-        parent_keys: list[str] = provenance.get("derived_from_audit_checksums") or []
         for parent_key in parent_keys:
             if parent_key not in self._parents[key]:
                 self._parents[key].append(parent_key)

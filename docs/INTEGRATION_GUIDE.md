@@ -447,6 +447,7 @@ The report gains a `"lineage"` key:
 ```json
 {
   "lineage": {
+    "duplicate_artifacts": 0,
     "has_cycle": false,
     "leaf_count": 2,
     "leaves": ["<checksum>", "<checksum>"],
@@ -463,7 +464,10 @@ The report gains a `"lineage"` key:
 content, combine with `--include-artifacts` and look up by checksum.
 
 Lineage analysis is built from the same schema-valid artifacts used for compliance
-counting — `total_nodes` will equal `total_artifacts` in a clean trail.
+counting. `total_nodes` equals `total_artifacts` when the trail has no duplicates;
+`lineage.duplicate_artifacts` reports how many schema-valid artifacts were
+deduplicated (same checksum), so `total_nodes == total_artifacts - duplicate_artifacts`
+always holds.
 
 ---
 

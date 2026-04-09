@@ -290,8 +290,13 @@ def test_lineage_excludes_schema_invalid_artifacts(tmp_path, capsys):
     report = json.loads(capsys.readouterr().out)
     assert report["total_artifacts"] == 1
     assert report["invalid_artifacts"] == 1
-    # Lineage node count must match validated artifact count, not raw line count
-    assert report["lineage"]["total_nodes"] == report["total_artifacts"]
+    # Lineage node count must match validated artifact count minus duplicates.
+    # No duplicates in this trail, so duplicate_artifacts == 0 and the counts
+    # are equal — proving lineage is built from schema-valid artifacts only.
+    assert report["lineage"]["duplicate_artifacts"] == 0
+    assert report["lineage"]["total_nodes"] == (
+        report["total_artifacts"] - report["lineage"]["duplicate_artifacts"]
+    )
     assert report["lineage"]["total_nodes"] == 1
 
 
@@ -334,3 +339,33 @@ def test_lineage_stored_checksum_used_as_node_key(tmp_path, capsys):
     assert lin["root_count"] == 1
     assert lin["leaf_count"] == 1
     assert lin["orphan_count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Test 11: Duplicate artifacts reported in lineage.duplicate_artifacts
+# ---------------------------------------------------------------------------
+
+def test_lineage_duplicate_artifacts_counted(tmp_path, capsys):
+    """Two identical valid artifacts deduplicate to one lineage node.
+
+    total_artifacts counts all schema-valid lines; total_nodes counts unique
+    checksums. duplicate_artifacts = total_artifacts - total_nodes makes the
+    discrepancy explicit so callers can distinguish a 'clean' trail (no
+    duplicates) from one with repeated artifacts.
+    """
+    artifact = _make_artifact("A")
+    input_file = tmp_path / "trail.jsonl"
+    _write_jsonl(input_file, [artifact, artifact])  # two identical lines
+
+    exit_code = main([
+        "compliance", "export",
+        "--input", str(input_file),
+        "--lineage",
+    ])
+    assert exit_code == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["total_artifacts"] == 2
+    lin = report["lineage"]
+    assert lin["total_nodes"] == 1
+    assert lin["duplicate_artifacts"] == 1
+    assert lin["total_nodes"] == report["total_artifacts"] - lin["duplicate_artifacts"]

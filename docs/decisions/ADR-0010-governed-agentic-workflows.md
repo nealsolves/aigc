@@ -159,9 +159,9 @@ Cons:
 
 ## Validation
 
-- [ ] ADR accepted
-- [ ] schema `v1.4` remains additive only
-- [ ] lineage reconstruction traces artifacts by checksum
+- [x] ADR accepted
+- [x] schema `v1.4` remains additive only (PR-02)
+- [x] lineage reconstruction traces artifacts by checksum (PR-03)
 - [ ] `ProvenanceGate` enforces source presence at the chosen insertion point
 - [ ] `RiskHistory` supports trust-over-time trajectories
 - [ ] `@governed` default flip preserves one artifact per invocation and

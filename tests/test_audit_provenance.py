@@ -19,6 +19,7 @@ CHECKSUM_A = "a" * 64
 CHECKSUM_B = "b" * 64
 
 
+# Used by schema validation tests added in Task 4 (test_artifact_with_full_provenance_validates, etc.)
 @pytest.fixture(scope="module")
 def audit_schema() -> dict:
     return json.loads(SCHEMA_PATH.read_text())

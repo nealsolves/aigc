@@ -15,8 +15,6 @@ import json
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from aigc._internal.lineage import AuditLineage, _artifact_checksum
 
 
@@ -167,6 +165,7 @@ def test_parent_child_edge_built_from_provenance():
     assert child in lineage.leaves()
     assert parent not in lineage.leaves()
     assert child not in lineage.roots()
+    assert lineage.get(child_key) == child
 
 
 def test_roots_excludes_artifacts_with_parents():

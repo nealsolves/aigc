@@ -45,10 +45,10 @@ Checklist:
 
 ### PR-04 — CLI Lineage Mode
 
-- [ ] compliance export adds `--lineage`
-- [ ] CLI traversal uses `AuditLineage`
-- [ ] report output is covered by tests
-- [ ] examples/docs are updated with the new mode
+- [x] compliance export adds `--lineage`
+- [x] CLI traversal uses `AuditLineage`
+- [x] report output is covered by tests
+- [x] examples/docs are updated with the new mode
 
 ### PR-05 — `ProvenanceGate`
 

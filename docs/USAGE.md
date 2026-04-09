@@ -353,3 +353,26 @@ from aigc import AIGC, enforce_invocation, JsonFileAuditSink
 
 Do not build production integrations on `aigc._internal.*`. That namespace is
 private implementation detail and may change between releases.
+
+## Recipe 11: Lineage-aware compliance report
+
+Add `--lineage` to include DAG topology analysis alongside the standard compliance
+stats. Useful for auditing agentic workflows where invocations derive from prior
+invocations.
+
+```bash
+aigc compliance export --input audit_trail.jsonl --lineage
+```
+
+Write to a file and combine with `--include-artifacts`:
+
+```bash
+aigc compliance export \
+  --input audit_trail.jsonl \
+  --output compliance-report.json \
+  --include-artifacts \
+  --lineage
+```
+
+The report gains a `"lineage"` key with `total_nodes`, `root_count`, `leaf_count`,
+`orphan_count`, `has_cycle`, and checksum lists `roots`, `leaves`, `orphans`.

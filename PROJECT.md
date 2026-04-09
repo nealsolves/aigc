@@ -12,6 +12,8 @@ architecture, and release context.
 
 AIGC is a Python SDK that enforces governance at the AI invocation boundary.
 The current release line is `v0.3.2` (`2026-04-05`).
+`v0.3.3` planning is underway — see `docs/decisions/ADR-0010-governed-agentic-workflows.md`
+and `docs/plans/v0.3.3_IMPLEMENTATION_PLAN.md` for the roadmap.
 
 The shipped runtime supports:
 

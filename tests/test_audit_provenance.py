@@ -120,3 +120,64 @@ def test_audit_schema_version_is_1_4():
     """Artifact emits audit_schema_version 1.4."""
     artifact = _make_artifact()
     assert artifact["audit_schema_version"] == "1.4"
+
+
+def test_artifact_with_full_provenance_validates(audit_schema: dict):
+    """Full provenance object validates against schema v1.4."""
+    from jsonschema import validate
+    artifact = _make_artifact(provenance={
+        "source_ids": ["step-1"],
+        "derived_from_audit_checksums": [CHECKSUM_A],
+        "compilation_source_hash": CHECKSUM_B,
+    })
+    validate(instance=artifact, schema=audit_schema)
+
+
+def test_artifact_without_provenance_key_validates(audit_schema: dict):
+    """v1.3-era artifact (no provenance key) validates under v1.4 schema."""
+    from jsonschema import validate
+    artifact = _make_artifact()
+    del artifact["provenance"]
+    validate(instance=artifact, schema=audit_schema)
+
+
+def test_artifact_with_null_provenance_validates(audit_schema: dict):
+    """provenance: null is schema-valid."""
+    from jsonschema import validate
+    artifact = _make_artifact()
+    assert artifact["provenance"] is None
+    validate(instance=artifact, schema=audit_schema)
+
+
+def test_schema_rejects_empty_source_ids(audit_schema: dict):
+    """provenance.source_ids: [] violates minItems: 1."""
+    from jsonschema import validate, ValidationError
+    artifact = _make_artifact(provenance={"source_ids": []})
+    with pytest.raises(ValidationError):
+        validate(instance=artifact, schema=audit_schema)
+
+
+def test_schema_rejects_empty_checksums(audit_schema: dict):
+    """provenance.derived_from_audit_checksums: [] violates minItems: 1."""
+    from jsonschema import validate, ValidationError
+    artifact = _make_artifact(provenance={"derived_from_audit_checksums": []})
+    with pytest.raises(ValidationError):
+        validate(instance=artifact, schema=audit_schema)
+
+
+def test_schema_rejects_bad_checksum_pattern(audit_schema: dict):
+    """Non-hex entry in checksums array fails SHA-256 pattern."""
+    from jsonschema import validate, ValidationError
+    artifact = _make_artifact(provenance={
+        "derived_from_audit_checksums": ["not-a-sha256-hash"]
+    })
+    with pytest.raises(ValidationError):
+        validate(instance=artifact, schema=audit_schema)
+
+
+def test_schema_rejects_bad_compilation_hash(audit_schema: dict):
+    """compilation_source_hash with non-hex value fails SHA-256 pattern."""
+    from jsonschema import validate, ValidationError
+    artifact = _make_artifact(provenance={"compilation_source_hash": "not-a-sha256"})
+    with pytest.raises(ValidationError):
+        validate(instance=artifact, schema=audit_schema)

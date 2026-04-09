@@ -166,8 +166,10 @@ The `aigc` console script exposes three practical commands:
 - `aigc policy lint <file...>` for syntax and schema checks
 - `aigc policy validate <file...>` for semantic validation, including
   composition and cycle detection
-- `aigc compliance export --input audit.jsonl [--output report.json]` for
-  offline compliance reporting over stored audit trails
+- `aigc compliance export --input audit.jsonl [--output report.json] [--lineage]`
+  for offline compliance reporting over stored audit trails; add `--lineage` to
+  include DAG-level lineage analysis (node counts, duplicate detection,
+  root/leaf/orphan lists, cycle detection)
 
 ## Repo Guide
 

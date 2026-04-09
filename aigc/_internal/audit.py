@@ -115,7 +115,7 @@ def _normalize_provenance(
     if not out:
         return None
     try:
-        json.dumps(out)
+        json.dumps(out, allow_nan=False)
     except (TypeError, ValueError) as exc:
         raise ValueError(
             f"provenance contains non-JSON-serializable values: {exc}"

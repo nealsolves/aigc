@@ -187,3 +187,15 @@ def test_schema_rejects_bad_compilation_hash(audit_schema: dict):
     artifact = _make_artifact(provenance={"compilation_source_hash": "not-a-sha256"})
     with pytest.raises(ValidationError):
         validate(instance=artifact, schema=audit_schema)
+
+
+def test_nan_in_provenance_raises_value_error():
+    """NaN in provenance values raises ValueError before the artifact is built.
+
+    json.dumps() silently allows NaN by default, but canonical_json_bytes()
+    (used at signing time) rejects it with allow_nan=False.  _normalize_provenance
+    must reject NaN at call time rather than deferring the crash to sign_artifact().
+    """
+    from math import nan
+    with pytest.raises(ValueError, match="non-JSON-serializable"):
+        _make_artifact(provenance={"source_ids": [nan]})

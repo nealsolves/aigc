@@ -23,6 +23,7 @@ from aigc._internal.policy_loader import (
     load_policy,
 )
 from aigc._internal.errors import PolicyLoadError, PolicyValidationError
+from aigc._internal.lineage import AuditLineage
 
 
 def _load_schema() -> dict:
@@ -246,6 +247,26 @@ def _cmd_compliance_export(args: argparse.Namespace) -> int:
     if args.include_artifacts:
         report["artifacts"] = artifacts
 
+    # Include lineage analysis if requested
+    if args.lineage:
+        lin = AuditLineage()
+        for a in artifacts:
+            lin.add_artifact(a)
+        root_keys = [lin.checksum_of(a) for a in lin.roots()]
+        leaf_keys = [lin.checksum_of(a) for a in lin.leaves()]
+        orphan_keys = [lin.checksum_of(a) for a in lin.orphans()]
+        report["lineage"] = {
+            "total_nodes": len(lin),
+            "duplicate_artifacts": len(artifacts) - len(lin),
+            "root_count": len(root_keys),
+            "leaf_count": len(leaf_keys),
+            "orphan_count": len(orphan_keys),
+            "has_cycle": lin.has_cycle(),
+            "roots": root_keys,
+            "leaves": leaf_keys,
+            "orphans": orphan_keys,
+        }
+
     if invalid_count > 0 and len(artifacts) == 0:
         print(
             f"ERROR: all {invalid_count} artifact(s) were schema-invalid; "
@@ -335,6 +356,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help="Include individual artifacts in the report",
+    )
+    export_parser.add_argument(
+        "--lineage",
+        action="store_true",
+        default=False,
+        help="Include lineage graph analysis in the compliance report",
     )
     export_parser.set_defaults(func=_cmd_compliance_export)
 

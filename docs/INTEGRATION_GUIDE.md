@@ -433,6 +433,42 @@ To obtain the node key without calling `add_artifact()`, use
 artifact, pass the key returned by `add_artifact()` (or `checksum_of()`)
 as a `derived_from_audit_checksums` entry.
 
+### CLI lineage mode
+
+Pass `--lineage` to `aigc compliance export` to append a lineage analysis section
+alongside the standard compliance statistics:
+
+```bash
+aigc compliance export --input audit_trail.jsonl --output report.json --lineage
+```
+
+The report gains a `"lineage"` key:
+
+```json
+{
+  "lineage": {
+    "duplicate_artifacts": 0,
+    "has_cycle": false,
+    "leaf_count": 2,
+    "leaves": ["<checksum>", "<checksum>"],
+    "orphan_count": 0,
+    "orphans": [],
+    "root_count": 1,
+    "roots": ["<checksum>"],
+    "total_nodes": 3
+  }
+}
+```
+
+`roots`, `leaves`, and `orphans` contain node checksums. To retrieve full artifact
+content, combine with `--include-artifacts` and look up by checksum.
+
+Lineage analysis is built from the same schema-valid artifacts used for compliance
+counting. `total_nodes` equals `total_artifacts` when the trail has no duplicates;
+`lineage.duplicate_artifacts` reports how many schema-valid artifacts were
+deduplicated (same checksum), so `total_nodes == total_artifacts - duplicate_artifacts`
+always holds.
+
 ---
 
 ## 12. Compliance Checklist

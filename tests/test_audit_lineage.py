@@ -104,6 +104,7 @@ def test_get_returns_artifact_by_checksum():
     artifact = _make_artifact()
     key = lineage.add_artifact(artifact)
     assert lineage.get(key) == artifact
+    assert lineage.checksum_of(artifact) == key
 
 
 def test_get_returns_none_for_unknown():

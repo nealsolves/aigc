@@ -32,7 +32,7 @@ def _artifact_checksum(artifact: dict[str, Any]) -> str:
     fall back to sha256(canonical_json(artifact)).
     """
     stored = artifact.get("checksum")
-    if stored is not None:
+    if stored:
         return stored
     return hashlib.sha256(canonical_json_bytes(artifact)).hexdigest()
 

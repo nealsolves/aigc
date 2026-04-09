@@ -116,6 +116,12 @@ def test_provenance_invalid_value_passes_through():
     assert artifact["provenance"] == {"source_ids": "bad-not-a-list"}
 
 
+def test_non_json_serializable_provenance_raises():
+    """Non-JSON-serializable values raise ValueError before the artifact is built."""
+    with pytest.raises(ValueError, match="non-JSON-serializable"):
+        _make_artifact(provenance={"source_ids": {"not-a-list-but-a-set"}})
+
+
 def test_audit_schema_version_is_1_4():
     """Artifact emits audit_schema_version 1.4."""
     artifact = _make_artifact()

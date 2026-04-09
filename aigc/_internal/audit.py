@@ -10,6 +10,7 @@ to support:
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
@@ -105,11 +106,21 @@ def _normalize_provenance(
     Returns a sparse dict of present non-None values otherwise.
     Content validation is left to schema validation — values are passed
     through unchanged.
+    Raises ValueError for non-JSON-serializable values (sets, custom objects,
+    etc.) that would crash at signing time rather than fail at the call site.
     """
     if provenance is None:
         return None
     out = {k: v for k, v in provenance.items() if v is not None}
-    return out if out else None
+    if not out:
+        return None
+    try:
+        json.dumps(out)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"provenance contains non-JSON-serializable values: {exc}"
+        ) from exc
+    return out
 
 
 def generate_audit_artifact(

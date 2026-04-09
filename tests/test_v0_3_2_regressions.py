@@ -373,9 +373,9 @@ class TestFinding4NonSerializableOutput:
 class TestFinding5PackagingMetadata:
     """Runtime __version__ and pyproject.toml version must agree."""
 
-    def test_runtime_version_is_0_3_2(self):
-        """aigc.__version__ must be 0.3.2."""
-        assert aigc.__version__ == "0.3.2"
+    def test_runtime_version_is_0_3_3(self):
+        """aigc.__version__ must be 0.3.3."""
+        assert aigc.__version__ == "0.3.3"
 
     def test_pyproject_toml_version_matches_runtime(self):
         """pyproject.toml version must equal aigc.__version__.

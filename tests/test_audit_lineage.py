@@ -296,3 +296,88 @@ def test_has_cycle_true_when_cycle_injected():
     lineage._children[ka].append(kb)
 
     assert lineage.has_cycle() is True
+
+
+# ---------------------------------------------------------------------------
+# Stored checksum field (AuditChain integration path)
+# ---------------------------------------------------------------------------
+
+def test_stored_checksum_field_used_as_node_key():
+    """If artifact carries a stored 'checksum' field, it is used as the node key."""
+    stored = "a" * 64
+    artifact = _make_artifact(checksum=stored)
+    lineage = AuditLineage()
+    key = lineage.add_artifact(artifact)
+    assert key == stored
+    assert lineage.get(stored) == artifact
+
+
+def test_stored_checksum_preferred_over_canonical_hash():
+    """Node key from stored checksum differs from sha256(canonical_json)."""
+    stored = "b" * 64
+    artifact = _make_artifact(checksum=stored)
+    lineage = AuditLineage()
+    key = lineage.add_artifact(artifact)
+    # The stored value must win; canonical hash of this artifact would not be "b"*64
+    assert key == stored
+
+
+def test_lineage_edges_work_with_stored_checksums():
+    """derived_from_audit_checksums referencing a stored checksum builds edges correctly."""
+    parent_checksum = "c" * 64
+    parent = _make_artifact(checksum=parent_checksum, input_checksum="a" * 64)
+    lineage = AuditLineage()
+    lineage.add_artifact(parent)
+
+    child = _make_artifact(
+        input_checksum="b" * 64,
+        provenance={"derived_from_audit_checksums": [parent_checksum]},
+    )
+    child_key = lineage.add_artifact(child)
+
+    assert parent in lineage.roots()
+    assert child in lineage.leaves()
+    assert parent in lineage.ancestors(child_key)
+    assert child in lineage.descendants(parent_checksum)
+
+
+# ---------------------------------------------------------------------------
+# Duplicate-key topology reset
+# ---------------------------------------------------------------------------
+
+def test_add_artifact_duplicate_key_resets_parent_edges():
+    """Re-adding an artifact with the same stored checksum clears stale parent edges.
+
+    Duplicate node keys can only arise via the stored-checksum path (AuditChain
+    artifacts): two artifacts with different provenance produce different
+    canonical hashes under the fallback path, so they are never the same key.
+    """
+    lineage = AuditLineage()
+    parent_a = _make_artifact(input_checksum="a" * 64)
+    parent_b = _make_artifact(input_checksum="b" * 64)
+    pa_key = lineage.add_artifact(parent_a)
+    pb_key = lineage.add_artifact(parent_b)
+
+    shared_checksum = "d" * 64  # same stored checksum for both versions of child
+
+    # Add child (v1) with stored checksum pointing to parent_a
+    child_v1 = _make_artifact(
+        checksum=shared_checksum,
+        input_checksum="c" * 64,
+        provenance={"derived_from_audit_checksums": [pa_key]},
+    )
+    child_key = lineage.add_artifact(child_v1)
+    assert child_key == shared_checksum
+    assert pa_key in lineage._parents[child_key]
+
+    # Re-add same stored checksum but pointing to parent_b instead
+    child_v2 = _make_artifact(
+        checksum=shared_checksum,
+        input_checksum="c" * 64,
+        provenance={"derived_from_audit_checksums": [pb_key]},
+    )
+    lineage.add_artifact(child_v2)
+
+    assert pa_key not in lineage._parents[child_key], "stale parent_a edge must be cleared"
+    assert pb_key in lineage._parents[child_key], "new parent_b edge must be present"
+    assert child_key not in lineage._children[pa_key], "parent_a must not list child anymore"

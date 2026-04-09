@@ -67,8 +67,16 @@ class AuditLineage:
         """
         key = _artifact_checksum(artifact)
         self._artifacts[key] = artifact
-        if key not in self._parents:
-            self._parents[key] = []
+
+        # Clear stale parent edges when overwriting an existing key so that
+        # topology stays consistent with the new artifact's provenance.
+        if key in self._parents:
+            for old_parent in self._parents[key]:
+                if old_parent in self._children:
+                    self._children[old_parent] = [
+                        c for c in self._children[old_parent] if c != key
+                    ]
+        self._parents[key] = []
         if key not in self._children:
             self._children[key] = []
 
@@ -76,7 +84,7 @@ class AuditLineage:
         provenance = artifact.get("provenance") or {}
         parent_keys: list[str] = provenance.get("derived_from_audit_checksums") or []
         for parent_key in parent_keys:
-            if parent_key not in self._parents.get(key, []):
+            if parent_key not in self._parents[key]:
                 self._parents[key].append(parent_key)
             # Initialise parent's child list if not yet in graph
             if parent_key not in self._children:

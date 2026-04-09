@@ -853,7 +853,32 @@ this parameter, `@governed` behaves identically to previous releases.
 `@governed` without `pre_call_enforcement`) is unchanged. No migration is
 required for existing integrations.
 
-### 3.16 Planned extension points (not yet available)
+### 3.16 Provenance metadata (v0.3.3+)
+
+`generate_audit_artifact()` accepts an optional `provenance` keyword argument.
+When supplied, the artifact's top-level `provenance` field contains a sparse
+dict with any subset of the following fields:
+
+| Field | Type | Constraint |
+|-------|------|-----------|
+| `source_ids` | `string[]` | `minItems: 1`, `uniqueItems: true`, `maxItems: 1000` |
+| `derived_from_audit_checksums` | `string[]` | SHA-256 hex pattern, `minItems: 1`, `uniqueItems: true`, `maxItems: 1000` |
+| `compilation_source_hash` | `string` | SHA-256 hex pattern |
+
+**Null/absent semantics:**
+
+- `provenance: null`: emitted when no provenance was supplied (default); valid and backward-compatible with v1.3 consumers
+- `provenance: {}`: unreachable via `generate_audit_artifact()` — an empty dict is normalized to `null`; would fail `minProperties: 1` if submitted directly to schema validation
+- v1.3 artifacts lacking the `provenance` key entirely: valid (key is not in `required`)
+
+**Enforcement entrypoints unchanged:** `enforce_invocation()`, split-mode
+methods, and `AIGC` methods do not accept a `provenance` argument. Direct
+`generate_audit_artifact()` callers may supply it. Enforcement-path provenance
+is deferred to PR-05 (`ProvenanceGate`).
+
+---
+
+### 3.17 Planned extension points (not yet available)
 
 The following extension mechanisms appear in architecture documentation but are **not yet
 implemented** in the current SDK. Do not attempt to import them:
@@ -1043,7 +1068,7 @@ in tests):
 
 | Field | Description |
 | ----- | ----------- |
-| `audit_schema_version` | Schema version (e.g., `"1.3"`) |
+| `audit_schema_version` | Schema version (e.g., `"1.4"`) |
 | `policy_file` | Path to the policy file used |
 | `policy_version` | Value of `policy_version` from the policy YAML |
 | `policy_schema_version` | JSON Schema draft used to validate the policy |

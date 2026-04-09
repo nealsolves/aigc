@@ -225,6 +225,23 @@ What hardened immediately after release:
 This release preserves the original gate ordering and unified-mode behavior
 while allowing hosts to block before token spend.
 
+### `0.3.3` — Governed agentic workflows (in progress)
+
+`0.3.3` extends AIGC from invocation governance to workflow governance.
+
+What has shipped so far:
+
+- audit schema `v1.4`: optional `provenance` object on artifacts — `source_ids`,
+  `derived_from_audit_checksums`, `compilation_source_hash`
+- `generate_audit_artifact()` accepts a `provenance` kwarg
+
+Upcoming in this release:
+
+- `AuditLineage` module for lineage reconstruction from JSONL audit trails
+- `ProvenanceGate` built-in gate for source-aware enforcement
+- `RiskHistory` advisory utility for trust tracking over time
+- `@governed` default flip to `pre_call_enforcement=True`
+
 ## How Documentation Is Organized
 
 Use the docs in this order if you are orienting yourself quickly:

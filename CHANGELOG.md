@@ -9,13 +9,23 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] — v0.3.3
 
-### Planned (no code changes yet)
+### Added
+
+- Audit schema `v1.4`: optional top-level `provenance` object on audit artifacts
+  with `source_ids`, `derived_from_audit_checksums`, and
+  `compilation_source_hash` fields. All fields are optional; `provenance` is
+  absent from the required list so v1.3 artifacts remain valid.
+- `generate_audit_artifact()` gains a `provenance` keyword argument. Pass a
+  dict with any subset of the three provenance fields. Omit for `null` emission.
+  Enforcement entrypoints (`enforce_invocation`, split mode) are unchanged;
+  caller-supplied provenance via enforcement APIs is deferred to PR-05.
+
+### Planned
 
 - Workflow-aware governance groundwork: ADR-0010 accepted, release contract
-  established, PR-01 docs-only branch in review.
-- Upcoming: audit schema `v1.4` (additive provenance metadata), `AuditLineage`,
-  `ProvenanceGate`, `RiskHistory`, and default flip to
-  `@governed(pre_call_enforcement=True)`.
+  established, PR-01 and PR-02 complete.
+- Upcoming: `AuditLineage`, `ProvenanceGate`, `RiskHistory`, and default flip
+  to `@governed(pre_call_enforcement=True)`.
 
 ---
 

@@ -328,7 +328,58 @@ is never called. Phase B runs after the function returns. Without
 
 ---
 
-## 10. Compliance Checklist
+## 10. Provenance Metadata (v0.3.3+)
+
+Starting in `v0.3.3`, audit artifacts carry an optional `provenance` field
+that records workflow-level lineage information for a governed invocation.
+
+### Artifact field contract
+
+When `provenance` is supplied to `generate_audit_artifact()`, it appears as a
+top-level key in the emitted artifact:
+
+```python
+from aigc.audit import generate_audit_artifact
+
+artifact = generate_audit_artifact(
+    invocation,
+    policy,
+    provenance={
+        "source_ids": ["workflow-step-1", "workflow-step-2"],
+        "derived_from_audit_checksums": [prior_audit["input_checksum"]],
+        "compilation_source_hash": "e3b0c44298fc1c149afbf4c8996fb924"
+                                   "27ae41e4649b934ca495991b7852b855",
+    },
+)
+# artifact["provenance"] == {
+#     "source_ids": ["workflow-step-1", "workflow-step-2"],
+#     "derived_from_audit_checksums": [...],
+#     "compilation_source_hash": "e3b0c44...",
+# }
+```
+
+When omitted: `artifact["provenance"]` is `null`.
+
+### Field semantics
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `source_ids` | `string[]` | Caller-defined IDs of prior invocations that contributed to this one |
+| `derived_from_audit_checksums` | `string[]` | SHA-256 checksums of prior AIGC audit artifacts (lineage graph edges) |
+| `compilation_source_hash` | `string` | Orchestrator-supplied hash of the raw source compilation set |
+
+All fields are optional within the object. Only supply the fields you have.
+Supply at least one field — an empty provenance object is invalid.
+
+### What is NOT available yet
+
+`enforce_invocation()`, `enforce_pre_call()`, `enforce_post_call()`, and
+`AIGC` enforcement methods do not accept caller-supplied provenance in `v0.3.3`.
+Provenance-aware enforcement (via `ProvenanceGate`) is added in PR-05.
+
+---
+
+## 11. Compliance Checklist
 
 An integration is AIGC-compliant when:
 

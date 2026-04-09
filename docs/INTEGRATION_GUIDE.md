@@ -346,7 +346,7 @@ artifact = generate_audit_artifact(
     policy,
     provenance={
         "source_ids": ["workflow-step-1", "workflow-step-2"],
-        "derived_from_audit_checksums": [prior_audit["input_checksum"]],
+        "derived_from_audit_checksums": [prior_audit["checksum"]],
         "compilation_source_hash": "e3b0c44298fc1c149afbf4c8996fb924"
                                    "27ae41e4649b934ca495991b7852b855",
     },

@@ -867,7 +867,7 @@ dict with any subset of the following fields:
 
 **Null/absent semantics:**
 
-- `provenance: null`: emitted when no provenance was supplied (default); valid and backward-compatible with v1.3 consumers
+- `provenance: null`: emitted when no provenance was supplied (default); valid under the v1.4 schema
 - `provenance: {}`: unreachable via `generate_audit_artifact()` — an empty dict is normalized to `null`; would fail `minProperties: 1` if submitted directly to schema validation
 - v1.3 artifacts lacking the `provenance` key entirely: valid (key is not in `required`)
 

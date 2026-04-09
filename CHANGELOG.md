@@ -7,6 +7,18 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased] — v0.3.3
+
+### Planned (no code changes yet)
+
+- Workflow-aware governance groundwork: ADR-0010 accepted, release contract
+  established, PR-01 docs-only branch in review.
+- Upcoming: audit schema `v1.4` (additive provenance metadata), `AuditLineage`,
+  `ProvenanceGate`, `RiskHistory`, and default flip to
+  `@governed(pre_call_enforcement=True)`.
+
+---
+
 ## [0.3.2] — 2026-04-05
 
 ### Security (audit findings 2026-04-05)
@@ -282,6 +294,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+[Unreleased]: https://github.com/nealsolves/aigc/compare/v0.3.2...HEAD
 [0.3.2]: https://github.com/nealsolves/aigc/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/nealsolves/aigc/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/nealsolves/aigc/compare/v0.2.0...v0.3.0

@@ -95,6 +95,23 @@ def _normalize_failures(
     return sorted(normalized, key=canonical_json_bytes)
 
 
+def _normalize_provenance(
+    provenance: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    """
+    Normalize a caller-supplied provenance mapping for artifact emission.
+
+    Returns None when provenance is absent, empty, or all-None.
+    Returns a sparse dict of present non-None values otherwise.
+    Content validation is left to schema validation — values are passed
+    through unchanged.
+    """
+    if provenance is None:
+        return None
+    out = {k: v for k, v in provenance.items() if v is not None}
+    return out if out else None
+
+
 def generate_audit_artifact(
     invocation: Mapping[str, Any],
     policy: Mapping[str, Any],
@@ -106,6 +123,7 @@ def generate_audit_artifact(
     metadata: Mapping[str, Any] | None = None,
     timestamp: int | None = None,
     risk_score: float | None = None,
+    provenance: Mapping[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """
     Gather required audit fields and return structured object.
@@ -119,6 +137,8 @@ def generate_audit_artifact(
     :param metadata: additional enforcement metadata
     :param timestamp: optional explicit epoch timestamp for deterministic tests
     :param risk_score: computed risk score (None if not scored)
+    :param provenance: optional provenance metadata (source_ids,
+                       derived_from_audit_checksums, compilation_source_hash)
     :return: audit artifact
     """
     failure_list = _normalize_failures(failures)
@@ -167,4 +187,5 @@ def generate_audit_artifact(
         "metadata": metadata_dict,
         "risk_score": risk_score,
         "signature": None,
+        "provenance": _normalize_provenance(provenance),
     }

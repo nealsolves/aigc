@@ -52,6 +52,7 @@ from aigc.gates import (
     INSERTION_POST_OUTPUT,
 )
 from aigc.audit_chain import AuditChain, verify_chain
+from aigc.lineage import AuditLineage
 from aigc.policy_loader import (
     PolicyLoaderBase,
     FilePolicyLoader,
@@ -89,6 +90,7 @@ __all__ = [
     "PreCallResult",
     "ArtifactSigner",
     "AuditChain",
+    "AuditLineage",
     "AuditSink",
     "AuditSinkError",
     "COMPOSITION_INTERSECT",

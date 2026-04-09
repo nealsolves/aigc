@@ -125,6 +125,16 @@ def test_m2_audit_chain_exports():
     assert callable(verify_chain)
 
 
+def test_audit_lineage_exports():
+    """AuditLineage is importable from the top-level aigc package."""
+    from aigc import AuditLineage
+    assert AuditLineage is not None
+    lineage = AuditLineage()
+    assert len(lineage) == 0
+    assert callable(lineage.from_jsonl)
+    assert callable(lineage.checksum_of)
+
+
 def test_m2_policy_loader_exports():
     """Policy loader functions and constants importable from top-level aigc package."""
     from aigc import (
@@ -227,6 +237,7 @@ def test_all_list_completeness():
         "sign_artifact", "verify_artifact",
         "PolicyTestCase", "PolicyTestResult", "PolicyTestSuite",
         "expect_pass", "expect_fail",
+        "AuditLineage",
         "verify_chain",
         "load_policy", "merge_policies", "validate_policy_dates",
         "COMPOSITION_INTERSECT", "COMPOSITION_UNION", "COMPOSITION_REPLACE",

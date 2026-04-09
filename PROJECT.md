@@ -234,10 +234,11 @@ What has shipped so far:
 - audit schema `v1.4`: optional `provenance` object on artifacts — `source_ids`,
   `derived_from_audit_checksums`, `compilation_source_hash`
 - `generate_audit_artifact()` accepts a `provenance` kwarg
+- `AuditLineage`: reconstruct a DAG of governed invocations from a JSONL audit
+  trail; traverse ancestors/descendants, detect orphans and cycles
 
 Upcoming in this release:
 
-- `AuditLineage` module for lineage reconstruction from JSONL audit trails
 - `ProvenanceGate` built-in gate for source-aware enforcement
 - `RiskHistory` advisory utility for trust tracking over time
 - `@governed` default flip to `pre_call_enforcement=True`

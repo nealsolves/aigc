@@ -36,12 +36,12 @@ Checklist:
 
 ### PR-03 — `AuditLineage`
 
-- [ ] lineage reconstruction works from JSONL audit trails
-- [ ] checksum-based DAG construction is covered by tests
-- [ ] traversal is covered by tests
-- [ ] orphan handling is covered by tests
-- [ ] cycle detection is covered by tests
-- [ ] no new dependencies are introduced
+- [x] lineage reconstruction works from JSONL audit trails
+- [x] checksum-based DAG construction is covered by tests
+- [x] traversal is covered by tests
+- [x] orphan handling is covered by tests
+- [x] cycle detection is covered by tests
+- [x] no new dependencies are introduced
 
 ### PR-04 — CLI Lineage Mode
 

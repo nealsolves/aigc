@@ -878,7 +878,45 @@ is deferred to PR-05 (`ProvenanceGate`).
 
 ---
 
-### 3.17 Planned extension points (not yet available)
+### 3.17 AuditLineage (v0.3.3+)
+
+`AuditLineage` is available as `from aigc import AuditLineage`.
+
+**Loading:**
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `from_jsonl` | `(path: str \| Path) → AuditLineage` | Load JSONL trail |
+| `add_artifact` | `(artifact: dict) → str` | Add one artifact; returns checksum |
+
+**Traversal:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get(checksum)` | `dict \| None` | Look up artifact by checksum |
+| `checksum_of(artifact)` | `str` | Derive node key (same as add_artifact) |
+| `roots()` | `list[dict]` | Artifacts with no declared parents |
+| `leaves()` | `list[dict]` | Artifacts with no children |
+| `ancestors(checksum)` | `list[dict]` | All upstream artifacts (BFS) |
+| `descendants(checksum)` | `list[dict]` | All downstream artifacts (BFS) |
+
+**Integrity:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `orphans()` | `list[dict]` | Artifacts with missing parents |
+| `has_cycle()` | `bool` | True if graph contains a cycle |
+
+**Node identity:** If artifact carries a stored `"checksum"` field (set by
+`AuditChain`), that value is used directly as the node key — this is the
+canonical identifier to use in `derived_from_audit_checksums`. For artifacts
+without a stored checksum, falls back to `sha256(canonical_json_bytes(artifact))`.
+
+**No new dependencies** — standard library only.
+
+---
+
+### 3.18 Planned extension points (not yet available)
 
 The following extension mechanisms appear in architecture documentation but are **not yet
 implemented** in the current SDK. Do not attempt to import them:

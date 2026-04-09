@@ -19,13 +19,18 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   dict with any subset of the three provenance fields. Omit for `null` emission.
   Enforcement entrypoints (`enforce_invocation`, split mode) are unchanged;
   caller-supplied provenance via enforcement APIs is deferred to PR-05.
+- `AuditLineage`: reconstruct and traverse a directed acyclic graph of audit
+  artifacts from a JSONL audit trail. Edges are drawn from
+  `provenance["derived_from_audit_checksums"]`. Provides `roots()`, `leaves()`,
+  `ancestors()`, `descendants()`, `orphans()`, and `has_cycle()`. Available as
+  `from aigc import AuditLineage`.
 
 ### Planned
 
 - Workflow-aware governance groundwork: ADR-0010 accepted, release contract
-  established, PR-01 and PR-02 complete.
-- Upcoming: `AuditLineage`, `ProvenanceGate`, `RiskHistory`, and default flip
-  to `@governed(pre_call_enforcement=True)`.
+  established, PR-01, PR-02, and PR-03 complete.
+- Upcoming: `ProvenanceGate`, `RiskHistory`, and default flip to
+  `@governed(pre_call_enforcement=True)`.
 
 ---
 

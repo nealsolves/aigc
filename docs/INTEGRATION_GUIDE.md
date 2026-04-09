@@ -379,7 +379,57 @@ Provenance-aware enforcement (via `ProvenanceGate`) is added in PR-05.
 
 ---
 
-## 11. Compliance Checklist
+## 11. Audit Lineage (v0.3.3+)
+
+`AuditLineage` reconstructs a directed acyclic graph (DAG) from a JSONL audit
+trail produced by an agentic workflow. Each line of the trail is one audit
+artifact. Edges are drawn from `provenance["derived_from_audit_checksums"]` —
+the SHA-256 checksums of prior artifacts this invocation was derived from.
+
+### Loading a trail
+
+```python
+from aigc import AuditLineage
+
+lineage = AuditLineage.from_jsonl("audit_trail.jsonl")
+```
+
+### Traversal
+
+```python
+# Artifacts with no parents (workflow entry points)
+roots = lineage.roots()
+
+# Artifacts with no children (workflow outputs)
+leaves = lineage.leaves()
+
+# All ancestors of a specific artifact
+ancestors = lineage.ancestors(checksum)
+
+# All descendants of a specific artifact
+descendants = lineage.descendants(checksum)
+```
+
+### Integrity checks
+
+```python
+# Artifacts referencing unknown checksums
+missing_parents = lineage.orphans()
+
+# Cycle detection (should always be False for valid trails)
+has_cycle = lineage.has_cycle()
+```
+
+### Node identity
+
+Each artifact's node key is the SHA-256 checksum of its canonical JSON bytes —
+the same algorithm used by `AuditChain`. When writing provenance, pass the key
+returned by `AuditLineage.add_artifact()` as a `derived_from_audit_checksums`
+entry for downstream artifacts.
+
+---
+
+## 12. Compliance Checklist
 
 An integration is AIGC-compliant when:
 

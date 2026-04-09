@@ -2,8 +2,9 @@
 Lineage reconstruction for multi-invocation audit trails.
 
 AuditLineage builds a directed acyclic graph (DAG) from audit artifacts
-loaded from a JSONL audit trail. Nodes are identified by the SHA-256
-checksum of each artifact's canonical JSON bytes. Edges are drawn from
+loaded from a JSONL audit trail. Nodes are identified by each artifact's stored ``"checksum"`` field when
+present (written by ``AuditChain``), falling back to
+``sha256(canonical_json_bytes(artifact))`` for unchained artifacts. Edges are drawn from
 artifact["provenance"]["derived_from_audit_checksums"] — the caller-supplied
 list of prior artifact checksums this invocation was derived from.
 """

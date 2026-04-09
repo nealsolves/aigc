@@ -422,10 +422,16 @@ has_cycle = lineage.has_cycle()
 
 ### Node identity
 
-Each artifact's node key is the SHA-256 checksum of its canonical JSON bytes —
-the same algorithm used by `AuditChain`. When writing provenance, pass the key
-returned by `AuditLineage.add_artifact()` as a `derived_from_audit_checksums`
-entry for downstream artifacts.
+Each artifact's node key uses the stored `"checksum"` field if the artifact
+was processed by `AuditChain` — that value is already the canonical identifier
+that `derived_from_audit_checksums` entries should reference. For artifacts
+not processed by `AuditChain`, the node key falls back to
+`sha256(canonical_json_bytes(artifact))`.
+
+To obtain the node key without calling `add_artifact()`, use
+`lineage.checksum_of(artifact)`. When writing provenance for a downstream
+artifact, pass the key returned by `add_artifact()` (or `checksum_of()`)
+as a `derived_from_audit_checksums` entry.
 
 ---
 

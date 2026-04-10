@@ -44,8 +44,9 @@ provider.
 3. AIGC returns or emits a PASS/FAIL audit artifact that can be stored,
    exported, chained, or inspected offline.
 
-Unified mode is still the default. `v0.3.2` adds split mode so pre-call checks
-can run before the model executes while preserving the same gate ordering.
+Since v0.3.3, split enforcement is the default — Phase A runs before the model
+call, Phase B validates output after. Pass `pre_call_enforcement=False` for the
+legacy unified mode (deprecated).
 
 ## Release Narrative
 
@@ -60,7 +61,7 @@ release by release.
 | `0.3.0` | 2026-03-15 | Governance hardening: risk scoring, artifact signing, audit chain utility, pluggable `PolicyLoader`, policy dates, telemetry, policy testing, compliance export, custom gate isolation and metadata preservation |
 | `0.3.1` | 2026-04-04 | Demo parity release: React demo and FastAPI backend became the maintained hands-on surface for all 7 labs |
 | `0.3.2` | 2026-04-05 | Split enforcement release: `enforce_pre_call()` / `enforce_post_call()`, `PreCallResult`, split decorator mode, audit schema `v1.3`, and post-release security hardening from the 2026-04-05 audit |
-| `0.3.3` | _in progress_ | Workflow-aware governance: audit schema `v1.4` provenance metadata (PR-02 ✓), `AuditLineage` DAG reconstruction (PR-03 ✓), `ProvenanceGate` built-in enforcement gate (PR-05 ✓); `RiskHistory` risk trend tracking (PR-06 ✓); `@governed` default flip (upcoming) |
+| `0.3.3` | _in progress_ | Workflow-aware governance: audit schema `v1.4` provenance metadata (PR-02 ✓), `AuditLineage` DAG reconstruction (PR-03 ✓), `ProvenanceGate` built-in enforcement gate (PR-05 ✓); `RiskHistory` risk trend tracking (PR-06 ✓); `@governed` defaults to `pre_call_enforcement=True`, split enforcement is the standard execution model (PR-07 ✓) |
 
 For the full change log, use [CHANGELOG.md](CHANGELOG.md).
 
@@ -134,7 +135,7 @@ output = model.generate(...)
 artifact = enforce_post_call(pre, output)
 ```
 
-The decorator also supports split mode:
+The `@governed` decorator uses split enforcement by default (since v0.3.3):
 
 ```python
 from aigc import governed
@@ -144,11 +145,13 @@ from aigc import governed
     role="assistant",
     model_provider="anthropic",
     model_identifier="claude-sonnet-4-6",
-    pre_call_enforcement=True,
 )
 def run_model(input_data, context):
     return model.generate(input_data)
 ```
+
+Phase A runs before the model call; Phase B validates output after. Pass
+`pre_call_enforcement=False` for legacy unified mode (deprecated).
 
 ## Interactive Demo
 

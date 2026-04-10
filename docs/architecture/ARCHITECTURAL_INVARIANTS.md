@@ -252,7 +252,8 @@ It does not change any architectural invariant. Specifically:
 * Unified mode remains backward-compatible and fully supported.
 * Policy evaluation in Phase B must use the Phase A effective policy — no reload from disk.
 
-Hosts that do not opt in to split mode are unaffected by this addition.
+Hosts using legacy unified mode via `pre_call_enforcement=False` are unaffected
+by split mode internals; the pipeline ordering and artifact contract are unchanged.
 
 ---
 

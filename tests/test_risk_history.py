@@ -32,6 +32,18 @@ def test_stability_band_bool_rejected():
         RiskHistory("x", stability_band=True)
 
 
+def test_stability_band_none_rejected():
+    """None must raise TypeError, not a raw comparison TypeError."""
+    with pytest.raises(TypeError, match="stability_band"):
+        RiskHistory("x", stability_band=None)
+
+
+def test_stability_band_string_rejected():
+    """A numeric string must raise TypeError, not a raw comparison TypeError."""
+    with pytest.raises(TypeError, match="stability_band"):
+        RiskHistory("x", stability_band="0.1")
+
+
 def test_stability_band_out_of_range_raises():
     with pytest.raises(ValueError, match="stability_band"):
         RiskHistory("x", stability_band=1.5)

@@ -848,7 +848,7 @@ await aigc.enforce_post_call_async(pre_result, output)
 These have the same contract as the module-level functions and respect the
 instance's sink, signer, gates, and policy loader configuration.
 
-**Decorator opt-in:**
+**Decorator default (v0.3.3+):**
 
 ```python
 @governed(
@@ -856,19 +856,20 @@ instance's sink, signer, gates, and policy loader configuration.
     role="assistant",
     model_provider="anthropic",
     model_identifier="claude-sonnet-4-6",
-    pre_call_enforcement=True,
 )
 def run_model(input_data, context):
     return model.generate(input_data)
 ```
 
-When `pre_call_enforcement=True`, phase A runs before the wrapped function and
-blocks execution on failure. Phase B runs after the function returns. Without
-this parameter, `@governed` behaves identically to previous releases.
+Phase A runs before the wrapped function and blocks execution on failure. Phase B
+runs after the function returns.
 
-**Compatibility:** Unified mode (`enforce_invocation`, `enforce_invocation_async`,
-`@governed` without `pre_call_enforcement`) is unchanged. No migration is
-required for existing integrations.
+**Migration from v0.3.2:** Call sites that omit `pre_call_enforcement` now run in
+split mode. Call sites that pass `pre_call_enforcement=True` are unchanged. Call
+sites that rely on unified mode must add `pre_call_enforcement=False` explicitly;
+this emits `DeprecationWarning` and will be removed in a future release. The
+direct split APIs (`enforce_pre_call`, `enforce_post_call`) and unified API
+(`enforce_invocation`, `enforce_invocation_async`) are unchanged.
 
 ### 3.16 Provenance metadata (v0.3.3+)
 

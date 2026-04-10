@@ -2144,6 +2144,16 @@ def _generate_pre_pipeline_fail_artifact(
         except (TypeError, ValueError):
             return {}
 
+    # Extract provenance from the raw context BEFORE _safe_dict() may collapse
+    # it.  If context contains any non-JSON-serializable entry alongside a valid
+    # provenance mapping, _safe_dict() would drop the whole context to {}, losing
+    # provenance.  Reading from the raw invocation here preserves it.
+    _raw_ctx = invocation.get("context")
+    _ctx_prov = (
+        _raw_ctx.get("provenance") if isinstance(_raw_ctx, Mapping) else None
+    )
+    _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
     safe_invocation = {
         "policy_file": _safe_str(invocation.get("policy_file")),
         "model_provider": _safe_str(invocation.get("model_provider")),
@@ -2165,9 +2175,6 @@ def _generate_pre_pipeline_fail_artifact(
             ),
         }
     ]
-
-    _ctx_prov = (safe_invocation.get("context") or {}).get("provenance")
-    _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
 
     return generate_audit_artifact(
         safe_invocation,

@@ -51,11 +51,22 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `compilation_source_hash: <non-hex>` produced artifacts that failed
   `audit_artifact.schema.json` validation.
 
+### Changed
+
+- **`@governed` default flip**: `pre_call_enforcement` now defaults to `True`.
+  Split enforcement (Phase A before the model call, Phase B after) is the standard
+  execution model for `v0.3.3+`. Existing call sites that omit `pre_call_enforcement`
+  will now run in split mode.
+
+  **Migration:** No change required for call sites that already pass
+  `pre_call_enforcement=True`. Call sites that rely on unified mode must add
+  `pre_call_enforcement=False` explicitly — this opt-out remains functional but
+  emits `DeprecationWarning` and will be removed in a future release.
+
 ### Planned
 
 - Workflow-aware governance groundwork: ADR-0010 accepted, release contract
-  established, PR-01 through PR-06 complete.
-- Upcoming: default flip to `@governed(pre_call_enforcement=True)`.
+  established, PR-01 through PR-07 complete.
 
 ---
 

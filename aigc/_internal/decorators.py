@@ -40,6 +40,7 @@ import asyncio
 import functools
 import inspect
 import logging
+import warnings
 from typing import Any, Callable
 
 logger = logging.getLogger("aigc.decorators")
@@ -90,17 +91,15 @@ def governed(
     model_provider: str,
     model_identifier: str,
     *,
-    pre_call_enforcement: bool = False,
+    pre_call_enforcement: bool = True,
 ) -> Callable:
     """
     Decorator factory that wraps a function with AIGC governance enforcement.
 
-    When *pre_call_enforcement* is ``False`` (the default), the wrapped
-    function is called first.  If it succeeds, the return value and call
-    arguments are assembled into an invocation and passed through
-    ``enforce_invocation`` (sync) or ``enforce_invocation_async`` (async).
+    Since v0.3.3, *pre_call_enforcement* defaults to ``True`` (split mode).
 
-    When *pre_call_enforcement* is ``True``, governance runs in two phases:
+    When *pre_call_enforcement* is ``True`` (default), governance runs in two
+    phases:
 
     * **Phase A** (pre-call): ``enforce_pre_call()`` validates policy,
       role, preconditions, guards, and tool constraints *before* the
@@ -109,16 +108,34 @@ def governed(
     * **Phase B** (post-call): ``enforce_post_call()`` validates the
       function's output against schema and postconditions.
 
+    When *pre_call_enforcement* is ``False``, the legacy unified mode is used:
+    the wrapped function is called first; if it succeeds, the return value and
+    call arguments are assembled into an invocation and passed through
+    ``enforce_invocation``.  Passing ``False`` explicitly emits a
+    ``DeprecationWarning``; this opt-out will be removed in a future release.
+
     :param policy_file: Path to governance policy YAML
     :param role: Invocation role (must be declared in the policy's roles list)
     :param model_provider: Model provider identifier (e.g. "anthropic")
     :param model_identifier: Model identifier (e.g. "claude-sonnet-4-5-20250929")
-    :param pre_call_enforcement: If True, run split pre/post enforcement
+    :param pre_call_enforcement: If True (default), run split pre/post enforcement.
+        Pass False for legacy unified mode (deprecated).
     :return: Decorated function
     """
+    if pre_call_enforcement is False:
+        warnings.warn(
+            "@governed: pre_call_enforcement=False is deprecated. "
+            "Split enforcement is the default since v0.3.3. "
+            "Pass pre_call_enforcement=False only as a legacy opt-out; "
+            "this option will be removed in a future release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    use_split_enforcement = pre_call_enforcement is not False
+
     def decorator(fn: Callable) -> Callable:
         if asyncio.iscoroutinefunction(fn):
-            if pre_call_enforcement:
+            if use_split_enforcement:
                 @functools.wraps(fn)
                 async def async_wrapper_split(*args: Any, **kwargs: Any) -> Any:
                     input_data, context = _extract_args(fn, args, kwargs)
@@ -178,7 +195,7 @@ def governed(
 
                 return async_wrapper
         else:
-            if pre_call_enforcement:
+            if use_split_enforcement:
                 @functools.wraps(fn)
                 def sync_wrapper_split(*args: Any, **kwargs: Any) -> Any:
                     input_data, context = _extract_args(fn, args, kwargs)

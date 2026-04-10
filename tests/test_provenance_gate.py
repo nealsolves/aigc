@@ -1,6 +1,5 @@
 """Tests for the built-in ProvenanceGate enforcement gate."""
 import pytest
-from collections.abc import Mapping
 
 from aigc._internal.gates import INSERTION_PRE_OUTPUT
 from aigc._internal.provenance_gate import (
@@ -146,3 +145,11 @@ def test_aigc_with_provenance_gate_fails_no_provenance():
     assert artifact["failure_gate"] == "custom_gate_violation"
     # FAIL artifacts store failures at top level, not under metadata
     assert any(f["code"] == PROVENANCE_MISSING for f in artifact["failures"])
+
+
+def test_aigc_with_provenance_gate_fails_source_ids_missing():
+    aigc = AIGC(custom_gates=[ProvenanceGate()])
+    with pytest.raises(CustomGateViolationError) as exc_info:
+        aigc.enforce(_inv(provenance={"compilation_source_hash": "abc"}))
+    artifact = exc_info.value.audit_artifact
+    assert any(f["code"] == SOURCE_IDS_MISSING for f in artifact["failures"])

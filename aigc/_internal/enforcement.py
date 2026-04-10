@@ -914,6 +914,10 @@ def _run_phase_b(
                 and isinstance(exc.details, dict)
                 and exc.details.get("custom_gate_failures")
             ):
+                # Gate failure messages are required to be static strings that
+                # do not echo user input.  They bypass sanitize_failure_message
+                # here, so any gate that includes dynamic/user-derived content
+                # in its failure message would leak it to the audit artifact.
                 failures = list(exc.details["custom_gate_failures"])
 
         if enforcement_mode == "unified":

@@ -268,3 +268,17 @@ def test_phase_b_fail_artifact_carries_provenance():
     assert artifact["enforcement_result"] == "FAIL"
     assert artifact["provenance"] is not None
     assert artifact["provenance"]["source_ids"] == ["doc-a"]
+
+
+# ── Public API ────────────────────────────────────────────────────
+
+
+def test_public_import():
+    from aigc import ProvenanceGate as PG  # noqa: F401
+    assert PG is ProvenanceGate
+
+
+def test_public_failure_codes_importable():
+    from aigc.provenance_gate import PROVENANCE_MISSING as PM, SOURCE_IDS_MISSING as SIM
+    assert PM == "PROVENANCE_MISSING"
+    assert SIM == "SOURCE_IDS_MISSING"

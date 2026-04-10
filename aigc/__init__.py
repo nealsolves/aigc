@@ -53,6 +53,7 @@ from aigc.gates import (
 )
 from aigc.audit_chain import AuditChain, verify_chain
 from aigc.lineage import AuditLineage
+from aigc.provenance_gate import ProvenanceGate
 from aigc.policy_loader import (
     PolicyLoaderBase,
     FilePolicyLoader,
@@ -119,6 +120,7 @@ __all__ = [
     "PolicyTestResult",
     "PolicyTestSuite",
     "PolicyValidationError",
+    "ProvenanceGate",
     "PreconditionError",
     "RISK_MODE_RISK_SCORED",
     "RISK_MODE_STRICT",

@@ -60,7 +60,7 @@ release by release.
 | `0.3.0` | 2026-03-15 | Governance hardening: risk scoring, artifact signing, audit chain utility, pluggable `PolicyLoader`, policy dates, telemetry, policy testing, compliance export, custom gate isolation and metadata preservation |
 | `0.3.1` | 2026-04-04 | Demo parity release: React demo and FastAPI backend became the maintained hands-on surface for all 7 labs |
 | `0.3.2` | 2026-04-05 | Split enforcement release: `enforce_pre_call()` / `enforce_post_call()`, `PreCallResult`, split decorator mode, audit schema `v1.3`, and post-release security hardening from the 2026-04-05 audit |
-| `0.3.3` | _in progress_ | Workflow-aware governance: audit schema `v1.4` provenance metadata (PR-02 ✓), `AuditLineage` DAG reconstruction (PR-03 ✓); `ProvenanceGate`, `RiskHistory`, and `@governed` default flip (upcoming) |
+| `0.3.3` | _in progress_ | Workflow-aware governance: audit schema `v1.4` provenance metadata (PR-02 ✓), `AuditLineage` DAG reconstruction (PR-03 ✓), `ProvenanceGate` built-in enforcement gate (PR-05 ✓); `RiskHistory` and `@governed` default flip (upcoming) |
 
 For the full change log, use [CHANGELOG.md](CHANGELOG.md).
 

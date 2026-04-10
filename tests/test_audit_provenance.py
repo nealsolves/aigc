@@ -110,16 +110,26 @@ def test_provenance_none_value_pruned_other_key_kept():
     assert artifact["provenance"] == {"source_ids": ["step-1"]}
 
 
-def test_provenance_invalid_value_passes_through():
-    """Invalid value passes through unchanged; schema validation owns correctness."""
+def test_provenance_list_field_scalar_dropped():
+    """Scalar in a list field is dropped, not forwarded, to keep artifacts schema-valid.
+
+    Previously values passed through unchanged (schema validation owned correctness).
+    Now scalars in array-typed fields are dropped at normalization so enforcement
+    never emits a schema-invalid artifact.
+    """
     artifact = _make_artifact(provenance={"source_ids": "bad-not-a-list"})
-    assert artifact["provenance"] == {"source_ids": "bad-not-a-list"}
+    assert artifact["provenance"] is None
 
 
 def test_non_json_serializable_provenance_raises():
-    """Non-JSON-serializable values raise ValueError before the artifact is built."""
+    """Non-JSON-serializable values inside a list raise ValueError before the artifact is built.
+
+    A bare set for source_ids is now dropped at normalization time (not a list/tuple).
+    But a set *inside* a list passes the isinstance check and must still raise
+    ValueError at the json.dumps step rather than crash later at signing time.
+    """
     with pytest.raises(ValueError, match="non-JSON-serializable"):
-        _make_artifact(provenance={"source_ids": {"not-a-list-but-a-set"}})
+        _make_artifact(provenance={"source_ids": [{"not-a-string-but-a-set"}]})
 
 
 def test_audit_schema_version_is_1_4():

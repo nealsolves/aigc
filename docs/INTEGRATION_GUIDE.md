@@ -371,11 +371,51 @@ When omitted: `artifact["provenance"]` is `null`.
 All fields are optional within the object. Only supply the fields you have.
 Supply at least one field — an empty provenance object is invalid.
 
-### What is NOT available yet
+### Enforcing Source Presence with ProvenanceGate
 
-`enforce_invocation()`, `enforce_pre_call()`, `enforce_post_call()`, and
-`AIGC` enforcement methods do not accept caller-supplied provenance in `v0.3.3`.
-Provenance-aware enforcement (via `ProvenanceGate`) is added in PR-05.
+`ProvenanceGate` is the built-in enforcement gate for source presence. It runs
+at `pre_output` and rejects invocations whose runtime context lacks provenance
+source identifiers. Provenance also flows automatically into the emitted audit
+artifact, so `AuditLineage` can traverse it.
+
+Pass provenance in the invocation context dict:
+
+```python
+from aigc import AIGC, ProvenanceGate
+
+invocation = {
+    "policy_file": "policies/my_policy.yaml",
+    "model_provider": "openai",
+    "model_identifier": "gpt-4o",
+    "role": "summarizer",
+    "input": {"text": "..."},
+    "output": {"summary": "..."},
+    "context": {
+        "user_id": "user-001",
+        "provenance": {
+            "source_ids": ["doc-a", "doc-b"],
+        },
+    },
+}
+
+aigc = AIGC(custom_gates=[ProvenanceGate()])
+audit = aigc.enforce(invocation)
+# audit["provenance"]["source_ids"] == ["doc-a", "doc-b"]
+```
+
+When `source_ids` is absent or empty, the gate raises `CustomGateViolationError`
+with one of these failure codes:
+
+| Code | Meaning |
+|------|---------|
+| `PROVENANCE_MISSING` | No `provenance` key in context, value is None/empty, or value is not a mapping |
+| `SOURCE_IDS_MISSING` | Provenance exists but `source_ids` is absent, empty, or not a list |
+
+To disable enforcement temporarily (e.g. during migration):
+
+```python
+gate = ProvenanceGate(require_source_ids=False)  # always passes
+```
 
 ---
 

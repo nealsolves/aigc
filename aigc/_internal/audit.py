@@ -96,31 +96,67 @@ def _normalize_failures(
     return sorted(normalized, key=canonical_json_bytes)
 
 
+# Provenance fields that the audit schema (v1.4) requires to be JSON arrays.
+# Scalars in these positions are dropped at normalization time to prevent
+# emitting schema-invalid artifacts.
+_PROVENANCE_LIST_FIELDS: frozenset[str] = frozenset(
+    {"source_ids", "derived_from_audit_checksums"}
+)
+
+# All provenance fields declared in the audit schema (additionalProperties: false).
+# Unknown keys are silently dropped so the emitted artifact stays schema-valid.
+_PROVENANCE_KNOWN_FIELDS: frozenset[str] = _PROVENANCE_LIST_FIELDS | frozenset(
+    {"compilation_source_hash"}
+)
+
+
 def _normalize_provenance(
     provenance: Mapping[str, Any] | None,
 ) -> dict[str, Any] | None:
     """
     Normalize a caller-supplied provenance mapping for artifact emission.
 
-    Returns None when provenance is absent, empty, or all-None.
-    Returns a sparse dict of present non-None values otherwise.
-    Content validation is left to schema validation — values are passed
-    through unchanged.
-    Raises ValueError for non-JSON-serializable values (sets, custom objects,
-    etc.) that would crash at signing time rather than fail at the call site.
+    Returns None when provenance is absent, empty, or all values are pruned.
+    Returns a sparse dict of normalized, schema-safe values otherwise.
+
+    Normalization rules:
+    - Unknown keys are dropped (audit schema has additionalProperties: false).
+    - None values are dropped.
+    - Fields that must be JSON arrays (source_ids, derived_from_audit_checksums)
+      are dropped when their value is a scalar; this prevents schema-invalid
+      artifacts when callers supply unexpected types.
+    - Sequences (list or tuple) pass through; the JSON round-trip below
+      coerces tuples to lists to satisfy the ``type: array`` schema constraint.
+
+    Item-level content validation (patterns, lengths) remains the
+    responsibility of schema validation at the artifact level.
+    Raises ValueError for non-JSON-serializable values.
     """
     if provenance is None:
         return None
-    out = {k: v for k, v in provenance.items() if v is not None}
+
+    out: dict[str, Any] = {}
+    for k, v in provenance.items():
+        if k not in _PROVENANCE_KNOWN_FIELDS or v is None:
+            continue
+        if k in _PROVENANCE_LIST_FIELDS and not isinstance(v, (list, tuple)):
+            # Scalar where an array is required: drop to avoid a schema-invalid
+            # artifact rather than forwarding the bad value.
+            continue
+        out[k] = v
+
     if not out:
         return None
     try:
-        json.dumps(out, allow_nan=False)
+        # Round-trip through JSON to: (1) validate serializability with
+        # allow_nan=False, and (2) coerce Python tuples → JSON arrays (lists),
+        # since jsonschema treats tuple as non-array.
+        normalized = json.loads(json.dumps(out, allow_nan=False))
     except (TypeError, ValueError) as exc:
         raise ValueError(
             f"provenance contains non-JSON-serializable values: {exc}"
         ) from exc
-    return out
+    return normalized
 
 
 def generate_audit_artifact(

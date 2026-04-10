@@ -52,10 +52,10 @@ Checklist:
 
 ### PR-05 — `ProvenanceGate`
 
-- [ ] built-in gate implementation lands
-- [ ] gate can be registered at the intended insertion point(s)
-- [ ] typed failures are covered by tests
-- [ ] "no output without sources" is enforceable
+- [x] built-in gate implementation lands
+- [x] gate can be registered at the intended insertion point(s)
+- [x] typed failures are covered by tests
+- [x] "no output without sources" is enforceable
 
 ### PR-06 — `RiskHistory`
 

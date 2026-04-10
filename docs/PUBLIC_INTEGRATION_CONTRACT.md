@@ -586,6 +586,23 @@ Gate metadata is merged into `metadata.custom_gate_metadata` in the audit artifa
 cannot suppress earlier failures. Unhandled exceptions are converted to failures (code
 `CUSTOM_GATE_ERROR`), never to crashes.
 
+### Built-In Gates
+
+The SDK ships `ProvenanceGate` — a workflow-aware built-in gate for source
+presence enforcement. Import and register it like any custom gate:
+
+```python
+from aigc import AIGC, ProvenanceGate
+
+aigc = AIGC(custom_gates=[ProvenanceGate()])
+```
+
+Available built-in gates:
+
+| Gate | Module | Insertion Point | Enforces |
+|------|--------|-----------------|---------|
+| `ProvenanceGate` | `aigc.provenance_gate` | `pre_output` | `source_ids` present in context provenance |
+
 ### 3.7 Risk scoring
 
 Risk scoring evaluates the structural quality of a policy and invocation. Configure it in
@@ -871,10 +888,12 @@ dict with any subset of the following fields:
 - `provenance: {}`: unreachable via `generate_audit_artifact()` — an empty dict is normalized to `null`; would fail `minProperties: 1` if submitted directly to schema validation
 - v1.3 artifacts lacking the `provenance` key entirely: valid (key is not in `required`)
 
-**Enforcement entrypoints unchanged:** `enforce_invocation()`, split-mode
-methods, and `AIGC` methods do not accept a `provenance` argument. Direct
-`generate_audit_artifact()` callers may supply it. Enforcement-path provenance
-is deferred to PR-05 (`ProvenanceGate`).
+**Enforcement entrypoints (v0.3.3+):** `enforce_invocation()`, split-mode
+methods, and `AIGC` enforcement methods automatically forward
+`invocation["context"]["provenance"]` into every emitted audit artifact (PASS
+and FAIL). Scalar values are normalized to `null`. No separate `provenance`
+argument is accepted at the entrypoint level — supply provenance in the
+invocation context dict.
 
 ---
 

@@ -24,12 +24,21 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `provenance["derived_from_audit_checksums"]`. Provides `roots()`, `leaves()`,
   `ancestors()`, `descendants()`, `orphans()`, and `has_cycle()`. Available as
   `from aigc import AuditLineage`.
+- `ProvenanceGate`: built-in enforcement gate at `INSERTION_PRE_OUTPUT` that
+  blocks invocations whose runtime context lacks provenance `source_ids`.
+  Failure codes: `PROVENANCE_MISSING` and `SOURCE_IDS_MISSING`. Available as
+  `from aigc import ProvenanceGate`. Register via
+  `AIGC(custom_gates=[ProvenanceGate()])`. Closes PR-05.
+- `enforce_invocation`, `enforce_pre_call`/`enforce_post_call`, and `AIGC`
+  enforcement methods now forward `invocation["context"]["provenance"]` into
+  every emitted audit artifact, enabling `AuditLineage` cross-invocation
+  traversal.
 
 ### Planned
 
 - Workflow-aware governance groundwork: ADR-0010 accepted, release contract
-  established, PR-01, PR-02, and PR-03 complete.
-- Upcoming: `ProvenanceGate`, `RiskHistory`, and default flip to
+  established, PR-01 through PR-05 complete.
+- Upcoming: `RiskHistory` and default flip to
   `@governed(pre_call_enforcement=True)`.
 
 ---

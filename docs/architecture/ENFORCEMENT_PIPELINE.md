@@ -259,6 +259,34 @@ Custom gates may NOT:
 
 ---
 
+## Built-In Enforcement Gates
+
+Built-in gates ship with the SDK and can be registered alongside custom gates.
+
+### ProvenanceGate (v0.3.3+)
+
+`ProvenanceGate` runs at the `pre_output` insertion point and blocks
+invocations whose runtime context lacks provenance source identifiers.
+Provenance from `invocation["context"]["provenance"]` is also forwarded
+into every audit artifact (PASS and FAIL), enabling `AuditLineage` to
+traverse cross-invocation lineage.
+
+Registration:
+
+```python
+from aigc import AIGC, ProvenanceGate
+aigc = AIGC(custom_gates=[ProvenanceGate()])
+```
+
+Failure codes:
+
+* `PROVENANCE_MISSING` — no provenance in `invocation["context"]`, value
+  is None/empty, or value is not a Mapping.
+* `SOURCE_IDS_MISSING` — provenance exists but `source_ids` is absent,
+  empty, or not a list.
+
+---
+
 ## Workflow Governance (Planned)
 
 Future releases will introduce workflow governance.

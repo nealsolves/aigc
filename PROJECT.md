@@ -236,10 +236,12 @@ What has shipped so far:
 - `generate_audit_artifact()` accepts a `provenance` kwarg
 - `AuditLineage`: reconstruct a DAG of governed invocations from a JSONL audit
   trail; traverse ancestors/descendants, detect orphans and cycles
+- `ProvenanceGate`: built-in gate for source-aware enforcement; blocks output
+  when `context.provenance.source_ids` is absent; provenance flows into every
+  emitted audit artifact
 
 Upcoming in this release:
 
-- `ProvenanceGate` built-in gate for source-aware enforcement
 - `RiskHistory` advisory utility for trust tracking over time
 - `@governed` default flip to `pre_call_enforcement=True`
 

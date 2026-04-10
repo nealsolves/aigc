@@ -40,6 +40,10 @@ class RiskHistory:
             raise TypeError(
                 f"stability_band must be a float, got {type(stability_band).__name__}."
             )
+        if not isinstance(stability_band, (int, float)):
+            raise TypeError(
+                f"stability_band must be a float, got {type(stability_band).__name__}."
+            )
         if not 0.0 <= stability_band <= 1.0:
             raise ValueError("stability_band must be in [0.0, 1.0].")
         self._entity_id = entity_id

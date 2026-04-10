@@ -19,7 +19,7 @@ export default function ArchitecturePage() {
         className="font-mono font-light text-xs tracking-widest mb-1"
         style={{ color: 'var(--ibm-cyan-30)', textTransform: 'uppercase' }}
       >
-        AIGC v0.3.2
+        AIGC v0.3.3
       </div>
       <div
         className="font-mono font-light text-xs mb-14"
@@ -39,7 +39,7 @@ export default function ArchitecturePage() {
       <DiagramSection
         num="02"
         title="Enforcement Pipeline"
-        description="The current runtime boundary for v0.3.2. Phase A runs before the model call in split mode, Phase B runs after output exists, and unified mode keeps the same ordered gates inside one call."
+        description="The current runtime boundary for v0.3.3. Phase A runs before the model call (the default since v0.3.3); Phase B validates after output exists. Unified mode evaluates the same ordered gates inside one call and is available via pre_call_enforcement=False."
         src={pipelineSvg}
         alt="AIGC Enforcement Pipeline"
       />
@@ -55,7 +55,7 @@ export default function ArchitecturePage() {
           }}
         >
           <NoteCard label="Decorator Modes">
-            <Code>@governed</Code> defaults to unified post-call enforcement for backward compatibility. Set <Code>pre_call_enforcement=True</Code> to run Phase A before the wrapped function and Phase B after it returns.
+            Since v0.3.3, <Code>@governed</Code> defaults to split enforcement (Phase A before the model call, Phase B after it returns). Pass <Code>pre_call_enforcement=False</Code> for legacy unified mode (deprecated).
           </NoteCard>
           <NoteCard label="Phase A / Phase B">
             Split mode moves the model call boundary between <Code>post_authorization</Code> and <Code>pre_output</Code>. Unified mode still evaluates the same ordered gates in one enforcement call.
@@ -70,7 +70,7 @@ export default function ArchitecturePage() {
             Pre-pipeline failures produce schema-valid FAIL artifacts with <Code>policy_version: &quot;unknown&quot;</Code>, but bypass the core gate sequence.
           </NoteCard>
           <NoteCard label="Async + Instance APIs">
-            <Code>enforce_invocation_async</Code>, <Code>enforce_pre_call_async</Code>, <Code>enforce_post_call_async</Code>, and the matching <Code>AIGC</Code> instance methods ship in the v0.3.2 runtime.
+            <Code>enforce_invocation_async</Code>, <Code>enforce_pre_call_async</Code>, <Code>enforce_post_call_async</Code>, and the matching <Code>AIGC</Code> instance methods ship in the v0.3.2 runtime and remain available in v0.3.3.
           </NoteCard>
         </div>
       </div>

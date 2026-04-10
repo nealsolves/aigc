@@ -30,7 +30,7 @@ export const helpContent: Record<number, LabHelp> = {
     whatThisLabShows: [
       'Where the host app, model provider, policy layer, and SDK enforcement core sit at runtime.',
       'Which checks belong to the core fail-closed pipeline and which capabilities are opt-in utilities.',
-      'How unified default mode and opt-in split enforcement share the same ordered gates.',
+      'How split enforcement (the default since v0.3.3) and legacy unified mode share the same ordered gates.',
       'Why AIGC is provider-agnostic: it wraps model calls instead of replacing the model itself.',
     ],
     howToNavigate: [
@@ -46,7 +46,7 @@ export const helpContent: Record<number, LabHelp> = {
           'Your app, agent, or orchestrator calls a model through the SDK. The SDK loads the policy, ' +
           'runs the enforcement core, then returns the governance result and audit artifact to your app. ' +
           'The model provider still does the generation in the middle; AIGC governs the call boundary around it.',
-        tip: 'The @governed decorator defaults to unified post-call enforcement. Set pre_call_enforcement=True to run Phase A before the wrapped function executes.',
+        tip: 'Since v0.3.3, @governed defaults to split enforcement (Phase A before the model call, Phase B after). Pass pre_call_enforcement=False for legacy unified mode (deprecated).',
       },
       {
         title: 'Enforcement Pipeline - the gate sequence',
@@ -57,7 +57,7 @@ export const helpContent: Record<number, LabHelp> = {
           'The core gates are fail-closed: a violation stops the pipeline and produces a FAIL artifact.',
       },
       {
-        title: 'Phase boundary in v0.3.2',
+        title: 'Phase boundary in v0.3.3',
         instruction:
           'Split mode moves the model-call boundary between post_authorization and pre_output. ' +
           'Phase A is authorize-before-call; Phase B is validate-after-output. Unified mode still uses the same gate order, but inside one enforcement call.',
@@ -83,7 +83,7 @@ export const helpContent: Record<number, LabHelp> = {
       { term: 'enforce_invocation()', definition: 'The SDK entry point. Accepts policy, input, output, context, model identity, and role, then returns an audit artifact or raises with one attached.' },
       { term: 'enforce_pre_call()', definition: 'The split-mode Phase A entry point. It authorizes the invocation before the model call and returns a PreCallResult token for Phase B.' },
       { term: 'Audit artifact', definition: 'The immutable record produced after each enforcement run. It contains checksums, policy metadata, result, and supporting evidence.' },
-      { term: '@governed', definition: 'A decorator that defaults to unified post-call enforcement and can opt into split pre/post enforcement with pre_call_enforcement=True.' },
+      { term: '@governed', definition: 'A decorator that defaults to split enforcement since v0.3.3 (Phase A before the model call, Phase B after). Pass pre_call_enforcement=False for legacy unified mode (deprecated).' },
       { term: 'Fail-closed', definition: 'If a core governance check fails, the invocation is rejected and a FAIL artifact is emitted. The system does not silently continue.' },
     ],
   },

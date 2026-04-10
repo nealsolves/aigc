@@ -1,8 +1,8 @@
 # AIGC Interactive Demo
 
 Interactive companion to the [AIGC SDK](https://github.com/nealsolves/aigc) — seven
-hands-on labs for the M2 governance capabilities plus a v0.3.2 architecture guide
-covering unified default mode and opt-in split enforcement.
+hands-on labs for the M2 governance capabilities plus an architecture guide
+covering the enforcement pipeline and decorator defaults (updated for v0.3.3).
 
 **Live demo:** [https://nealsolves.github.io/aigc/](https://nealsolves.github.io/aigc/)
 

@@ -42,7 +42,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Planned
 
 - Workflow-aware governance groundwork: ADR-0010 accepted, release contract
-  established, PR-01 through PR-05 complete.
+  established, PR-01 through PR-06 complete.
 - Upcoming: default flip to `@governed(pre_call_enforcement=True)`.
 
 ---

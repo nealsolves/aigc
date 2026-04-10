@@ -535,6 +535,7 @@ history.record(0.72)
 history.record(0.58)
 history.record(0.41)
 
+# trajectory() raises ValueError if fewer than 2 scores recorded
 print(history.trajectory())  # "improving"
 print(history.latest)        # 0.41
 print(history.scores)        # (0.72, 0.58, 0.41)

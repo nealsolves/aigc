@@ -1,8 +1,6 @@
 """RiskHistory — advisory utility for tracking risk scores over time."""
 from __future__ import annotations
 
-from typing import Union
-
 from aigc._internal.risk_scoring import RiskScore
 
 TRAJECTORY_IMPROVING = "improving"
@@ -63,7 +61,7 @@ class RiskHistory:
         """Most recently recorded score, or None if no scores have been recorded."""
         return self._scores[-1] if self._scores else None
 
-    def record(self, score: Union[float, RiskScore]) -> None:
+    def record(self, score: float | RiskScore) -> None:
         """Record a risk score observation.
 
         Accepts a raw float or a ``RiskScore`` instance (extracts ``.score``).

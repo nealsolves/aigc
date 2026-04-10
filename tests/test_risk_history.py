@@ -32,6 +32,11 @@ def test_stability_band_bool_rejected():
         RiskHistory("x", stability_band=True)
 
 
+def test_stability_band_out_of_range_raises():
+    with pytest.raises(ValueError, match="stability_band"):
+        RiskHistory("x", stability_band=1.5)
+
+
 def test_scores_empty_on_init():
     h = RiskHistory("x")
     assert h.scores == ()
@@ -76,6 +81,12 @@ def test_record_bool_rejected():
     h = RiskHistory("x")
     with pytest.raises(TypeError, match="bool"):
         h.record(True)
+
+
+def test_record_out_of_range_raises():
+    h = RiskHistory("x")
+    with pytest.raises(ValueError, match="score"):
+        h.record(1.5)
 
 
 # ── trajectory() ──────────────────────────────────────────────────────────────

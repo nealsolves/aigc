@@ -109,6 +109,12 @@ _PROVENANCE_KNOWN_FIELDS: frozenset[str] = _PROVENANCE_LIST_FIELDS | frozenset(
     {"compilation_source_hash"}
 )
 
+# SHA-256 hex pattern used to validate checksum-bearing provenance fields.
+_HEX64_RE = re.compile(r"^[a-f0-9]{64}$")
+
+# Schema maxItems for provenance list fields; lists are truncated with a warning.
+_PROVENANCE_MAX_LIST_ITEMS = 1000
+
 
 def _normalize_provenance(
     provenance: Mapping[str, Any] | None,
@@ -125,12 +131,16 @@ def _normalize_provenance(
     - Fields that must be JSON arrays (source_ids, derived_from_audit_checksums)
       are dropped when their value is a scalar; this prevents schema-invalid
       artifacts when callers supply unexpected types.
-    - Sequences (list or tuple) pass through; the JSON round-trip below
-      coerces tuples to lists to satisfy the ``type: array`` schema constraint.
-
-    Item-level content validation (patterns, lengths) remains the
-    responsibility of schema validation at the artifact level.
-    Raises ValueError for non-JSON-serializable values.
+    - Items in source_ids must be non-empty strings; non-string or empty-string
+      items are filtered out. Non-JSON-serializable items raise ValueError.
+    - Items in derived_from_audit_checksums must match ^[a-f0-9]{64}$;
+      non-matching items are filtered out. Non-JSON-serializable items raise.
+    - Duplicate items in list fields are removed (first occurrence kept).
+    - List fields are truncated to 1000 items (schema maxItems) with a warning.
+    - A list field that becomes empty after filtering is dropped entirely.
+    - compilation_source_hash must be a string matching ^[a-f0-9]{64}$;
+      non-string or pattern-failing values are silently dropped.
+      Non-JSON-serializable values raise ValueError.
     """
     if provenance is None:
         return None
@@ -139,11 +149,59 @@ def _normalize_provenance(
     for k, v in provenance.items():
         if k not in _PROVENANCE_KNOWN_FIELDS or v is None:
             continue
-        if k in _PROVENANCE_LIST_FIELDS and not isinstance(v, (list, tuple)):
-            # Scalar where an array is required: drop to avoid a schema-invalid
-            # artifact rather than forwarding the bad value.
-            continue
-        out[k] = v
+        if k in _PROVENANCE_LIST_FIELDS:
+            if not isinstance(v, (list, tuple)):
+                # Scalar where array required: drop.
+                continue
+            # Validate serializability of each item BEFORE type filtering
+            # to preserve the ValueError contract for NaN, sets, etc.
+            for item in v:
+                try:
+                    json.dumps(item, allow_nan=False)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(
+                        f"provenance[{k!r}] contains non-JSON-serializable item: {exc}"
+                    ) from exc
+            # Filter by type/content constraints.
+            if k == "source_ids":
+                items: list[str] = [s for s in v if isinstance(s, str) and s]
+            else:  # derived_from_audit_checksums
+                items = [
+                    s for s in v
+                    if isinstance(s, str) and _HEX64_RE.match(s)
+                ]
+            # Deduplicate preserving insertion order.
+            seen: set[str] = set()
+            deduped: list[str] = []
+            for item in items:
+                if item not in seen:
+                    seen.add(item)
+                    deduped.append(item)
+            # Truncate to schema maxItems, warn if lossy.
+            if len(deduped) > _PROVENANCE_MAX_LIST_ITEMS:
+                logger.warning(
+                    "provenance[%r] truncated from %d to %d items (schema maxItems)",
+                    k,
+                    len(deduped),
+                    _PROVENANCE_MAX_LIST_ITEMS,
+                )
+                deduped = deduped[:_PROVENANCE_MAX_LIST_ITEMS]
+            if not deduped:
+                # Empty after filtering: drop field entirely.
+                continue
+            out[k] = deduped
+        else:
+            # compilation_source_hash: validate serializability first.
+            try:
+                json.dumps(v, allow_nan=False)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"provenance[{k!r}] contains non-JSON-serializable value: {exc}"
+                ) from exc
+            # Must be a 64-char lowercase hex string.
+            if not isinstance(v, str) or not _HEX64_RE.match(v):
+                continue
+            out[k] = v
 
     if not out:
         return None

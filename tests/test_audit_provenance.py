@@ -50,6 +50,13 @@ def _make_artifact(provenance=None) -> dict:
     )
 
 
+def _inject_provenance(provenance_value) -> dict:
+    """Build a schema-valid artifact then directly set provenance, bypassing normalization."""
+    artifact = _make_artifact()
+    artifact["provenance"] = provenance_value
+    return artifact
+
+
 def test_provenance_absent_emits_null():
     """Default: no provenance kwarg → artifact has "provenance": None."""
     artifact = generate_audit_artifact(
@@ -166,35 +173,68 @@ def test_artifact_with_null_provenance_validates(audit_schema: dict):
 
 
 def test_schema_rejects_empty_source_ids(audit_schema: dict):
-    """provenance.source_ids: [] violates minItems: 1."""
+    """The schema itself rejects provenance.source_ids: [] (minItems: 1)."""
     from jsonschema import validate, ValidationError
-    artifact = _make_artifact(provenance={"source_ids": []})
+    artifact = _inject_provenance({"source_ids": []})
     with pytest.raises(ValidationError):
         validate(instance=artifact, schema=audit_schema)
 
 
 def test_schema_rejects_empty_checksums(audit_schema: dict):
-    """provenance.derived_from_audit_checksums: [] violates minItems: 1."""
+    """The schema itself rejects derived_from_audit_checksums: [] (minItems: 1)."""
     from jsonschema import validate, ValidationError
-    artifact = _make_artifact(provenance={"derived_from_audit_checksums": []})
+    artifact = _inject_provenance({"derived_from_audit_checksums": []})
     with pytest.raises(ValidationError):
         validate(instance=artifact, schema=audit_schema)
 
 
 def test_schema_rejects_bad_checksum_pattern(audit_schema: dict):
-    """Non-hex entry in checksums array fails SHA-256 pattern."""
+    """The schema itself rejects non-hex64 entries in checksums."""
     from jsonschema import validate, ValidationError
-    artifact = _make_artifact(provenance={
-        "derived_from_audit_checksums": ["not-a-sha256-hash"]
-    })
+    artifact = _inject_provenance({"derived_from_audit_checksums": ["not-a-sha256-hash"]})
     with pytest.raises(ValidationError):
         validate(instance=artifact, schema=audit_schema)
 
 
 def test_schema_rejects_bad_compilation_hash(audit_schema: dict):
-    """compilation_source_hash with non-hex value fails SHA-256 pattern."""
+    """The schema itself rejects a non-hex64 compilation_source_hash."""
     from jsonschema import validate, ValidationError
-    artifact = _make_artifact(provenance={"compilation_source_hash": "not-a-sha256"})
+    artifact = _inject_provenance({"compilation_source_hash": "not-a-sha256"})
+    with pytest.raises(ValidationError):
+        validate(instance=artifact, schema=audit_schema)
+
+
+def test_schema_rejects_duplicate_source_ids(audit_schema: dict):
+    """The schema itself rejects duplicate source_ids (uniqueItems: true)."""
+    from jsonschema import validate, ValidationError
+    artifact = _inject_provenance({"source_ids": ["a", "a"]})
+    with pytest.raises(ValidationError):
+        validate(instance=artifact, schema=audit_schema)
+
+
+def test_schema_rejects_duplicate_checksums(audit_schema: dict):
+    """The schema itself rejects duplicate checksums (uniqueItems: true)."""
+    from jsonschema import validate, ValidationError
+    valid = "d" * 64
+    artifact = _inject_provenance({"derived_from_audit_checksums": [valid, valid]})
+    with pytest.raises(ValidationError):
+        validate(instance=artifact, schema=audit_schema)
+
+
+def test_schema_rejects_too_many_source_ids(audit_schema: dict):
+    """The schema itself rejects source_ids lists longer than 1000 items."""
+    from jsonschema import validate, ValidationError
+    big_list = [f"id-{i}" for i in range(1001)]
+    artifact = _inject_provenance({"source_ids": big_list})
+    with pytest.raises(ValidationError):
+        validate(instance=artifact, schema=audit_schema)
+
+
+def test_schema_rejects_too_many_checksums(audit_schema: dict):
+    """The schema itself rejects checksum lists longer than 1000 items."""
+    from jsonschema import validate, ValidationError
+    big_list = [f"{i:064x}" for i in range(1001)]
+    artifact = _inject_provenance({"derived_from_audit_checksums": big_list})
     with pytest.raises(ValidationError):
         validate(instance=artifact, schema=audit_schema)
 
@@ -209,3 +249,107 @@ def test_nan_in_provenance_raises_value_error():
     from math import nan
     with pytest.raises(ValueError, match="non-JSON-serializable"):
         _make_artifact(provenance={"source_ids": [nan]})
+
+
+# ── Normalizer item-level hardening ──────────────────────────────────────────
+
+def test_normalizer_drops_empty_source_ids():
+    """source_ids: [] → empty after no-op filter → provenance: null."""
+    assert _make_artifact(provenance={"source_ids": []})["provenance"] is None
+
+
+def test_normalizer_drops_all_nonstring_source_ids():
+    """source_ids: [123] → non-string filtered → provenance: null."""
+    assert _make_artifact(provenance={"source_ids": [123]})["provenance"] is None
+
+
+def test_normalizer_filters_mixed_source_ids():
+    """source_ids with mixed valid/invalid → only non-empty strings kept."""
+    artifact = _make_artifact(provenance={"source_ids": [123, "valid", "", "also-valid"]})
+    assert artifact["provenance"] == {"source_ids": ["valid", "also-valid"]}
+
+
+def test_normalizer_drops_empty_string_source_ids():
+    """source_ids: [""] → minLength:1 filtering → provenance: null."""
+    assert _make_artifact(provenance={"source_ids": [""]})["provenance"] is None
+
+
+def test_normalizer_deduplicates_source_ids():
+    """Duplicate source_ids entries → first occurrence kept."""
+    artifact = _make_artifact(provenance={"source_ids": ["a", "b", "a"]})
+    assert artifact["provenance"] == {"source_ids": ["a", "b"]}
+
+
+def test_normalizer_drops_empty_checksums():
+    """derived_from_audit_checksums: [] → provenance: null."""
+    assert _make_artifact(provenance={"derived_from_audit_checksums": []})["provenance"] is None
+
+
+def test_normalizer_filters_invalid_checksum_patterns():
+    """Non-hex64 checksum items filtered; field dropped when none remain."""
+    assert _make_artifact(
+        provenance={"derived_from_audit_checksums": ["not-a-hash"]}
+    )["provenance"] is None
+
+
+def test_normalizer_keeps_valid_checksums():
+    """Valid hex64 checksums pass through unchanged."""
+    valid = "a" * 64
+    artifact = _make_artifact(provenance={"derived_from_audit_checksums": [valid]})
+    assert artifact["provenance"] == {"derived_from_audit_checksums": [valid]}
+
+
+def test_normalizer_deduplicates_checksums():
+    """Duplicate hex64 checksums → first occurrence kept."""
+    valid = "b" * 64
+    artifact = _make_artifact(provenance={"derived_from_audit_checksums": [valid, valid]})
+    assert artifact["provenance"] == {"derived_from_audit_checksums": [valid]}
+
+
+def test_normalizer_drops_nonstring_compilation_hash():
+    """compilation_source_hash: 123 → not a string → provenance: null."""
+    assert _make_artifact(provenance={"compilation_source_hash": 123})["provenance"] is None
+
+
+def test_normalizer_drops_invalid_compilation_hash_pattern():
+    """compilation_source_hash: 'bad' → fails hex64 pattern → provenance: null."""
+    assert _make_artifact(provenance={"compilation_source_hash": "not-hex64"})["provenance"] is None
+
+
+def test_normalizer_valid_compilation_hash_passes():
+    """Valid 64-char lowercase hex compilation_source_hash passes through."""
+    valid = "c" * 64
+    artifact = _make_artifact(provenance={"compilation_source_hash": valid})
+    assert artifact["provenance"] == {"compilation_source_hash": valid}
+
+
+def test_normalizer_truncates_source_ids_at_max_items():
+    """source_ids with 1001 valid items → truncated to 1000."""
+    big_list = [f"id-{i}" for i in range(1001)]
+    artifact = _make_artifact(provenance={"source_ids": big_list})
+    assert len(artifact["provenance"]["source_ids"]) == 1000
+    assert artifact["provenance"]["source_ids"][0] == "id-0"
+    assert artifact["provenance"]["source_ids"][-1] == "id-999"
+
+
+def test_normalizer_truncates_checksums_at_max_items():
+    """checksums with 1001 valid unique entries → truncated to 1000."""
+    big_list = [f"{i:064x}" for i in range(1001)]
+    artifact = _make_artifact(provenance={"derived_from_audit_checksums": big_list})
+    assert len(artifact["provenance"]["derived_from_audit_checksums"]) == 1000
+    assert artifact["provenance"]["derived_from_audit_checksums"][0] == f"{0:064x}"
+    assert artifact["provenance"]["derived_from_audit_checksums"][-1] == f"{999:064x}"
+
+
+def test_non_json_serializable_compilation_hash_still_raises():
+    """Non-serializable compilation_source_hash still raises ValueError."""
+    with pytest.raises(ValueError, match="non-JSON-serializable"):
+        _make_artifact(provenance={"compilation_source_hash": {"not-a-string-but-a-set"}})
+
+
+def test_normalizer_empty_source_ids_artifact_is_schema_valid(audit_schema):
+    """After hardening: source_ids=[] → provenance=null → artifact passes schema."""
+    from jsonschema import validate
+    artifact = _make_artifact(provenance={"source_ids": []})
+    assert artifact["provenance"] is None
+    validate(instance=artifact, schema=audit_schema)  # must not raise

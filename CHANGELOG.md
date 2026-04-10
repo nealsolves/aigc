@@ -34,6 +34,18 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   every emitted audit artifact, enabling `AuditLineage` cross-invocation
   traversal.
 
+### Fixed
+
+- `_normalize_provenance` now drops schema-invalid item-level provenance values
+  before artifact emission: empty lists, non-string/empty-string array items,
+  invalid hex64 patterns, and duplicate items are silently pruned; lists over
+  1000 items are truncated with a `WARNING` log. A list field that becomes empty
+  after pruning is omitted, and if no provenance fields remain the emitted value
+  is `null`. Non-JSON-serializable values (NaN, sets) continue to raise
+  `ValueError`. Previously, inputs such as `source_ids: []` or
+  `compilation_source_hash: <non-hex>` produced artifacts that failed
+  `audit_artifact.schema.json` validation.
+
 ### Planned
 
 - Workflow-aware governance groundwork: ADR-0010 accepted, release contract

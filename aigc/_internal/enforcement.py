@@ -906,6 +906,15 @@ def _run_phase_b(
                     ),
                 }
             ]
+            # For CustomGateViolationError, surface the individual gate
+            # failures (with their specific codes) instead of the synthetic
+            # wrapper, so callers can inspect per-gate failure codes.
+            if (
+                isinstance(exc, CustomGateViolationError)
+                and isinstance(exc.details, dict)
+                and exc.details.get("custom_gate_failures")
+            ):
+                failures = list(exc.details["custom_gate_failures"])
 
         if enforcement_mode == "unified":
             fail_metadata: dict[str, Any] = {

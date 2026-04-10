@@ -926,11 +926,19 @@ def _run_phase_b(
                 and isinstance(exc.details, dict)
                 and exc.details.get("custom_gate_failures")
             ):
-                # Gate failure messages are required to be static strings that
-                # do not echo user input.  They bypass sanitize_failure_message
-                # here, so any gate that includes dynamic/user-derived content
-                # in its failure message would leak it to the audit artifact.
-                failures = list(exc.details["custom_gate_failures"])
+                # Sanitize each gate failure message for PII/secrets before
+                # surfacing — custom gates may inadvertently echo user input.
+                sanitized_gate_failures = []
+                for gf in exc.details["custom_gate_failures"]:
+                    gf_msg = str(gf.get("message", ""))
+                    sanitized_gf_msg, gf_redacted = sanitize_failure_message(
+                        gf_msg, redaction_patterns,
+                    )
+                    for r in gf_redacted:
+                        if r not in redacted_fields:
+                            redacted_fields.append(r)
+                    sanitized_gate_failures.append({**gf, "message": sanitized_gf_msg})
+                failures = sanitized_gate_failures
 
         if enforcement_mode == "unified":
             fail_metadata: dict[str, Any] = {

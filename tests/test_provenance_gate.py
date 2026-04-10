@@ -270,6 +270,69 @@ def test_phase_b_fail_artifact_carries_provenance():
     assert artifact["provenance"]["source_ids"] == ["doc-a"]
 
 
+# ── Bug regression: source_ids item validation ────────────────────
+
+
+def test_fails_source_ids_contains_integer():
+    """[123] passes list/non-empty check but must fail — items must be strings."""
+    gate = ProvenanceGate()
+    result = gate.evaluate(_inv(provenance={"source_ids": [123]}), {}, {})
+    assert result.passed is False
+    assert result.failures[0]["code"] == SOURCE_IDS_MISSING
+
+
+def test_fails_source_ids_contains_none():
+    """[None] passes list/non-empty check but must fail — items must be strings."""
+    gate = ProvenanceGate()
+    result = gate.evaluate(_inv(provenance={"source_ids": [None]}), {}, {})
+    assert result.passed is False
+    assert result.failures[0]["code"] == SOURCE_IDS_MISSING
+
+
+def test_fails_source_ids_contains_empty_string():
+    """[""] passes list/non-empty check but must fail — minLength 1 in schema."""
+    gate = ProvenanceGate()
+    result = gate.evaluate(_inv(provenance={"source_ids": [""]}), {}, {})
+    assert result.passed is False
+    assert result.failures[0]["code"] == SOURCE_IDS_MISSING
+
+
+# ── Bug regression: custom gate failure message redaction ─────────
+
+
+def test_custom_gate_failure_messages_are_redacted():
+    """Gate failure messages must be sanitized before entering artifact failures.
+
+    Any gate that echoes user input (PII, secrets) in its failure message must
+    not leak that content into the emitted audit artifact.
+    """
+    from aigc._internal.gates import EnforcementGate, GateResult, INSERTION_PRE_OUTPUT as IPO
+
+    class LeakyGate(EnforcementGate):
+        @property
+        def name(self):
+            return "leaky_gate"
+
+        @property
+        def insertion_point(self):
+            return IPO
+
+        def evaluate(self, invocation, policy, context):
+            prompt = invocation.get("input", {}).get("prompt", "")
+            return GateResult(
+                passed=False,
+                failures=[{"code": "LEAKY", "message": f"rejected: {prompt}", "field": None}],
+            )
+
+    aigc_instance = AIGC(custom_gates=[LeakyGate()])
+    pii_inv = {**_inv(), "input": {"prompt": "contact user@example.com please"}}
+    with pytest.raises(CustomGateViolationError) as exc_info:
+        aigc_instance.enforce(pii_inv)
+    artifact = exc_info.value.audit_artifact
+    assert "user@example.com" not in artifact["failures"][0]["message"]
+    assert "[REDACTED:email]" in artifact["failures"][0]["message"]
+
+
 # ── Public API ────────────────────────────────────────────────────
 
 

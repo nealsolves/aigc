@@ -103,4 +103,18 @@ class ProvenanceGate(EnforcementGate):
                 }],
             )
 
+        # All entries must be non-empty strings (schema: type string, minLength 1)
+        if not all(isinstance(sid, str) and sid for sid in source_ids):
+            return GateResult(
+                passed=False,
+                failures=[{
+                    "code": SOURCE_IDS_MISSING,
+                    "message": (
+                        "ProvenanceGate: source_ids must contain only non-empty strings; "
+                        "output requires at least one valid source identifier"
+                    ),
+                    "field": "context.provenance.source_ids",
+                }],
+            )
+
         return GateResult(passed=True)

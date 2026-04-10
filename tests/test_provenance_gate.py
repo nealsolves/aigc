@@ -250,3 +250,21 @@ def test_split_fn_fail_artifact_carries_provenance():
     artifact = emit_split_fn_failure_artifact(pre, RuntimeError("wrapped fn failed"))
     assert artifact["provenance"] is not None
     assert artifact["provenance"]["source_ids"] == ["doc-a"]
+
+
+def test_phase_b_fail_artifact_carries_provenance():
+    """Phase B FAIL artifact must include provenance (enforce_post_call path).
+
+    Exercises _run_phase_b FAIL block (site 3 in Task 2).
+    enforce_pre_call succeeds, then enforce_post_call fails schema validation
+    because the output is missing the required 'confidence' field.
+    """
+    from aigc import enforce_pre_call, enforce_post_call
+    from aigc._internal.errors import SchemaValidationError
+    pre = enforce_pre_call(_inv(provenance={"source_ids": ["doc-a"]}))
+    with pytest.raises(SchemaValidationError) as exc_info:
+        enforce_post_call(pre, {"result": "ok"})  # missing required 'confidence'
+    artifact = exc_info.value.audit_artifact
+    assert artifact["enforcement_result"] == "FAIL"
+    assert artifact["provenance"] is not None
+    assert artifact["provenance"]["source_ids"] == ["doc-a"]

@@ -14,7 +14,7 @@ def test_list_scenarios():
     r = client.get("/api/scenarios")
     assert r.status_code == 200
     keys = r.json()["scenarios"]
-    assert len(keys) == 17
+    assert len(keys) == 20
     assert set(keys) == {
         "low_risk_faq", "medium_risk_medical", "high_risk_drug_interaction",
         "split_precall_block",
@@ -23,6 +23,7 @@ def test_list_scenarios():
         "gate_allowed_domain", "gate_untrusted_domain",
         "gate_high_confidence", "gate_low_confidence", "gate_long_response",
         "gate_pii_present", "gate_clean_output",
+        "kb_sourced_pass", "kb_unsourced_fail", "kb_multi_source_pass",
     }
 
 

@@ -1,15 +1,15 @@
 import { helpContent } from './helpContent'
 
 describe('helpContent', () => {
-  it('has an architecture entry and entries for all 7 labs', () => {
+  it('has an architecture entry and entries for all 10 labs', () => {
     expect(helpContent[0]).toBeDefined()
-    for (let i = 1; i <= 7; i++) {
+    for (let i = 1; i <= 10; i++) {
       expect(helpContent[i]).toBeDefined()
     }
   })
 
   it('every guide has a non-empty title, overview, whyItMatters, and takeaway', () => {
-    for (let i = 0; i <= 7; i++) {
+    for (let i = 0; i <= 10; i++) {
       expect(helpContent[i].title.length).toBeGreaterThan(0)
       expect(helpContent[i].overview.length).toBeGreaterThan(0)
       expect(helpContent[i].whyItMatters.length).toBeGreaterThan(0)
@@ -18,20 +18,20 @@ describe('helpContent', () => {
   })
 
   it('every guide has at least 3 steps', () => {
-    for (let i = 0; i <= 7; i++) {
+    for (let i = 0; i <= 10; i++) {
       expect(helpContent[i].steps.length).toBeGreaterThanOrEqual(3)
     }
   })
 
   it('every guide has framework sections for learning and navigation', () => {
-    for (let i = 0; i <= 7; i++) {
+    for (let i = 0; i <= 10; i++) {
       expect(helpContent[i].whatThisLabShows.length).toBeGreaterThanOrEqual(2)
       expect(helpContent[i].howToNavigate.length).toBeGreaterThanOrEqual(2)
     }
   })
 
   it('every step has a non-empty title and instruction', () => {
-    for (let i = 0; i <= 7; i++) {
+    for (let i = 0; i <= 10; i++) {
       for (const step of helpContent[i].steps) {
         expect(step.title.length).toBeGreaterThan(0)
         expect(step.instruction.length).toBeGreaterThan(0)

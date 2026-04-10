@@ -32,6 +32,12 @@ describe('HelpDrawer', () => {
 
     renderDrawer(true, vi.fn(), 7)
     expect(screen.getByText('Lab 7 — Compliance Dashboard')).toBeInTheDocument()
+
+    renderDrawer(true, vi.fn(), 8)
+    expect(screen.getByText('Lab 8 — Governed Knowledge Base')).toBeInTheDocument()
+
+    renderDrawer(true, vi.fn(), 10)
+    expect(screen.getByText('Lab 10 — Split Enforcement Explorer')).toBeInTheDocument()
   })
 
   it('shows at least one step title', () => {

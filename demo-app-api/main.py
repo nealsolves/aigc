@@ -25,7 +25,7 @@ from gates import GATES, get_gate_info
 from loaders import InMemoryPolicyLoader
 import yaml as yaml_lib
 
-app = FastAPI(title="AIGC Demo API", version="0.3.2")
+app = FastAPI(title="AIGC Demo API", version="0.3.3")
 
 app.add_middleware(
     CORSMiddleware,

@@ -11,17 +11,23 @@ import Lab4Composition from '@/labs/Lab4Composition'
 import Lab5Loaders from '@/labs/Lab5Loaders'
 import Lab6CustomGates from '@/labs/Lab6CustomGates'
 import Lab7Compliance from '@/labs/Lab7Compliance'
+import Lab8GovernedKnowledgeBase from '@/labs/Lab8GovernedKnowledgeBase'
+import Lab9GovernedVsUngoverned from '@/labs/Lab9GovernedVsUngoverned'
+import Lab10SplitEnforcementExplorer from '@/labs/Lab10SplitEnforcementExplorer'
 import HelpButton from '@/components/HelpButton'
 import HelpDrawer from '@/components/HelpDrawer'
 
 const LABS = [
-  { num: 1, title: 'Risk Scoring',  short: 'Risk' },
-  { num: 2, title: 'Signing',       short: 'Sign' },
-  { num: 3, title: 'Audit Chain',   short: 'Chain' },
-  { num: 4, title: 'Composition',   short: 'Compose' },
-  { num: 5, title: 'Loaders',       short: 'Loaders' },
-  { num: 6, title: 'Custom Gates',  short: 'Gates' },
-  { num: 7, title: 'Compliance',    short: 'Comply' },
+  { num: 1,  title: 'Risk Scoring',            short: 'Risk'    },
+  { num: 2,  title: 'Signing',                 short: 'Sign'    },
+  { num: 3,  title: 'Audit Chain',             short: 'Chain'   },
+  { num: 4,  title: 'Composition',             short: 'Compose' },
+  { num: 5,  title: 'Loaders',                 short: 'Loaders' },
+  { num: 6,  title: 'Custom Gates',            short: 'Gates'   },
+  { num: 7,  title: 'Compliance',              short: 'Comply'  },
+  { num: 8,  title: 'Knowledge Base',          short: 'KB'      },
+  { num: 9,  title: 'Governed vs Ungoverned',  short: 'Compare' },
+  { num: 10, title: 'Split Enforcement',       short: 'Split'   },
 ]
 
 function AppContent() {
@@ -48,6 +54,9 @@ function AppContent() {
         <Route path="/lab/5" element={<><LabHero labNum={5} title="Loaders & Versioning" /><Lab5Loaders /></>} />
         <Route path="/lab/6" element={<><LabHero labNum={6} title="Custom Gates" /><Lab6CustomGates /></>} />
         <Route path="/lab/7" element={<><LabHero labNum={7} title="Compliance Dashboard" /><Lab7Compliance /></>} />
+        <Route path="/lab/8"  element={<><LabHero labNum={8}  title="Governed Knowledge Base"   /><Lab8GovernedKnowledgeBase /></>} />
+        <Route path="/lab/9"  element={<><LabHero labNum={9}  title="Governed vs. Ungoverned"   /><Lab9GovernedVsUngoverned /></>} />
+        <Route path="/lab/10" element={<><LabHero labNum={10} title="Split Enforcement Explorer"/><Lab10SplitEnforcementExplorer /></>} />
       </Routes>
       <HelpButton isOpen={isHelpOpen} onOpen={handleOpen} />
       <HelpDrawer

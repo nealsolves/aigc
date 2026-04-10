@@ -241,10 +241,9 @@ What has shipped so far:
   emitted audit artifact
 - `RiskHistory` advisory utility — tracks risk scores over time, computes
   improving / stable / degrading trajectory (PR-06)
-
-Upcoming in this release:
-
-- `@governed` default flip to `pre_call_enforcement=True`
+- `@governed` defaults to `pre_call_enforcement=True` — split enforcement is the
+  standard execution model; legacy unified mode via `pre_call_enforcement=False`
+  remains available but emits `DeprecationWarning` (PR-07)
 
 ## How Documentation Is Organized
 

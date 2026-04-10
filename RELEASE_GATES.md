@@ -66,11 +66,11 @@ Checklist:
 
 ### PR-07 — Default Flip to Pre-Call Enforcement
 
-- [ ] `@governed` defaults to `pre_call_enforcement=True`
-- [ ] explicit `pre_call_enforcement=False` opt-out remains available
-- [ ] one artifact per invocation attempt is preserved
-- [ ] gate ordering is preserved
-- [ ] migration tests land with the change
+- [x] `@governed` defaults to `pre_call_enforcement=True`
+- [x] explicit `pre_call_enforcement=False` opt-out remains available
+- [x] one artifact per invocation attempt is preserved
+- [x] gate ordering is preserved
+- [x] migration tests land with the change
 
 ---
 
@@ -82,7 +82,7 @@ Workflow-aware SDK outcome:
 - [ ] lineage can be reconstructed across invocations
 - [ ] source-aware gating is available
 - [ ] graduated trust over time is available
-- [ ] pre-call governance is the default execution model
+- [x] pre-call governance is the default execution model
 
 Documentation parity targets:
 

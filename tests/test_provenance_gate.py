@@ -270,6 +270,70 @@ def test_phase_b_fail_artifact_carries_provenance():
     assert artifact["provenance"]["source_ids"] == ["doc-a"]
 
 
+# ── Bug regression: provenance normalization (Codex review findings) ──────────
+
+
+def test_tuple_source_ids_normalized_to_list_in_artifact():
+    """Tuple source_ids must be coerced to list so the emitted artifact is schema-valid.
+
+    jsonschema treats Python tuples as non-arrays. _normalize_provenance must
+    round-trip through JSON to ensure tuples become lists before the artifact
+    is written. PASS artifacts were previously rejected by schema validators
+    for this input.
+    """
+    import json
+    from pathlib import Path
+    from jsonschema import validate
+    schema = json.loads(Path("schemas/audit_artifact.schema.json").read_text())
+    aigc_instance = AIGC(custom_gates=[ProvenanceGate()])
+    audit = aigc_instance.enforce(_inv(provenance={"source_ids": ("doc-a",)}))
+    assert audit["enforcement_result"] == "PASS"
+    assert audit["provenance"]["source_ids"] == ["doc-a"]  # tuple coerced to list
+    validate(instance=audit, schema=schema)
+
+
+def test_scalar_checksums_dropped_not_forwarded():
+    """Scalar derived_from_audit_checksums must be dropped, not forwarded.
+
+    A string where a list is required would produce a schema-invalid artifact.
+    _normalize_provenance must drop the field silently rather than forward it.
+    """
+    aigc_instance = AIGC(custom_gates=[ProvenanceGate()])
+    audit = aigc_instance.enforce(_inv(provenance={
+        "source_ids": ["doc-a"],
+        "derived_from_audit_checksums": "bad-not-a-list",
+    }))
+    assert audit["provenance"]["source_ids"] == ["doc-a"]
+    assert "derived_from_audit_checksums" not in audit["provenance"]
+
+
+def test_unknown_provenance_keys_dropped():
+    """Unknown provenance keys must be dropped; schema has additionalProperties: false."""
+    aigc_instance = AIGC(custom_gates=[ProvenanceGate()])
+    audit = aigc_instance.enforce(_inv(provenance={
+        "source_ids": ["doc-a"],
+        "unexpected_field": "should-be-dropped",
+    }))
+    assert "unexpected_field" not in audit["provenance"]
+
+
+def test_full_provenance_pass_artifact_schema_validates():
+    """PASS artifact with all three provenance fields must validate against schema v1.4."""
+    import json
+    from pathlib import Path
+    from jsonschema import validate
+    schema = json.loads(Path("schemas/audit_artifact.schema.json").read_text())
+    checksum_a = "a" * 64
+    checksum_b = "b" * 64
+    aigc_instance = AIGC(custom_gates=[ProvenanceGate()])
+    audit = aigc_instance.enforce(_inv(provenance={
+        "source_ids": ["doc-a"],
+        "derived_from_audit_checksums": [checksum_a],
+        "compilation_source_hash": checksum_b,
+    }))
+    validate(instance=audit, schema=schema)
+
+
 # ── Bug regression: source_ids item validation ────────────────────
 
 

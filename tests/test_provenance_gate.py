@@ -153,3 +153,100 @@ def test_aigc_with_provenance_gate_fails_source_ids_missing():
         aigc.enforce(_inv(provenance={"compilation_source_hash": "abc"}))
     artifact = exc_info.value.audit_artifact
     assert any(f["code"] == SOURCE_IDS_MISSING for f in artifact["failures"])
+
+
+# ── Audit artifact provenance propagation ─────────────────────────
+
+
+def test_pass_artifact_carries_provenance():
+    """PASS artifact must include provenance from invocation context."""
+    aigc = AIGC(custom_gates=[ProvenanceGate()])
+    audit = aigc.enforce(_inv(provenance={"source_ids": ["doc-a"]}))
+    assert audit["provenance"] is not None
+    assert audit["provenance"]["source_ids"] == ["doc-a"]
+
+
+def test_fail_artifact_carries_provenance():
+    """FAIL artifact must include provenance from invocation context."""
+    aigc = AIGC(custom_gates=[])  # no gate so enforcement passes; need a policy fail
+    # Use a bad role to trigger a role_validation FAIL
+    bad_inv = _inv(provenance={"source_ids": ["doc-a"]})
+    bad_inv = {**bad_inv, "role": "nonexistent_role_xyz"}
+    from aigc._internal.errors import GovernanceViolationError
+    with pytest.raises(GovernanceViolationError) as exc_info:
+        aigc.enforce(bad_inv)
+    artifact = exc_info.value.audit_artifact
+    assert artifact["provenance"] is not None
+    assert artifact["provenance"]["source_ids"] == ["doc-a"]
+
+
+def test_scalar_provenance_sanitized_to_none_in_artifact():
+    """Scalar context.provenance must not crash artifact generation; emits null.
+
+    ProvenanceGate(require_source_ids=False) lets scalar provenance pass the gate,
+    but the artifact propagation step must sanitize it before passing to
+    _normalize_provenance() (which calls .items() and would crash on a string).
+    """
+    aigc = AIGC(custom_gates=[ProvenanceGate(require_source_ids=False)])
+    audit = aigc.enforce(_inv(provenance="bad-scalar"))
+    assert audit["enforcement_result"] == "PASS"
+    assert audit["provenance"] is None
+
+
+def test_phase_a_split_fail_artifact_carries_provenance():
+    """Phase A split-mode FAIL artifact must include provenance.
+
+    Exercises _build_phase_a_mid_pipeline_fail_artifact() at line ~571.
+    A bad role that passes policy loading but fails role validation triggers
+    this path via enforce_pre_call().
+    """
+    from aigc import enforce_pre_call
+    from aigc._internal.errors import GovernanceViolationError
+    inv = {
+        **_BASE,
+        "role": "nonexistent_role_xyz",
+        "context": {"role_declared": True, "schema_exists": True,
+                    "provenance": {"source_ids": ["doc-a"]}},
+    }
+    with pytest.raises(GovernanceViolationError) as exc_info:
+        enforce_pre_call(inv)
+    artifact = exc_info.value.audit_artifact
+    assert artifact["provenance"] is not None
+    assert artifact["provenance"]["source_ids"] == ["doc-a"]
+
+
+def test_pre_pipeline_fail_artifact_carries_provenance():
+    """Pre-pipeline FAIL artifact must include provenance.
+
+    Exercises _generate_pre_pipeline_fail_artifact() at line ~2128.
+    A non-existent policy file triggers a PolicyLoadError before the
+    enforcement pipeline runs.
+    """
+    from aigc import enforce_invocation
+    from aigc import PolicyLoadError
+    inv = {
+        **_BASE,
+        "policy_file": "nonexistent/path/policy.yaml",
+        "context": {"role_declared": True, "schema_exists": True,
+                    "provenance": {"source_ids": ["doc-a"]}},
+    }
+    with pytest.raises(PolicyLoadError) as exc_info:
+        enforce_invocation(inv)
+    artifact = exc_info.value.audit_artifact
+    assert artifact["provenance"] is not None
+    assert artifact["provenance"]["source_ids"] == ["doc-a"]
+
+
+def test_split_fn_fail_artifact_carries_provenance():
+    """emit_split_fn_failure_artifact must include provenance from Phase A snapshot.
+
+    Exercises emit_split_fn_failure_artifact() at line ~2173.
+    Called directly after a successful enforce_pre_call() with provenance.
+    """
+    from aigc._internal.enforcement import emit_split_fn_failure_artifact
+    from aigc import enforce_pre_call
+    inv = _inv(provenance={"source_ids": ["doc-a"]})
+    pre = enforce_pre_call(inv)
+    artifact = emit_split_fn_failure_artifact(pre, RuntimeError("wrapped fn failed"))
+    assert artifact["provenance"] is not None
+    assert artifact["provenance"]["source_ids"] == ["doc-a"]

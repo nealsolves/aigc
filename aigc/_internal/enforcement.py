@@ -568,6 +568,9 @@ def _build_phase_a_mid_pipeline_fail_artifact(
         "redacted_fields": redacted_fields,
     }
 
+    _ctx_prov = (safe_inv.get("context") or {}).get("provenance")
+    _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
     return generate_audit_artifact(
         safe_inv,
         policy,
@@ -576,6 +579,7 @@ def _build_phase_a_mid_pipeline_fail_artifact(
         failure_gate=failure_gate,
         failure_reason=failure_reason,
         metadata=fail_metadata,
+        provenance=_provenance,
     )
 
 
@@ -842,6 +846,13 @@ def _run_phase_b(
         if risk_result is not None:
             metadata["risk_scoring"] = risk_result.to_dict()
 
+        # Extract caller-supplied provenance from invocation context so it
+        # flows into the audit artifact and is available to AuditLineage.
+        # Guard: scalar provenance (e.g. from ProvenanceGate migration stubs)
+        # must not reach _normalize_provenance() which calls .items().
+        _ctx_prov = (invocation.get("context") or {}).get("provenance")
+        _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
         audit_record = generate_audit_artifact(
             invocation,
             policy,
@@ -850,6 +861,7 @@ def _run_phase_b(
             risk_score=(
                 risk_result.score if risk_result is not None else None
             ),
+            provenance=_provenance,
         )
 
         # Sign artifact if signer is configured
@@ -942,6 +954,9 @@ def _run_phase_b(
         ):
             fail_metadata["risk_scoring"] = exc.details
 
+        _ctx_prov = (invocation.get("context") or {}).get("provenance")
+        _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
         audit_record = generate_audit_artifact(
             invocation,
             policy,
@@ -950,6 +965,7 @@ def _run_phase_b(
             failure_gate=failure_gate,
             failure_reason=failure_reason,
             metadata=fail_metadata,
+            provenance=_provenance,
         )
 
         # Sign FAIL artifacts too
@@ -1089,6 +1105,9 @@ def _run_pipeline(
             ):
                 fail_metadata["risk_scoring"] = exc.details
 
+            _ctx_prov = (invocation.get("context") or {}).get("provenance")
+            _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
             audit_record = generate_audit_artifact(
                 invocation,
                 policy,
@@ -1097,6 +1116,7 @@ def _run_pipeline(
                 failure_gate=failure_gate,
                 failure_reason=failure_reason,
                 metadata=fail_metadata,
+                provenance=_provenance,
             )
             if signer is not None:
                 sign_artifact(audit_record, signer)
@@ -2138,6 +2158,9 @@ def _generate_pre_pipeline_fail_artifact(
         }
     ]
 
+    _ctx_prov = (safe_invocation.get("context") or {}).get("provenance")
+    _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
     return generate_audit_artifact(
         safe_invocation,
         {},  # no policy loaded yet
@@ -2150,6 +2173,7 @@ def _generate_pre_pipeline_fail_artifact(
             "redacted_fields": list(reason_redacted),
             "pre_pipeline_failure": True,
         },
+        provenance=_provenance,
     )
 
 
@@ -2183,6 +2207,9 @@ def emit_split_fn_failure_artifact(
         }
     ]
 
+    _ctx_prov = (inv_snap.get("context") or {}).get("provenance")
+    _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
     artifact = generate_audit_artifact(
         inv_snap,
         policy,
@@ -2196,6 +2223,7 @@ def emit_split_fn_failure_artifact(
                 "gates_evaluated", []
             ),
         },
+        provenance=_provenance,
     )
 
     try:

@@ -239,10 +239,11 @@ What has shipped so far:
 - `ProvenanceGate`: built-in gate for source-aware enforcement; blocks output
   when `context.provenance.source_ids` is absent; provenance flows into every
   emitted audit artifact
+- `RiskHistory` advisory utility — tracks risk scores over time, computes
+  improving / stable / degrading trajectory (PR-06)
 
 Upcoming in this release:
 
-- `RiskHistory` advisory utility for trust tracking over time
 - `@governed` default flip to `pre_call_enforcement=True`
 
 ## How Documentation Is Organized

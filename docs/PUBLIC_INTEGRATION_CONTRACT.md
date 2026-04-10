@@ -935,7 +935,40 @@ without a stored checksum, falls back to `sha256(canonical_json_bytes(artifact))
 
 ---
 
-### 3.18 Planned extension points (not yet available)
+### 3.18 RiskHistory (v0.3.3+)
+
+`RiskHistory` tracks risk scores over time for a named entity and exposes a
+`trajectory()` signal — advisory only, does not affect enforcement.
+
+```python
+from aigc import RiskHistory, compute_risk_score
+
+history = RiskHistory("planner:summarize")
+
+for invocation in batch:
+    risk = compute_risk_score(invocation, policy, risk_config=risk_cfg)
+    history.record(risk)          # accepts RiskScore or float
+
+if len(history.scores) >= 2:
+    print(history.trajectory())   # "improving" | "stable" | "degrading"
+    print(history.latest)         # most recent score
+    print(history.scores)         # (score0, score1, ...) oldest-first tuple
+```
+
+**Trajectory classification** is based on first-vs-last delta vs. a configurable
+`stability_band` (default `0.05`):
+
+| Return value | Condition |
+| ------------ | --------- |
+| `"improving"` | latest − first < −stability_band |
+| `"stable"` | \|latest − first\| ≤ stability_band |
+| `"degrading"` | latest − first > stability_band |
+
+Custom band: `RiskHistory("my-agent", stability_band=0.10)`
+
+---
+
+### 3.19 Planned extension points (not yet available)
 
 The following extension mechanisms appear in architecture documentation but are **not yet
 implemented** in the current SDK. Do not attempt to import them:

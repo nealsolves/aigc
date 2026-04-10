@@ -54,6 +54,12 @@ from aigc.gates import (
 from aigc.audit_chain import AuditChain, verify_chain
 from aigc.lineage import AuditLineage
 from aigc.provenance_gate import ProvenanceGate
+from aigc.risk_history import (
+    RiskHistory,
+    TRAJECTORY_DEGRADING,
+    TRAJECTORY_IMPROVING,
+    TRAJECTORY_STABLE,
+)
 from aigc.policy_loader import (
     PolicyLoaderBase,
     FilePolicyLoader,
@@ -126,10 +132,14 @@ __all__ = [
     "RISK_MODE_STRICT",
     "RISK_MODE_WARN_ONLY",
     "RetryExhaustedError",
+    "RiskHistory",
     "RiskScore",
     "RiskThresholdError",
     "SchemaValidationError",
     "ToolConstraintViolationError",
+    "TRAJECTORY_DEGRADING",
+    "TRAJECTORY_IMPROVING",
+    "TRAJECTORY_STABLE",
     "compute_risk_score",
     "enforce_invocation",
     "enforce_invocation_async",

@@ -511,7 +511,63 @@ always holds.
 
 ---
 
-## 12. Compliance Checklist
+## 12. RiskHistory — Risk Score Trends Over Time
+
+`RiskHistory` is an **advisory utility** for tracking risk score trends across
+successive invocations of a named entity (workflow, session, or policy+role
+pair). It does **not** modify enforcement — it exposes graduated trust signals.
+
+### Trajectory states
+
+| State | Meaning |
+|-------|---------|
+| `"improving"` | Latest score is meaningfully lower than the earliest |
+| `"stable"` | Change is within `stability_band` (default `0.05`) |
+| `"degrading"` | Latest score is meaningfully higher than the earliest |
+
+### Basic usage
+
+```python
+from aigc import RiskHistory
+
+history = RiskHistory("planner-workflow")
+history.record(0.72)
+history.record(0.58)
+history.record(0.41)
+
+# trajectory() raises ValueError if fewer than 2 scores recorded
+print(history.trajectory())  # "improving"
+print(history.latest)        # 0.41
+print(history.scores)        # (0.72, 0.58, 0.41)
+```
+
+### Integration with `compute_risk_score`
+
+```python
+from aigc import RiskHistory, compute_risk_score
+
+history = RiskHistory("planner:summarize")
+
+for invocation in batch:
+    risk = compute_risk_score(invocation, policy, risk_config=risk_cfg)
+    history.record(risk)          # accepts RiskScore directly
+
+if len(history.scores) >= 2:
+    trajectory = history.trajectory()
+    if trajectory == "degrading":
+        alert_ops(f"Risk trend degrading for {history.entity_id}")
+```
+
+### Custom stability band
+
+```python
+# Require a 10% change before leaving "stable"
+history = RiskHistory("my-agent", stability_band=0.10)
+```
+
+---
+
+## 13. Compliance Checklist
 
 An integration is AIGC-compliant when:
 

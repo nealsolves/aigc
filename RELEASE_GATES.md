@@ -59,10 +59,10 @@ Checklist:
 
 ### PR-06 — `RiskHistory`
 
-- [ ] risk history can record scores over time
-- [ ] trajectory computation is covered for improving paths
-- [ ] trajectory computation is covered for stable paths
-- [ ] trajectory computation is covered for degrading paths
+- [x] risk history can record scores over time
+- [x] trajectory computation is covered for improving paths
+- [x] trajectory computation is covered for stable paths
+- [x] trajectory computation is covered for degrading paths
 
 ### PR-07 — Default Flip to Pre-Call Enforcement
 

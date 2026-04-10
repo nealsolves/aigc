@@ -33,6 +33,11 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   enforcement methods now forward `invocation["context"]["provenance"]` into
   every emitted audit artifact, enabling `AuditLineage` cross-invocation
   traversal.
+- `RiskHistory` advisory utility (`aigc.RiskHistory`): records risk scores
+  over time for a named entity and classifies the trend as `"improving"`,
+  `"stable"`, or `"degrading"` via `trajectory()`. Exports
+  `TRAJECTORY_IMPROVING`, `TRAJECTORY_STABLE`, `TRAJECTORY_DEGRADING`
+  constants.
 
 ### Fixed
 
@@ -49,9 +54,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Planned
 
 - Workflow-aware governance groundwork: ADR-0010 accepted, release contract
-  established, PR-01 through PR-05 complete.
-- Upcoming: `RiskHistory` and default flip to
-  `@governed(pre_call_enforcement=True)`.
+  established, PR-01 through PR-06 complete.
+- Upcoming: default flip to `@governed(pre_call_enforcement=True)`.
 
 ---
 

@@ -378,3 +378,22 @@ The report gains a `"lineage"` key with `total_nodes`, `duplicate_artifacts`,
 `root_count`, `leaf_count`, `orphan_count`, `has_cycle`, and checksum lists
 `roots`, `leaves`, `orphans`. `total_nodes == total_artifacts - duplicate_artifacts`
 always holds.
+
+## Recipe 12: Risk trend monitoring with `RiskHistory`
+
+```python
+from aigc import AIGC, RiskHistory
+
+aigc = AIGC()
+history = RiskHistory("summarizer-workflow")
+
+for invocation in workflow_invocations:
+    audit = aigc.enforce(invocation)
+    risk_score = audit.get("risk_score")
+    if risk_score is not None:
+        history.record(risk_score)
+
+if len(history.scores) >= 2:
+    print(f"Trajectory: {history.trajectory()}")
+    # "improving" | "stable" | "degrading"
+```

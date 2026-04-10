@@ -250,7 +250,9 @@ Use split mode when:
 - You want a clear boundary between "was the invocation authorized?" and
   "was the output valid?"
 
-Unified mode remains the default and requires no changes for existing integrations.
+Since v0.3.3, split mode is the default. Existing call sites that omit
+`pre_call_enforcement` will now run in split mode; see the decorator section
+below for migration notes.
 
 ### Invocation shape for `enforce_pre_call`
 
@@ -306,7 +308,7 @@ phase-A authorization from being reused across multiple model outputs.
 
 ### Decorator pattern
 
-For decorator-based call sites, opt in with `pre_call_enforcement=True`:
+Since v0.3.3, `@governed` uses split enforcement by default:
 
 ```python
 from aigc import governed
@@ -316,15 +318,27 @@ from aigc import governed
     role="planner",
     model_provider="anthropic",
     model_identifier="claude-sonnet-4-6",
-    pre_call_enforcement=True,
 )
 async def plan_investigation(input_data: dict, context: dict) -> dict:
     return await llm.generate(input_data)
 ```
 
 Phase A runs before the function body executes. If phase A fails, the function
-is never called. Phase B runs after the function returns. Without
-`pre_call_enforcement=True`, `@governed` behaves identically to previous releases.
+is never called. Phase B runs after the function returns.
+
+To use the legacy unified mode (deprecated):
+
+```python
+@governed(
+    policy_file="policies/planner.yaml",
+    role="planner",
+    model_provider="anthropic",
+    model_identifier="claude-sonnet-4-6",
+    pre_call_enforcement=False,  # deprecated; will be removed in a future release
+)
+async def plan_investigation(input_data: dict, context: dict) -> dict:
+    return await llm.generate(input_data)
+```
 
 ---
 

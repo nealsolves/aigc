@@ -7,7 +7,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased] — v0.3.3
+## [0.3.3] — 2026-04-10
 
 ### Added
 
@@ -38,6 +38,10 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `"stable"`, or `"degrading"` via `trajectory()`. Exports
   `TRAJECTORY_IMPROVING`, `TRAJECTORY_STABLE`, `TRAJECTORY_DEGRADING`
   constants.
+- Demo surface: Lab 8 (Governed Knowledge Base), Lab 9 (Governed vs. Ungoverned
+  comparison), and Lab 10 (Split Enforcement Explorer) added to the React + FastAPI
+  demo app. Labs demonstrate provenance forwarding, enforcement gap analysis, and
+  split enforcement visualization.
 
 ### Fixed
 
@@ -62,11 +66,6 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `pre_call_enforcement=True`. Call sites that rely on unified mode must add
   `pre_call_enforcement=False` explicitly — this opt-out remains functional but
   emits `DeprecationWarning` and will be removed in a future release.
-
-### Planned
-
-- Workflow-aware governance groundwork: ADR-0010 accepted, release contract
-  established, PR-01 through PR-07 complete.
 
 ---
 
@@ -345,7 +344,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-[Unreleased]: https://github.com/nealsolves/aigc/compare/v0.3.2...HEAD
+[0.3.3]: https://github.com/nealsolves/aigc/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/nealsolves/aigc/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/nealsolves/aigc/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/nealsolves/aigc/compare/v0.2.0...v0.3.0

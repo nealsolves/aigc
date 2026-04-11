@@ -288,9 +288,13 @@
   <rect class="inv-box" x="390" y="436" width="120" height="36" rx="4"/>
   <rect class="custom-box" x="532" y="436" width="108" height="36" rx="4"/>
   <rect class="risk-box" x="662" y="436" width="140" height="36" rx="4"/>
-  <rect class="ops-box" x="82" y="700" width="210" height="34" rx="4"/>
-  <rect class="ops-box" x="336" y="700" width="220" height="34" rx="4"/>
-  <rect class="legend-wrap" x="680" y="700" width="328" height="34" rx="4"/>
+  <rect class="custom-box" x="826" y="436" width="150" height="36" rx="4"/>
+  <rect class="ops-box" x="814" y="584" width="190" height="36" rx="4"/>
+  <rect class="ops-box" x="82" y="700" width="170" height="34" rx="4"/>
+  <rect class="ops-box" x="272" y="700" width="170" height="34" rx="4"/>
+  <rect class="ops-box" x="462" y="700" width="170" height="34" rx="4"/>
+  <rect class="ops-box" x="652" y="700" width="170" height="34" rx="4"/>
+  <rect class="legend-wrap" x="842" y="700" width="166" height="34" rx="4"/>
 
   <!-- Connectors -->
   <g id="connectors">
@@ -326,7 +330,11 @@
 
     <polyline class="conn-dim" points="165,526 165,514 600,514 600,518 612,518" marker-end="url(#arrow-dim)"/>
     <polyline class="conn-dim" points="707,560 604,560 604,656 187,656 187,717" marker-end="url(#arrow-dim)"/>
-    <polyline class="conn-dim" points="790,620 790,662 446,662 446,700" marker-end="url(#arrow-dim)"/>
+    <polyline class="conn-dim" points="172,436 172,418 901,418 901,436" marker-end="url(#arrow-dim)"/>
+    <line class="conn-dim" x1="802" y1="601" x2="814" y2="601" marker-end="url(#arrow-dim)"/>
+    <polyline class="conn-dim" points="790,620 790,662 547,662 547,700" marker-end="url(#arrow-dim)"/>
+    <polyline class="conn-dim" points="909,620 909,662 547,662 547,700" marker-end="url(#arrow-dim)"/>
+    <polyline class="conn-dim" points="732,560 732,662 737,662 737,700" marker-end="url(#arrow-dim)"/>
   </g>
 
   <!-- Labels -->
@@ -366,7 +374,7 @@
     <text class="tiny" x="870" y="277" text-anchor="middle">composition / restriction semantics</text>
 
     <text class="section-blue mono" x="88" y="334">DETERMINISTIC ENFORCEMENT CORE</text>
-    <text class="note" x="538" y="334" text-anchor="middle">split is the default; unified preserves the same ordered gates</text>
+    <text class="note" x="538" y="334" text-anchor="middle">split is the default; v0.3.3 also adds workflow provenance and trail analysis surfaces</text>
     <text class="group-label mono" x="88" y="348">PHASE A / PRE-CALL</text>
     <text class="group-label mono" x="88" y="428">PHASE B / POST-CALL</text>
     <text class="tiny" x="620" y="394" text-anchor="middle">model call boundary in split mode</text>
@@ -394,6 +402,8 @@
     <text class="purple-sub" x="586" y="464" text-anchor="middle">custom gates</text>
     <text class="green-mid" x="732" y="452" text-anchor="middle">Risk Scoring</text>
     <text class="green-detail" x="732" y="464" text-anchor="middle">strict / risk_scored / warn_only</text>
+    <text class="purple mono" x="901" y="452" text-anchor="middle">ProvenanceGate</text>
+    <text class="purple-sub" x="901" y="464" text-anchor="middle">built-in at pre_output</text>
 
     <text class="label-mid" x="165" y="542" text-anchor="middle">OpenTelemetry</text>
     <text class="detail" x="165" y="554" text-anchor="middle">spans + gate events / optional</text>
@@ -407,24 +417,30 @@
 
     <text class="label-mid" x="707" y="603" text-anchor="middle">AuditSink</text>
     <text class="detail" x="707" y="615" text-anchor="middle">JSONL / callback / custom</text>
+    <text class="label-mid" x="909" y="599" text-anchor="middle">Artifact Provenance</text>
+    <text class="detail mono" x="909" y="611" text-anchor="middle">source_ids / derived_from_audit_checksums</text>
+    <text class="tiny" x="909" y="621" text-anchor="middle">compilation_source_hash on PASS or FAIL artifacts</text>
 
     <text class="caption" x="96" y="584">artifact returned to caller</text>
     <text class="caption" x="240" y="666">optional chaining by host</text>
-    <text class="caption" x="564" y="670">stored audit trail</text>
+    <text class="caption" x="547" y="670">stored audit trail / offline lineage analysis</text>
+    <text class="caption" x="737" y="670">advisory score trends outside enforcement</text>
 
     <text class="section mono" x="68" y="686">OPERATIONAL UTILITIES</text>
     <text class="note" x="258" y="686">outside the enforcement pipeline</text>
-    <text class="label-mid mono" x="187" y="714" text-anchor="middle">AuditChain.append()</text>
-    <text class="detail" x="187" y="726" text-anchor="middle">opt-in / host-managed</text>
-    <text class="label-mid mono" x="446" y="714" text-anchor="middle">aigc compliance export</text>
-    <text class="detail" x="446" y="726" text-anchor="middle">reads stored audit trails</text>
+    <text class="label-mid mono" x="167" y="714" text-anchor="middle">AuditChain.append()</text>
+    <text class="detail" x="167" y="726" text-anchor="middle">opt-in / host-managed</text>
+    <text class="label-mid mono" x="357" y="714" text-anchor="middle">aigc compliance export</text>
+    <text class="detail" x="357" y="726" text-anchor="middle">reports + --lineage</text>
+    <text class="label-mid" x="547" y="714" text-anchor="middle">AuditLineage</text>
+    <text class="detail" x="547" y="726" text-anchor="middle">roots / leaves / ancestors / descendants</text>
+    <text class="label-mid" x="737" y="714" text-anchor="middle">RiskHistory</text>
+    <text class="detail" x="737" y="726" text-anchor="middle">improving / stable / degrading</text>
 
-    <line class="legend-purple" x1="700" y1="711" x2="716" y2="711"/>
-    <text class="detail" x="724" y="711">custom gate insertion point</text>
-    <line class="legend-dim" x1="865" y1="711" x2="890" y2="711"/>
-    <text class="detail" x="898" y="711">optional / host-managed</text>
-    <line class="legend-green" x1="700" y1="723" x2="716" y2="723"/>
-    <text class="detail" x="724" y="723">audit artifact boundary</text>
+    <line class="legend-purple" x1="854" y1="711" x2="870" y2="711"/>
+    <text class="detail" x="878" y="711">built-in / custom gate point</text>
+    <line class="legend-dim" x1="854" y1="723" x2="879" y2="723"/>
+    <text class="detail" x="887" y="723">optional / host-managed</text>
 
     <text class="watermark mono" x="550" y="790" text-anchor="middle">github.com/nealsolves/aigc / MIT License</text>
   </g>

@@ -30,9 +30,12 @@ describe('ArchitecturePage', () => {
     renderPage()
     expect(screen.getByText('Decorator Modes')).toBeInTheDocument()
     expect(screen.getByText('Phase A / Phase B')).toBeInTheDocument()
+    expect(screen.getAllByText('ProvenanceGate').length).toBeGreaterThan(0)
+    expect(screen.getByText('Artifact Provenance')).toBeInTheDocument()
     expect(screen.getByText('Audit Chain')).toBeInTheDocument()
-    expect(screen.getByText('Compliance Export')).toBeInTheDocument()
+    expect(screen.getByText('Lineage Analysis')).toBeInTheDocument()
     expect(screen.getByText('Pre-Pipeline Failures')).toBeInTheDocument()
+    expect(screen.getAllByText('RiskHistory').length).toBeGreaterThan(0)
     expect(screen.getByText('Async + Instance APIs')).toBeInTheDocument()
   })
 

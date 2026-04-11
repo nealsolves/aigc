@@ -593,3 +593,115 @@ An integration is AIGC-compliant when:
 - [ ] CI includes governance regression tests
 - [ ] Model outputs never directly mutate system state
 - [ ] Policy files are versioned and validated in CI
+
+---
+
+## Migration: `v0.3.2` → `v0.3.3`
+
+### `@governed` Default Flip — Action Required for Unified-Mode Callers
+
+In `v0.3.3`, `@governed` defaults to `pre_call_enforcement=True` (split enforcement).
+Previously the default was `False` (unified mode).
+
+**Callers that omit `pre_call_enforcement` will now run in split mode automatically.**
+
+**No change needed if you already pass `pre_call_enforcement=True`.**
+
+If you rely on unified mode (a single `enforce_invocation`-style call wrapping the
+model response), add the explicit opt-out:
+
+```python
+# v0.3.2 and earlier — implicit unified mode (was the default)
+@governed(
+    policy_file="policies/analyst.yaml",
+    role="analyst",
+    model_provider="anthropic",
+    model_identifier="claude-sonnet-4-6",
+)
+def call_model(input_data: dict, context: dict = None): ...
+
+# v0.3.3+ — explicit unified mode opt-out (emits DeprecationWarning)
+@governed(
+    policy_file="policies/analyst.yaml",
+    role="analyst",
+    model_provider="anthropic",
+    model_identifier="claude-sonnet-4-6",
+    pre_call_enforcement=False,
+)
+def call_model(input_data: dict, context: dict = None): ...
+```
+
+Note: `@governed` normalizes the first argument as `input_data`. It must be a `dict`
+(or `None`) — a bare string or non-mapping type will be coerced to `{}`, silently
+producing an empty-input audit artifact. Always pass a dict-shaped first argument.
+
+The `pre_call_enforcement=False` opt-out remains functional but emits
+`DeprecationWarning` and will be removed in a future release. Migrate to split
+mode when feasible.
+
+### Provenance Metadata (New in v0.3.3)
+
+Pass `provenance` in your invocation context to enable cross-invocation lineage tracking:
+
+```python
+audit = enforce_invocation({
+    "policy_file": "policies/planner.yaml",
+    "model_provider": "anthropic",
+    "model_identifier": "claude-sonnet-4-6",
+    "role": "planner",
+    "input": {"messages": messages},
+    "output": response,
+    "context": {
+        "session_id": session_id,
+        "provenance": {
+            "source_ids": ["doc-abc123", "kb-entry-42"],
+            # prior_audit["checksum"] is the field written by AuditChain
+            "derived_from_audit_checksums": [prior_audit["checksum"]],
+        },
+    },
+})
+```
+
+The `provenance` object is optional. Omitting it does not affect enforcement.
+
+### AuditLineage (New in v0.3.3)
+
+Reconstruct a DAG of related invocations from a JSONL audit trail:
+
+```python
+from aigc import AuditLineage
+
+lineage = AuditLineage.from_jsonl("audit_trail.jsonl")
+roots = lineage.roots()           # artifacts with no declared parents
+leaves = lineage.leaves()         # artifacts with no children
+checksum = lineage.checksum_of(some_artifact)  # stable node key
+ancestors = lineage.ancestors(checksum)        # BFS upstream
+has_cycle = lineage.has_cycle()   # always False in a well-formed trail
+orphans = lineage.orphans()       # reference missing parents
+```
+
+### ProvenanceGate (New in v0.3.3)
+
+Block invocations that lack `source_ids` in their provenance context:
+
+```python
+from aigc import AIGC, ProvenanceGate
+
+sdk = AIGC(custom_gates=[ProvenanceGate()])
+audit = sdk.enforce(invocation)  # fails with PROVENANCE_MISSING if source_ids absent
+```
+
+### RiskHistory (New in v0.3.3)
+
+Track risk trends over time for a named entity:
+
+```python
+from aigc import RiskHistory, TRAJECTORY_DEGRADING
+
+# entity_id is required; stability_band is optional (default 0.05)
+history = RiskHistory("session-42")
+history.record(audit["risk_score"])   # float or RiskScore; call for each audit
+trajectory = history.trajectory()     # needs >= 2 recorded scores
+if trajectory == TRAJECTORY_DEGRADING:
+    alert_ops()
+```

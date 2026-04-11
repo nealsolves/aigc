@@ -318,7 +318,9 @@ class LoadPolicyRequest(BaseModel):
 
 @app.post("/api/policy/load")
 def load_policy_endpoint(req: LoadPolicyRequest):
-    path = SAMPLE_POLICIES_DIR / req.policy_name
+    path = (SAMPLE_POLICIES_DIR / req.policy_name).resolve()
+    if not path.is_relative_to(SAMPLE_POLICIES_DIR.resolve()):
+        return {"policy": None, "yaml_text": None, "error": "Access denied"}
     if not path.exists():
         return {"policy": None, "yaml_text": None, "error": f"Not found: {req.policy_name}"}
     try:

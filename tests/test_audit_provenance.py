@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from aigc._internal.audit import generate_audit_artifact
+from aigc._internal.audit import generate_audit_artifact, _normalize_provenance
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "audit_artifact.schema.json"
 CHECKSUM_A = "a" * 64
@@ -129,14 +129,24 @@ def test_provenance_list_field_scalar_dropped():
 
 
 def test_non_json_serializable_provenance_raises():
-    """Non-JSON-serializable values inside a list raise ValueError before the artifact is built.
+    """_normalize_provenance() raises ValueError for non-JSON-serializable list items.
 
-    A bare set for source_ids is now dropped at normalization time (not a list/tuple).
+    A bare set for source_ids is dropped at normalization time (not a list/tuple).
     But a set *inside* a list passes the isinstance check and must still raise
     ValueError at the json.dumps step rather than crash later at signing time.
+
+    generate_audit_artifact() catches this ValueError and degrades to provenance=null
+    (tested separately). The strict contract lives on _normalize_provenance().
     """
     with pytest.raises(ValueError, match="non-JSON-serializable"):
-        _make_artifact(provenance={"source_ids": [{"not-a-string-but-a-set"}]})
+        _normalize_provenance({"source_ids": [{"not-a-string-but-a-set"}]})
+
+
+def test_generate_artifact_degrades_gracefully_on_malformed_provenance():
+    """generate_audit_artifact() catches ValueError from _normalize_provenance()
+    and emits provenance=null rather than raising, preserving the audit invariant."""
+    artifact = _make_artifact(provenance={"source_ids": [{"not-a-string-but-a-set"}]})
+    assert artifact["provenance"] is None
 
 
 def test_audit_schema_version_is_1_4():
@@ -240,15 +250,17 @@ def test_schema_rejects_too_many_checksums(audit_schema: dict):
 
 
 def test_nan_in_provenance_raises_value_error():
-    """NaN in provenance values raises ValueError before the artifact is built.
+    """_normalize_provenance() raises ValueError for NaN in list items.
 
     json.dumps() silently allows NaN by default, but canonical_json_bytes()
     (used at signing time) rejects it with allow_nan=False.  _normalize_provenance
     must reject NaN at call time rather than deferring the crash to sign_artifact().
+
+    generate_audit_artifact() catches this ValueError and degrades to provenance=null.
     """
     from math import nan
     with pytest.raises(ValueError, match="non-JSON-serializable"):
-        _make_artifact(provenance={"source_ids": [nan]})
+        _normalize_provenance({"source_ids": [nan]})
 
 
 # ── Normalizer item-level hardening ──────────────────────────────────────────
@@ -342,9 +354,9 @@ def test_normalizer_truncates_checksums_at_max_items():
 
 
 def test_non_json_serializable_compilation_hash_still_raises():
-    """Non-serializable compilation_source_hash still raises ValueError."""
+    """_normalize_provenance() raises ValueError for a non-serializable compilation_source_hash."""
     with pytest.raises(ValueError, match="non-JSON-serializable"):
-        _make_artifact(provenance={"compilation_source_hash": {"not-a-string-but-a-set"}})
+        _normalize_provenance({"compilation_source_hash": {"not-a-string-but-a-set"}})
 
 
 def test_normalizer_empty_source_ids_artifact_is_schema_valid(audit_schema):

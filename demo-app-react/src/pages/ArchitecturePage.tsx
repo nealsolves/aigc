@@ -31,7 +31,7 @@ export default function ArchitecturePage() {
       <DiagramSection
         num="01"
         title="Component View"
-        description="How the host application, SDK enforcement core, policy layer, and operational utilities connect at runtime."
+        description="How the host application, SDK enforcement core, workflow-aware provenance surfaces, and operational utilities connect at runtime."
         src={componentSvg}
         alt="AIGC Component View"
       />
@@ -39,7 +39,7 @@ export default function ArchitecturePage() {
       <DiagramSection
         num="02"
         title="Enforcement Pipeline"
-        description="The current runtime boundary for v0.3.3. Phase A runs before the model call (the default since v0.3.3); Phase B validates after output exists. Unified mode evaluates the same ordered gates inside one call and is available via pre_call_enforcement=False."
+        description="The current runtime boundary for v0.3.3. Phase A runs before the model call by default; Phase B validates after output exists, and the workflow-aware surfaces now include ProvenanceGate at pre_output plus emitted artifact provenance for lineage analysis."
         src={pipelineSvg}
         alt="AIGC Enforcement Pipeline"
       />
@@ -60,14 +60,23 @@ export default function ArchitecturePage() {
           <NoteCard label="Phase A / Phase B">
             Split mode moves the model call boundary between <Code>post_authorization</Code> and <Code>pre_output</Code>. Unified mode still evaluates the same ordered gates in one enforcement call.
           </NoteCard>
+          <NoteCard label="ProvenanceGate">
+            <Code>ProvenanceGate</Code> is a built-in gate at <Code>pre_output</Code>. It blocks output when <Code>context.provenance.source_ids</Code> is missing or empty.
+          </NoteCard>
+          <NoteCard label="Artifact Provenance">
+            PASS and FAIL artifacts can carry v1.4 provenance fields: <Code>source_ids</Code>, <Code>derived_from_audit_checksums</Code>, and <Code>compilation_source_hash</Code>.
+          </NoteCard>
           <NoteCard label="Audit Chain">
             <Code>AuditChain</Code> is not part of the automatic enforcement pipeline. It is an opt-in utility the host applies to artifacts after enforcement.
           </NoteCard>
-          <NoteCard label="Compliance Export">
-            <Code>aigc compliance export</Code> is an offline analysis step over stored audit artifacts, not a live runtime gate.
+          <NoteCard label="Lineage Analysis">
+            <Code>AuditLineage</Code> reconstructs parent and child relationships from stored audit trails, and <Code>aigc compliance export --lineage</Code> exposes that analysis offline.
           </NoteCard>
           <NoteCard label="Pre-Pipeline Failures">
             Pre-pipeline failures produce schema-valid FAIL artifacts with <Code>policy_version: &quot;unknown&quot;</Code>, but bypass the core gate sequence.
+          </NoteCard>
+          <NoteCard label="RiskHistory">
+            <Code>RiskHistory</Code> is advisory over emitted risk scores. It classifies improving, stable, or degrading trajectories without changing enforcement order.
           </NoteCard>
           <NoteCard label="Async + Instance APIs">
             <Code>enforce_invocation_async</Code>, <Code>enforce_pre_call_async</Code>, <Code>enforce_post_call_async</Code>, and the matching <Code>AIGC</Code> instance methods ship in the current v0.3.3 runtime.

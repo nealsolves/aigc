@@ -57,6 +57,8 @@ flowchart TB
             G10["Risk Scoring\nstrict · risk_scored · warn_only"]
         end
 
+        ProvGate["ProvenanceGate\nbuilt-in pre_output gate"]
+        Prov["Artifact provenance v1.4\nsource_ids · derived_from_audit_checksums\ncompilation_source_hash"]
         Artifact["Audit Artifact\nPASS or FAIL"]
         Sign["ArtifactSigner / HMACSigner\noptional"]
         Sink["AuditSink\nJSONL · callback · custom"]
@@ -66,7 +68,9 @@ flowchart TB
     subgraph Ops["OPERATIONAL UTILITIES"]
         direction LR
         Chain["AuditChain.append()\nopt-in · host-managed"]
-        CLI["aigc compliance export\nreads stored audit trails"]
+        CLI["aigc compliance export\nreports + --lineage"]
+        Lineage["AuditLineage\nroots · leaves · ancestors · descendants"]
+        Trend["RiskHistory\nadvisory score trajectory"]
     end
 
     App -->|"direct"| E1
@@ -83,12 +87,17 @@ flowchart TB
     Loader --> Rules
     Rules --> G0
     G0 --> G1 --> G2 --> G3 --> G4 --> G5 --> G6 --> G7 --> G8 --> G9 --> G10 --> Artifact
+    G6 -.->|"built-in example"| ProvGate
     Telemetry -.-> G0
     Telemetry -.-> Artifact
 
+    Artifact -->|"includes provenance"| Prov
     Artifact -->|"unsigned"| Sink
     Artifact -->|"sign if configured"| Sign --> Sink
     Artifact --> App
 
     Artifact -.->|"optional chaining"| Chain
     Sink -->|"stored trail"| CLI
+    Sink -->|"stored trail"| Lineage
+    Prov -.->|"parent checksums"| Lineage
+    Artifact -.->|"risk metadata"| Trend

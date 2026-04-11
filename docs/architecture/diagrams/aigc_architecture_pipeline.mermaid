@@ -27,5 +27,12 @@ flowchart LR
     Risk["Risk\nscoring"]
     Audit(["PASS / FAIL\naudit artifact"])
     Boundary{{"Model call boundary\nsplit mode only"}}
+    ProvGate["Built-in example\nProvenanceGate at pre_output\nblocks missing context.provenance.source_ids"]
+    Provenance["Audit provenance v1.4\nsource_ids · derived_from_audit_checksums\ncompilation_source_hash"]
+    Lineage["Downstream analysis\nAuditLineage / compliance export --lineage"]
+    Trend["Advisory only\nRiskHistory over emitted risk scores"]
 
     Start --> Load --> PreAuth --> Guards --> Role --> Preconditions --> Tools --> PostAuth --> Boundary --> PreOutput --> SchemaV --> Postconditions --> PostOutput --> Risk --> Audit
+    PreOutput -.-> ProvGate
+    Audit -.-> Provenance -.-> Lineage
+    Risk -.-> Trend

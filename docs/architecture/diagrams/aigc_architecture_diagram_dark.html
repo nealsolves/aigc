@@ -208,11 +208,11 @@
       <span class="section-title">Component View</span>
     </div>
     <p class="section-desc">
-      How the host application, SDK enforcement core, policy layer, and operational utilities connect at runtime.
+      How the host application, SDK enforcement core, workflow-aware provenance surfaces, and operational utilities connect at runtime.
     </p>
     <div class="diagram-container">
-      <object type="image/svg+xml" data="aigc_architecture_component.svg?v=20260410v033">
-        <img src="aigc_architecture_component.svg?v=20260410v033" alt="AIGC Component View"/>
+      <object type="image/svg+xml" data="aigc_architecture_component.svg?v=20260411v033b">
+        <img src="aigc_architecture_component.svg?v=20260411v033b" alt="AIGC Component View"/>
       </object>
     </div>
   </div>
@@ -224,11 +224,11 @@
       <span class="section-title">Enforcement Pipeline</span>
     </div>
     <p class="section-desc">
-      The sequential gate order for the core enforcement pipeline. Core governance gates are fail-closed; risk scoring may be blocking or audit-only depending on mode.
+      The sequential gate order for the core enforcement pipeline, including the v0.3.3 workflow-aware surfaces that hang off pre_output, emitted provenance, and downstream trail analysis.
     </p>
     <div class="diagram-container">
-      <object type="image/svg+xml" data="aigc_architecture_pipeline.svg?v=20260410v033">
-        <img src="aigc_architecture_pipeline.svg?v=20260410v033" alt="AIGC Enforcement Pipeline"/>
+      <object type="image/svg+xml" data="aigc_architecture_pipeline.svg?v=20260411v033b">
+        <img src="aigc_architecture_pipeline.svg?v=20260411v033b" alt="AIGC Enforcement Pipeline"/>
       </object>
     </div>
   </div>
@@ -249,16 +249,28 @@
         <p>Split mode moves the model call boundary between <code>post_authorization</code> and <code>pre_output</code>. Unified mode still evaluates the same ordered gates in one enforcement call.</p>
       </div>
       <div class="note-card">
+        <div class="note-label">ProvenanceGate</div>
+        <p><code>ProvenanceGate</code> is a built-in gate registered at <code>pre_output</code>. It blocks output when <code>context.provenance.source_ids</code> is missing or empty.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Artifact Provenance</div>
+        <p>Every PASS or FAIL artifact can carry v1.4 provenance fields: <code>source_ids</code>, <code>derived_from_audit_checksums</code>, and <code>compilation_source_hash</code>.</p>
+      </div>
+      <div class="note-card">
         <div class="note-label">Audit Chain</div>
         <p><code>AuditChain</code> is not part of the automatic enforcement pipeline. It is an opt-in utility the host applies to artifacts after enforcement.</p>
       </div>
       <div class="note-card">
-        <div class="note-label">Compliance Export</div>
-        <p><code>aigc compliance export</code> is an offline analysis step over stored audit artifacts, not a live runtime gate.</p>
+        <div class="note-label">Lineage Analysis</div>
+        <p><code>AuditLineage</code> reconstructs parent and child relationships from stored audit trails, and <code>aigc compliance export --lineage</code> exposes that analysis offline.</p>
       </div>
       <div class="note-card">
         <div class="note-label">Pre-Pipeline Failures</div>
         <p>Pre-pipeline failures produce schema-valid FAIL artifacts with <code>policy_version: "unknown"</code>, but bypass the core gate sequence.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">RiskHistory</div>
+        <p><code>RiskHistory</code> is an advisory utility over emitted risk scores. It classifies trend direction over time and does not alter gate order or blocking semantics.</p>
       </div>
       <div class="note-card">
         <div class="note-label">Signing Semantics</div>

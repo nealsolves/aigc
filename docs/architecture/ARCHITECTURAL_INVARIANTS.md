@@ -257,6 +257,48 @@ by split mode internals; the pipeline ordering and artifact contract are unchang
 
 ---
 
+## 13. Additive Audit Schema Evolution
+
+Schema versions may only add optional fields. No existing required field may be
+removed or renamed. No new required fields may be added. Every artifact valid
+under schema version `N` must remain valid under version `N+1`.
+
+---
+
+## 14. Provenance is Optional, Not Enforcement-Gating
+
+`provenance` in audit artifacts is always optional. The enforcement pipeline
+must not fail or alter its gate sequence based on the presence or absence of
+provenance metadata unless a `ProvenanceGate` is explicitly registered by the
+host.
+
+---
+
+## 15. Lineage Reconstruction is Read-Only and Off Hot Path
+
+`AuditLineage` reads existing audit artifacts to reconstruct dependency graphs.
+It must not modify artifacts, invoke enforcement, or run during the enforcement
+hot path unless the host explicitly calls it.
+
+---
+
+## 16. One Audit Artifact Per Invocation Attempt
+
+Every invocation attempt — whether it succeeds or fails, whether it runs in
+unified mode or split mode — must produce exactly one audit artifact. This
+invariant holds across `enforce_invocation`, `enforce_pre_call`/`enforce_post_call`,
+`AIGC.enforce`, and `@governed`.
+
+---
+
+## 17. Advisory Utilities Must Not Alter Enforcement Semantics
+
+`RiskHistory` and similar advisory utilities must not change the enforcement
+pipeline outcome, gate order, or audit artifact content for any invocation they
+observe. They are observers, not participants.
+
+---
+
 ## Summary
 
 The architectural invariants guarantee:

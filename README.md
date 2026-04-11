@@ -13,10 +13,11 @@ Governance in AIGC is runtime enforcement, not documentation and not prompting.
 
 - Package: `pip install aigc-sdk`
 - Import: `import aigc`
-- Current release: `v0.3.2` on `2026-04-05`
-- Current release scope: split enforcement, audit schema `v1.3`, token
-  integrity hardening, unified-mode compatibility retained
-- Verification baseline: `818 tests`, coverage above the `90%` CI gate
+- Current release: `v0.3.3` on `2026-04-10`
+- Current release scope: workflow-aware governance, audit schema `v1.4`,
+  `AuditLineage`, `ProvenanceGate`, `RiskHistory`, `@governed` defaults to
+  split enforcement
+- Verification baseline: `959 tests`, coverage above the `90%` CI gate
 
 ## Why This Repo Exists
 
@@ -44,8 +45,9 @@ provider.
 3. AIGC returns or emits a PASS/FAIL audit artifact that can be stored,
    exported, chained, or inspected offline.
 
-Unified mode is still the default. `v0.3.2` adds split mode so pre-call checks
-can run before the model executes while preserving the same gate ordering.
+Since v0.3.3, split enforcement is the default — Phase A runs before the model
+call, Phase B validates output after. Pass `pre_call_enforcement=False` for the
+legacy unified mode (deprecated).
 
 ## Release Narrative
 
@@ -60,7 +62,7 @@ release by release.
 | `0.3.0` | 2026-03-15 | Governance hardening: risk scoring, artifact signing, audit chain utility, pluggable `PolicyLoader`, policy dates, telemetry, policy testing, compliance export, custom gate isolation and metadata preservation |
 | `0.3.1` | 2026-04-04 | Demo parity release: React demo and FastAPI backend became the maintained hands-on surface for all 7 labs |
 | `0.3.2` | 2026-04-05 | Split enforcement release: `enforce_pre_call()` / `enforce_post_call()`, `PreCallResult`, split decorator mode, audit schema `v1.3`, and post-release security hardening from the 2026-04-05 audit |
-| `0.3.3` | _in planning_ | Workflow-aware governance: provenance metadata, `AuditLineage`, `ProvenanceGate`, `RiskHistory`, and `@governed` default flip to split mode |
+| `0.3.3` | `2026-04-10` | Workflow-aware governance: audit schema `v1.4` provenance metadata, `AuditLineage` DAG reconstruction, `ProvenanceGate` built-in enforcement gate, `RiskHistory` risk trend tracking, `@governed` defaults to `pre_call_enforcement=True` (split enforcement is the standard execution model) |
 
 For the full change log, use [CHANGELOG.md](CHANGELOG.md).
 
@@ -134,7 +136,7 @@ output = model.generate(...)
 artifact = enforce_post_call(pre, output)
 ```
 
-The decorator also supports split mode:
+The `@governed` decorator uses split enforcement by default (since v0.3.3):
 
 ```python
 from aigc import governed
@@ -144,11 +146,13 @@ from aigc import governed
     role="assistant",
     model_provider="anthropic",
     model_identifier="claude-sonnet-4-6",
-    pre_call_enforcement=True,
 )
 def run_model(input_data, context):
     return model.generate(input_data)
 ```
+
+Phase A runs before the model call; Phase B validates output after. Pass
+`pre_call_enforcement=False` for legacy unified mode (deprecated).
 
 ## Interactive Demo
 
@@ -166,8 +170,10 @@ The `aigc` console script exposes three practical commands:
 - `aigc policy lint <file...>` for syntax and schema checks
 - `aigc policy validate <file...>` for semantic validation, including
   composition and cycle detection
-- `aigc compliance export --input audit.jsonl [--output report.json]` for
-  offline compliance reporting over stored audit trails
+- `aigc compliance export --input audit.jsonl [--output report.json] [--lineage]`
+  for offline compliance reporting over stored audit trails; add `--lineage` to
+  include DAG-level lineage analysis (node counts, duplicate detection,
+  root/leaf/orphan lists, cycle detection)
 
 ## Repo Guide
 

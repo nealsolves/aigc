@@ -80,10 +80,10 @@ def test_golden_split_pre_result_is_single_use():
         enforce_post_call(pre_call_result, output)  # second use fails
 
 
-def test_golden_unified_mode_still_produces_v1_3_artifact():
-    """Unified mode still works after split refactor, produces v1.3."""
+def test_golden_unified_mode_still_produces_v1_4_artifact():
+    """Unified mode still works after split refactor, produces v1.4."""
     invocation = _load("golden_invocation_success.json")
     artifact = enforce_invocation(invocation)
 
-    assert artifact["audit_schema_version"] == "1.3"
+    assert artifact["audit_schema_version"] == "1.4"
     assert artifact["metadata"]["enforcement_mode"] == "unified"

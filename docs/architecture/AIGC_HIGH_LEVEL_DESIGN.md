@@ -230,8 +230,12 @@ audit = enforce_invocation(invocation)
 
 **v0.3.2 — Split enforcement (opt-in):** `enforce_pre_call()` and
 `enforce_post_call()` divide the pipeline into two phases so that authorization
-gates run before the model call and output-side gates run after it. Unified
-mode (`enforce_invocation`) remains the default; no migration is required.
+gates run before the model call and output-side gates run after it.
+
+**v0.3.3 — Split enforcement is the default:** `@governed` now defaults to
+`pre_call_enforcement=True`. Pass `pre_call_enforcement=False` for the legacy
+unified mode, which emits `DeprecationWarning` and will be removed in a future
+release. Direct `enforce_invocation()` callers are unaffected.
 
 ```python
 from aigc import enforce_pre_call, enforce_post_call
@@ -271,6 +275,10 @@ enforcement. It serves as the chain of custody for the invocation.
   }
 }
 ```
+
+**Current audit schema version:** `1.4` (`v0.3.3`). Added optional top-level
+`provenance` object with `source_ids`, `derived_from_audit_checksums`, and
+`compilation_source_hash` fields for workflow-aware governance.
 
 **Design constraints for audit artifacts:**
 

@@ -250,7 +250,9 @@ Use split mode when:
 - You want a clear boundary between "was the invocation authorized?" and
   "was the output valid?"
 
-Unified mode remains the default and requires no changes for existing integrations.
+Since v0.3.3, split mode is the default. Existing call sites that omit
+`pre_call_enforcement` will now run in split mode; see the decorator section
+below for migration notes.
 
 ### Invocation shape for `enforce_pre_call`
 
@@ -306,7 +308,7 @@ phase-A authorization from being reused across multiple model outputs.
 
 ### Decorator pattern
 
-For decorator-based call sites, opt in with `pre_call_enforcement=True`:
+Since v0.3.3, `@governed` uses split enforcement by default:
 
 ```python
 from aigc import governed
@@ -316,19 +318,270 @@ from aigc import governed
     role="planner",
     model_provider="anthropic",
     model_identifier="claude-sonnet-4-6",
-    pre_call_enforcement=True,
 )
 async def plan_investigation(input_data: dict, context: dict) -> dict:
     return await llm.generate(input_data)
 ```
 
 Phase A runs before the function body executes. If phase A fails, the function
-is never called. Phase B runs after the function returns. Without
-`pre_call_enforcement=True`, `@governed` behaves identically to previous releases.
+is never called. Phase B runs after the function returns.
+
+To use the legacy unified mode (deprecated):
+
+```python
+@governed(
+    policy_file="policies/planner.yaml",
+    role="planner",
+    model_provider="anthropic",
+    model_identifier="claude-sonnet-4-6",
+    pre_call_enforcement=False,  # deprecated; will be removed in a future release
+)
+async def plan_investigation(input_data: dict, context: dict) -> dict:
+    return await llm.generate(input_data)
+```
 
 ---
 
-## 10. Compliance Checklist
+## 10. Provenance Metadata (v0.3.3+)
+
+Starting in `v0.3.3`, audit artifacts carry an optional `provenance` field
+that records workflow-level lineage information for a governed invocation.
+
+### Artifact field contract
+
+When `provenance` is supplied to `generate_audit_artifact()`, it appears as a
+top-level key in the emitted artifact:
+
+```python
+from aigc.audit import generate_audit_artifact
+
+artifact = generate_audit_artifact(
+    invocation,
+    policy,
+    provenance={
+        "source_ids": ["workflow-step-1", "workflow-step-2"],
+        "derived_from_audit_checksums": [prior_audit["checksum"]],
+        "compilation_source_hash": "e3b0c44298fc1c149afbf4c8996fb924"
+                                   "27ae41e4649b934ca495991b7852b855",
+    },
+)
+# artifact["provenance"] == {
+#     "source_ids": ["workflow-step-1", "workflow-step-2"],
+#     "derived_from_audit_checksums": [...],
+#     "compilation_source_hash": "e3b0c44...",
+# }
+```
+
+When omitted: `artifact["provenance"]` is `null`.
+
+### Field semantics
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `source_ids` | `string[]` | Caller-defined IDs of prior invocations that contributed to this one |
+| `derived_from_audit_checksums` | `string[]` | SHA-256 checksums of prior AIGC audit artifacts (lineage graph edges) |
+| `compilation_source_hash` | `string` | Orchestrator-supplied hash of the raw source compilation set |
+
+All fields are optional within the object. Only supply the fields you have.
+Supply at least one field — an empty provenance object is invalid.
+
+### Enforcing Source Presence with ProvenanceGate
+
+`ProvenanceGate` is the built-in enforcement gate for source presence. It runs
+at `pre_output` and rejects invocations whose runtime context lacks provenance
+source identifiers. Provenance also flows automatically into the emitted audit
+artifact, so `AuditLineage` can traverse it.
+
+Pass provenance in the invocation context dict:
+
+```python
+from aigc import AIGC, ProvenanceGate
+
+invocation = {
+    "policy_file": "policies/my_policy.yaml",
+    "model_provider": "openai",
+    "model_identifier": "gpt-4o",
+    "role": "summarizer",
+    "input": {"text": "..."},
+    "output": {"summary": "..."},
+    "context": {
+        "user_id": "user-001",
+        "provenance": {
+            "source_ids": ["doc-a", "doc-b"],
+        },
+    },
+}
+
+aigc = AIGC(custom_gates=[ProvenanceGate()])
+audit = aigc.enforce(invocation)
+# audit["provenance"]["source_ids"] == ["doc-a", "doc-b"]
+```
+
+When `source_ids` is absent or empty, the gate raises `CustomGateViolationError`
+with one of these failure codes:
+
+| Code | Meaning |
+|------|---------|
+| `PROVENANCE_MISSING` | No `provenance` key in context, value is None/empty, or value is not a mapping |
+| `SOURCE_IDS_MISSING` | Provenance exists but `source_ids` is absent, empty, or not a list |
+
+To disable enforcement temporarily (e.g. during migration):
+
+```python
+gate = ProvenanceGate(require_source_ids=False)  # always passes
+```
+
+---
+
+## 11. Audit Lineage (v0.3.3+)
+
+`AuditLineage` reconstructs a directed acyclic graph (DAG) from a JSONL audit
+trail produced by an agentic workflow. Each line of the trail is one audit
+artifact. Edges are drawn from `provenance["derived_from_audit_checksums"]` —
+the SHA-256 checksums of prior artifacts this invocation was derived from.
+
+### Loading a trail
+
+```python
+from aigc import AuditLineage
+
+lineage = AuditLineage.from_jsonl("audit_trail.jsonl")
+```
+
+### Traversal
+
+```python
+# Artifacts with no parents (workflow entry points)
+roots = lineage.roots()
+
+# Artifacts with no children (workflow outputs)
+leaves = lineage.leaves()
+
+# All ancestors of a specific artifact
+ancestors = lineage.ancestors(checksum)
+
+# All descendants of a specific artifact
+descendants = lineage.descendants(checksum)
+```
+
+### Integrity checks
+
+```python
+# Artifacts referencing unknown checksums
+missing_parents = lineage.orphans()
+
+# Cycle detection (should always be False for valid trails)
+has_cycle = lineage.has_cycle()
+```
+
+### Node identity
+
+Each artifact's node key uses the stored `"checksum"` field if the artifact
+was processed by `AuditChain` — that value is already the canonical identifier
+that `derived_from_audit_checksums` entries should reference. For artifacts
+not processed by `AuditChain`, the node key falls back to
+`sha256(canonical_json_bytes(artifact))`.
+
+To obtain the node key without calling `add_artifact()`, use
+`lineage.checksum_of(artifact)`. When writing provenance for a downstream
+artifact, pass the key returned by `add_artifact()` (or `checksum_of()`)
+as a `derived_from_audit_checksums` entry.
+
+### CLI lineage mode
+
+Pass `--lineage` to `aigc compliance export` to append a lineage analysis section
+alongside the standard compliance statistics:
+
+```bash
+aigc compliance export --input audit_trail.jsonl --output report.json --lineage
+```
+
+The report gains a `"lineage"` key:
+
+```json
+{
+  "lineage": {
+    "duplicate_artifacts": 0,
+    "has_cycle": false,
+    "leaf_count": 2,
+    "leaves": ["<checksum>", "<checksum>"],
+    "orphan_count": 0,
+    "orphans": [],
+    "root_count": 1,
+    "roots": ["<checksum>"],
+    "total_nodes": 3
+  }
+}
+```
+
+`roots`, `leaves`, and `orphans` contain node checksums. To retrieve full artifact
+content, combine with `--include-artifacts` and look up by checksum.
+
+Lineage analysis is built from the same schema-valid artifacts used for compliance
+counting. `total_nodes` equals `total_artifacts` when the trail has no duplicates;
+`lineage.duplicate_artifacts` reports how many schema-valid artifacts were
+deduplicated (same checksum), so `total_nodes == total_artifacts - duplicate_artifacts`
+always holds.
+
+---
+
+## 12. RiskHistory — Risk Score Trends Over Time
+
+`RiskHistory` is an **advisory utility** for tracking risk score trends across
+successive invocations of a named entity (workflow, session, or policy+role
+pair). It does **not** modify enforcement — it exposes graduated trust signals.
+
+### Trajectory states
+
+| State | Meaning |
+|-------|---------|
+| `"improving"` | Latest score is meaningfully lower than the earliest |
+| `"stable"` | Change is within `stability_band` (default `0.05`) |
+| `"degrading"` | Latest score is meaningfully higher than the earliest |
+
+### Basic usage
+
+```python
+from aigc import RiskHistory
+
+history = RiskHistory("planner-workflow")
+history.record(0.72)
+history.record(0.58)
+history.record(0.41)
+
+# trajectory() raises ValueError if fewer than 2 scores recorded
+print(history.trajectory())  # "improving"
+print(history.latest)        # 0.41
+print(history.scores)        # (0.72, 0.58, 0.41)
+```
+
+### Integration with `compute_risk_score`
+
+```python
+from aigc import RiskHistory, compute_risk_score
+
+history = RiskHistory("planner:summarize")
+
+for invocation in batch:
+    risk = compute_risk_score(invocation, policy, risk_config=risk_cfg)
+    history.record(risk)          # accepts RiskScore directly
+
+if len(history.scores) >= 2:
+    trajectory = history.trajectory()
+    if trajectory == "degrading":
+        alert_ops(f"Risk trend degrading for {history.entity_id}")
+```
+
+### Custom stability band
+
+```python
+# Require a 10% change before leaving "stable"
+history = RiskHistory("my-agent", stability_band=0.10)
+```
+
+---
+
+## 13. Compliance Checklist
 
 An integration is AIGC-compliant when:
 
@@ -340,3 +593,117 @@ An integration is AIGC-compliant when:
 - [ ] CI includes governance regression tests
 - [ ] Model outputs never directly mutate system state
 - [ ] Policy files are versioned and validated in CI
+
+---
+
+## Migration: `v0.3.2` → `v0.3.3`
+
+### `@governed` Default Flip — Action Required for Unified-Mode Callers
+
+In `v0.3.3`, `@governed` defaults to `pre_call_enforcement=True` (split enforcement).
+Previously the default was `False` (unified mode).
+
+**Callers that omit `pre_call_enforcement` will now run in split mode automatically.**
+
+**No change needed if you already pass `pre_call_enforcement=True`.**
+
+If you rely on unified mode (a single `enforce_invocation`-style call wrapping the
+model response), add the explicit opt-out:
+
+```python
+# v0.3.2 and earlier — implicit unified mode (was the default)
+@governed(
+    policy_file="policies/analyst.yaml",
+    role="analyst",
+    model_provider="anthropic",
+    model_identifier="claude-sonnet-4-6",
+)
+def call_model(input_data: dict, context: dict = None): ...
+
+# v0.3.3+ — explicit unified mode opt-out (emits DeprecationWarning)
+@governed(
+    policy_file="policies/analyst.yaml",
+    role="analyst",
+    model_provider="anthropic",
+    model_identifier="claude-sonnet-4-6",
+    pre_call_enforcement=False,
+)
+def call_model(input_data: dict, context: dict = None): ...
+```
+
+Note: `@governed` normalizes the first argument as `input_data`. It must be a `dict` —
+a bare string, `None`, or any non-mapping type will be coerced to `{}`, silently
+producing an empty-input audit artifact. Always pass a dict-shaped first argument.
+
+The `pre_call_enforcement=False` opt-out remains functional but emits
+`DeprecationWarning` and will be removed in a future release. Migrate to split
+mode when feasible.
+
+### Provenance Metadata (New in v0.3.3)
+
+Pass `provenance` in your invocation context to enable cross-invocation lineage tracking:
+
+```python
+audit = enforce_invocation({
+    "policy_file": "policies/planner.yaml",
+    "model_provider": "anthropic",
+    "model_identifier": "claude-sonnet-4-6",
+    "role": "planner",
+    "input": {"messages": messages},
+    "output": response,
+    "context": {
+        "session_id": session_id,
+        "provenance": {
+            "source_ids": ["doc-abc123", "kb-entry-42"],
+            # prior_audit["checksum"] is the field written by AuditChain
+            "derived_from_audit_checksums": [prior_audit["checksum"]],
+        },
+    },
+})
+```
+
+The `provenance` object is optional. Omitting it does not affect enforcement.
+
+### AuditLineage (New in v0.3.3)
+
+Reconstruct a DAG of related invocations from a JSONL audit trail:
+
+```python
+from aigc import AuditLineage
+
+lineage = AuditLineage.from_jsonl("audit_trail.jsonl")
+roots = lineage.roots()           # artifacts with no declared parents
+leaves = lineage.leaves()         # artifacts with no children
+checksum = lineage.checksum_of(some_artifact)  # stable node key
+ancestors = lineage.ancestors(checksum)        # BFS upstream
+has_cycle = lineage.has_cycle()   # always False in a well-formed trail
+orphans = lineage.orphans()       # reference missing parents
+```
+
+### ProvenanceGate (New in v0.3.3)
+
+Block invocations that lack `source_ids` in their provenance context:
+
+```python
+from aigc import AIGC, ProvenanceGate
+
+sdk = AIGC(custom_gates=[ProvenanceGate()])
+audit = sdk.enforce(invocation)  # fails with PROVENANCE_MISSING if source_ids absent
+```
+
+### RiskHistory (New in v0.3.3)
+
+Track risk trends over time for a named entity:
+
+```python
+from aigc import RiskHistory, TRAJECTORY_DEGRADING
+
+# entity_id is required; stability_band is optional (default 0.05)
+history = RiskHistory("session-42")
+risk = audit.get("risk_score")        # None when policy has no risk block
+if risk is not None:
+    history.record(risk)              # float or RiskScore
+trajectory = history.trajectory()     # needs >= 2 recorded scores
+if trajectory == TRAJECTORY_DEGRADING:
+    alert_ops()
+```

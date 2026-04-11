@@ -8,14 +8,29 @@ The enforcement pipeline is deterministic and fail-closed.
 
 ## High Level Flow
 
-Unified mode remains supported and is still the default compatibility path.
-`v0.3.2` adds split mode by moving the model-call boundary between the
-authorization-side gates and the output-side gates.
+Split enforcement is the default since `v0.3.3`: `@governed` runs Phase A
+(authorization gates) before the model call and Phase B (output gates) after.
+Unified mode (`enforce_invocation`) is retained as a direct API and as a
+deprecated opt-out via `pre_call_enforcement=False` on `@governed`.
 
 ```
 Application
 │
-├─ unified mode (default)
+├─ split mode (default for @governed)
+│  ▼
+│  Phase A / enforce_pre_call
+│  ▼
+│  Policy Load -> pre_authorization -> Guard Evaluation -> Role Validation
+│  -> Precondition Validation -> Tool Constraint Validation -> post_authorization
+│  ▼
+│  Model Call Boundary
+│  ▼
+│  Phase B / enforce_post_call
+│  ▼
+│  pre_output -> Output Schema Validation -> Postcondition Validation
+│  -> post_output -> Risk Scoring -> Audit Artifact Generation
+│
+└─ unified mode (direct API / deprecated opt-out)
 │  ▼
 │  AIGC Enforcement Engine
 │  ▼
@@ -44,20 +59,6 @@ Application
 │  Risk Scoring (if configured)
 │  ▼
 │  Audit Artifact Generation
-│
-└─ split mode (opt-in)
-   ▼
-   Phase A / enforce_pre_call
-   ▼
-   Policy Load -> pre_authorization -> Guard Evaluation -> Role Validation
-   -> Precondition Validation -> Tool Constraint Validation -> post_authorization
-   ▼
-   Model Call Boundary
-   ▼
-   Phase B / enforce_post_call
-   ▼
-   pre_output -> Output Schema Validation -> Postcondition Validation
-   -> post_output -> Risk Scoring -> Audit Artifact Generation
 ```
 
 ---
@@ -256,6 +257,34 @@ Custom gates may NOT:
 
 * remove failures
 * bypass enforcement stages
+
+---
+
+## Built-In Enforcement Gates
+
+Built-in gates ship with the SDK and can be registered alongside custom gates.
+
+### ProvenanceGate (v0.3.3+)
+
+`ProvenanceGate` runs at the `pre_output` insertion point and blocks
+invocations whose runtime context lacks provenance source identifiers.
+Provenance from `invocation["context"]["provenance"]` is also forwarded
+into every audit artifact (PASS and FAIL), enabling `AuditLineage` to
+traverse cross-invocation lineage.
+
+Registration:
+
+```python
+from aigc import AIGC, ProvenanceGate
+aigc = AIGC(custom_gates=[ProvenanceGate()])
+```
+
+Failure codes:
+
+* `PROVENANCE_MISSING` — no provenance in `invocation["context"]`, value
+  is None/empty, or value is not a Mapping.
+* `SOURCE_IDS_MISSING` — provenance exists but `source_ids` is absent,
+  empty, or not a list.
 
 ---
 

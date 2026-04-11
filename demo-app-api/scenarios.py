@@ -296,4 +296,71 @@ SCENARIOS: dict[str, dict] = {
         "model_id": "mock-model",
         "role": "doctor",
     },
+    "kb_sourced_pass": {
+        "prompt": "What are the recommended treatment options for stage-1 hypertension?",
+        "output": {
+            "result": (
+                "First-line treatment includes lifestyle modifications: DASH diet, aerobic "
+                "exercise, and sodium restriction. Pharmacotherapy with thiazide diuretics "
+                "or ACE inhibitors is indicated when lifestyle changes are insufficient."
+            ),
+        },
+        "context": {
+            "domain": "medical",
+            "human_review_required": True,
+            "role_declared": True,
+            "schema_exists": True,
+            "provenance": {
+                "source_ids": ["clinical-guidelines-2024-p12"],
+            },
+        },
+        "policy": "medical_ai.yaml",
+        "model_provider": "internal",
+        "model_id": "internal-kb-v1",
+        "role": "doctor",
+    },
+    "kb_unsourced_fail": {
+        "prompt": "What is the standard starting dose for metformin?",
+        "output": {
+            "result": "Metformin is typically started at 500 mg twice daily with meals.",
+        },
+        "context": {
+            "domain": "medical",
+            "human_review_required": True,
+            "role_declared": True,
+            "schema_exists": True,
+            # no provenance key — ProvenanceGate will block this
+        },
+        "policy": "medical_ai.yaml",
+        "model_provider": "internal",
+        "model_id": "internal-kb-v1",
+        "role": "doctor",
+    },
+    "kb_multi_source_pass": {
+        "prompt": "What are contraindications for beta-blockers in heart failure patients?",
+        "output": {
+            "result": (
+                "Beta-blockers are contraindicated in decompensated heart failure, severe "
+                "bradycardia, and high-degree AV block. They are beneficial in stable "
+                "chronic heart failure at recommended doses."
+            ),
+        },
+        "context": {
+            "domain": "medical",
+            "human_review_required": True,
+            "role_declared": True,
+            "schema_exists": True,
+            "provenance": {
+                "source_ids": [
+                    "acc-aha-hf-guidelines-2022-p45",
+                    "esc-hf-2023-p78",
+                    "cardiology-review-2024-p3",
+                ],
+            },
+        },
+        "policy": "medical_ai.yaml",
+        "model_provider": "internal",
+        "model_id": "internal-kb-v1",
+        "role": "doctor",
+    },
 }

@@ -28,7 +28,7 @@ from aigc.sinks import (
 
 def test_public_api_imports():
     assert callable(enforce_invocation)
-    assert __version__ == "0.3.2"
+    assert __version__ == "0.3.3"
     assert InvocationValidationError.__name__ == "InvocationValidationError"
 
 
@@ -123,6 +123,35 @@ def test_m2_audit_chain_exports():
     from aigc import AuditChain, verify_chain
     assert AuditChain is not None
     assert callable(verify_chain)
+
+
+def test_audit_lineage_exports():
+    """AuditLineage is importable from the top-level aigc package."""
+    from aigc import AuditLineage
+    assert AuditLineage is not None
+    lineage = AuditLineage()
+    assert len(lineage) == 0
+    assert callable(lineage.from_jsonl)
+    assert callable(lineage.checksum_of)
+
+
+def test_risk_history_exports():
+    """RiskHistory and trajectory constants are importable from top-level aigc package."""
+    from aigc import (
+        RiskHistory,
+        TRAJECTORY_IMPROVING,
+        TRAJECTORY_STABLE,
+        TRAJECTORY_DEGRADING,
+    )
+    assert callable(RiskHistory)
+    assert isinstance(TRAJECTORY_IMPROVING, str)
+    assert isinstance(TRAJECTORY_STABLE, str)
+    assert isinstance(TRAJECTORY_DEGRADING, str)
+    # Smoke: instantiate and use via public import path
+    h = RiskHistory("smoke")
+    h.record(0.8)
+    h.record(0.3)
+    assert h.trajectory() == TRAJECTORY_IMPROVING
 
 
 def test_m2_policy_loader_exports():
@@ -227,11 +256,16 @@ def test_all_list_completeness():
         "sign_artifact", "verify_artifact",
         "PolicyTestCase", "PolicyTestResult", "PolicyTestSuite",
         "expect_pass", "expect_fail",
+        "AuditLineage",
         "verify_chain",
         "load_policy", "merge_policies", "validate_policy_dates",
         "COMPOSITION_INTERSECT", "COMPOSITION_UNION", "COMPOSITION_REPLACE",
         "INSERTION_PRE_AUTHORIZATION", "INSERTION_POST_AUTHORIZATION",
         "INSERTION_PRE_OUTPUT", "INSERTION_POST_OUTPUT",
+        "RiskHistory",
+        "TRAJECTORY_IMPROVING",
+        "TRAJECTORY_STABLE",
+        "TRAJECTORY_DEGRADING",
     }
     all_set = set(aigc.__all__)
     missing = expected_m2_symbols - all_set

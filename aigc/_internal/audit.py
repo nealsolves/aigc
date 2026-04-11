@@ -10,6 +10,7 @@ to support:
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
@@ -22,7 +23,7 @@ logger = logging.getLogger("aigc.audit")
 
 
 POLICY_SCHEMA_VERSION = "http://json-schema.org/draft-07/schema#"
-AUDIT_SCHEMA_VERSION = "1.3"
+AUDIT_SCHEMA_VERSION = "1.4"
 
 MAX_FAILURES = 1000
 MAX_METADATA_KEYS = 100
@@ -95,6 +96,127 @@ def _normalize_failures(
     return sorted(normalized, key=canonical_json_bytes)
 
 
+# Provenance fields that the audit schema (v1.4) requires to be JSON arrays.
+# Scalars in these positions are dropped at normalization time to prevent
+# emitting schema-invalid artifacts.
+_PROVENANCE_LIST_FIELDS: frozenset[str] = frozenset(
+    {"source_ids", "derived_from_audit_checksums"}
+)
+
+# All provenance fields declared in the audit schema (additionalProperties: false).
+# Unknown keys are silently dropped so the emitted artifact stays schema-valid.
+_PROVENANCE_KNOWN_FIELDS: frozenset[str] = _PROVENANCE_LIST_FIELDS | frozenset(
+    {"compilation_source_hash"}
+)
+
+# SHA-256 hex pattern used to validate checksum-bearing provenance fields.
+_HEX64_RE = re.compile(r"^[a-f0-9]{64}$")
+
+# Schema maxItems for provenance list fields; lists are truncated with a warning.
+_PROVENANCE_MAX_LIST_ITEMS = 1000
+
+
+def _normalize_provenance(
+    provenance: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    """
+    Normalize a caller-supplied provenance mapping for artifact emission.
+
+    Returns None when provenance is absent, empty, or all values are pruned.
+    Returns a sparse dict of normalized, schema-safe values otherwise.
+
+    Normalization rules:
+    - Unknown keys are dropped (audit schema has additionalProperties: false).
+    - None values are dropped.
+    - Fields that must be JSON arrays (source_ids, derived_from_audit_checksums)
+      are dropped when their value is a scalar; this prevents schema-invalid
+      artifacts when callers supply unexpected types.
+    - Items in source_ids must be non-empty strings; non-string or empty-string
+      items are filtered out. Non-JSON-serializable items raise ValueError.
+    - Items in derived_from_audit_checksums must match ^[a-f0-9]{64}$;
+      non-matching items are filtered out. Non-JSON-serializable items raise.
+    - Duplicate items in list fields are removed (first occurrence kept).
+    - List fields are truncated to 1000 items (schema maxItems) with a warning.
+    - A list field that becomes empty after filtering is dropped entirely.
+    - compilation_source_hash must be a string matching ^[a-f0-9]{64}$;
+      non-string or pattern-failing values are silently dropped.
+      Non-JSON-serializable values raise ValueError.
+    """
+    if provenance is None:
+        return None
+
+    out: dict[str, Any] = {}
+    for k, v in provenance.items():
+        if k not in _PROVENANCE_KNOWN_FIELDS or v is None:
+            continue
+        if k in _PROVENANCE_LIST_FIELDS:
+            if not isinstance(v, (list, tuple)):
+                # Scalar where array required: drop.
+                continue
+            # Validate serializability of each item BEFORE type filtering
+            # to preserve the ValueError contract for NaN, sets, etc.
+            for item in v:
+                try:
+                    json.dumps(item, allow_nan=False)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(
+                        f"provenance[{k!r}] contains non-JSON-serializable item: {exc}"
+                    ) from exc
+            # Filter by type/content constraints.
+            if k == "source_ids":
+                items: list[str] = [s for s in v if isinstance(s, str) and s]
+            else:  # derived_from_audit_checksums
+                items = [
+                    s for s in v
+                    if isinstance(s, str) and _HEX64_RE.match(s)
+                ]
+            # Deduplicate preserving insertion order.
+            seen: set[str] = set()
+            deduped: list[str] = []
+            for item in items:
+                if item not in seen:
+                    seen.add(item)
+                    deduped.append(item)
+            # Truncate to schema maxItems, warn if lossy.
+            if len(deduped) > _PROVENANCE_MAX_LIST_ITEMS:
+                logger.warning(
+                    "provenance[%r] truncated from %d to %d items (schema maxItems)",
+                    k,
+                    len(deduped),
+                    _PROVENANCE_MAX_LIST_ITEMS,
+                )
+                deduped = deduped[:_PROVENANCE_MAX_LIST_ITEMS]
+            if not deduped:
+                # Empty after filtering: drop field entirely.
+                continue
+            out[k] = deduped
+        else:
+            # compilation_source_hash: validate serializability first.
+            try:
+                json.dumps(v, allow_nan=False)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"provenance[{k!r}] contains non-JSON-serializable value: {exc}"
+                ) from exc
+            # Must be a 64-char lowercase hex string.
+            if not isinstance(v, str) or not _HEX64_RE.match(v):
+                continue
+            out[k] = v
+
+    if not out:
+        return None
+    try:
+        # Round-trip through JSON to: (1) validate serializability with
+        # allow_nan=False, and (2) coerce Python tuples → JSON arrays (lists),
+        # since jsonschema treats tuple as non-array.
+        normalized = json.loads(json.dumps(out, allow_nan=False))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"provenance contains non-JSON-serializable values: {exc}"
+        ) from exc
+    return normalized
+
+
 def generate_audit_artifact(
     invocation: Mapping[str, Any],
     policy: Mapping[str, Any],
@@ -106,6 +228,7 @@ def generate_audit_artifact(
     metadata: Mapping[str, Any] | None = None,
     timestamp: int | None = None,
     risk_score: float | None = None,
+    provenance: Mapping[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """
     Gather required audit fields and return structured object.
@@ -119,6 +242,8 @@ def generate_audit_artifact(
     :param metadata: additional enforcement metadata
     :param timestamp: optional explicit epoch timestamp for deterministic tests
     :param risk_score: computed risk score (None if not scored)
+    :param provenance: optional provenance metadata (source_ids,
+                       derived_from_audit_checksums, compilation_source_hash)
     :return: audit artifact
     """
     failure_list = _normalize_failures(failures)
@@ -167,4 +292,5 @@ def generate_audit_artifact(
         "metadata": metadata_dict,
         "risk_score": risk_score,
         "signature": None,
+        "provenance": _normalize_provenance(provenance),
     }

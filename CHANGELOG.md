@@ -7,15 +7,65 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased] — v0.3.3
+## [0.3.3] — 2026-04-10
 
-### Planned (no code changes yet)
+### Added
 
-- Workflow-aware governance groundwork: ADR-0010 accepted, release contract
-  established, PR-01 docs-only branch in review.
-- Upcoming: audit schema `v1.4` (additive provenance metadata), `AuditLineage`,
-  `ProvenanceGate`, `RiskHistory`, and default flip to
-  `@governed(pre_call_enforcement=True)`.
+- Audit schema `v1.4`: optional top-level `provenance` object on audit artifacts
+  with `source_ids`, `derived_from_audit_checksums`, and
+  `compilation_source_hash` fields. All fields are optional; `provenance` is
+  absent from the required list so v1.3 artifacts remain valid.
+- `generate_audit_artifact()` gains a `provenance` keyword argument. Pass a
+  dict with any subset of the three provenance fields. Omit for `null` emission.
+  Enforcement entrypoints (`enforce_invocation`, split mode) are unchanged;
+  caller-supplied provenance via enforcement APIs is deferred to PR-05.
+- `AuditLineage`: reconstruct and traverse a directed acyclic graph of audit
+  artifacts from a JSONL audit trail. Edges are drawn from
+  `provenance["derived_from_audit_checksums"]`. Provides `roots()`, `leaves()`,
+  `ancestors()`, `descendants()`, `orphans()`, and `has_cycle()`. Available as
+  `from aigc import AuditLineage`.
+- `ProvenanceGate`: built-in enforcement gate at `INSERTION_PRE_OUTPUT` that
+  blocks invocations whose runtime context lacks provenance `source_ids`.
+  Failure codes: `PROVENANCE_MISSING` and `SOURCE_IDS_MISSING`. Available as
+  `from aigc import ProvenanceGate`. Register via
+  `AIGC(custom_gates=[ProvenanceGate()])`. Closes PR-05.
+- `enforce_invocation`, `enforce_pre_call`/`enforce_post_call`, and `AIGC`
+  enforcement methods now forward `invocation["context"]["provenance"]` into
+  every emitted audit artifact, enabling `AuditLineage` cross-invocation
+  traversal.
+- `RiskHistory` advisory utility (`aigc.RiskHistory`): records risk scores
+  over time for a named entity and classifies the trend as `"improving"`,
+  `"stable"`, or `"degrading"` via `trajectory()`. Exports
+  `TRAJECTORY_IMPROVING`, `TRAJECTORY_STABLE`, `TRAJECTORY_DEGRADING`
+  constants.
+- Demo surface: Lab 8 (Governed Knowledge Base), Lab 9 (Governed vs. Ungoverned
+  comparison), and Lab 10 (Split Enforcement Explorer) added to the React + FastAPI
+  demo app. Labs demonstrate provenance forwarding, enforcement gap analysis, and
+  split enforcement visualization.
+
+### Fixed
+
+- `_normalize_provenance` now drops schema-invalid item-level provenance values
+  before artifact emission: empty lists, non-string/empty-string array items,
+  invalid hex64 patterns, and duplicate items are silently pruned; lists over
+  1000 items are truncated with a `WARNING` log. A list field that becomes empty
+  after pruning is omitted, and if no provenance fields remain the emitted value
+  is `null`. Non-JSON-serializable values (NaN, sets) continue to raise
+  `ValueError`. Previously, inputs such as `source_ids: []` or
+  `compilation_source_hash: <non-hex>` produced artifacts that failed
+  `audit_artifact.schema.json` validation.
+
+### Changed
+
+- **`@governed` default flip**: `pre_call_enforcement` now defaults to `True`.
+  Split enforcement (Phase A before the model call, Phase B after) is the standard
+  execution model for `v0.3.3+`. Existing call sites that omit `pre_call_enforcement`
+  will now run in split mode.
+
+  **Migration:** No change required for call sites that already pass
+  `pre_call_enforcement=True`. Call sites that rely on unified mode must add
+  `pre_call_enforcement=False` explicitly — this opt-out remains functional but
+  emits `DeprecationWarning` and will be removed in a future release.
 
 ---
 
@@ -294,7 +344,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-[Unreleased]: https://github.com/nealsolves/aigc/compare/v0.3.2...HEAD
+[0.3.3]: https://github.com/nealsolves/aigc/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/nealsolves/aigc/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/nealsolves/aigc/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/nealsolves/aigc/compare/v0.2.0...v0.3.0

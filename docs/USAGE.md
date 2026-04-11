@@ -79,7 +79,8 @@ Important split-mode rules:
   `enforce_post_call(...)`.
 - `PreCallResult` is single-use. If the token has already been consumed, run
   `enforce_pre_call(...)` again to get a fresh one.
-- Unified mode remains the default public behavior; split mode is opt-in.
+- Since v0.3.3, split mode is the default. Pass `pre_call_enforcement=False`
+  for legacy unified behavior (deprecated).
 
 ## Recipe 3: Instance-scoped configuration
 
@@ -120,7 +121,11 @@ def run_model(input_data, context):
     return model.generate(input_data)
 ```
 
-To use split mode at the decorator boundary:
+The example above uses split mode (the default since v0.3.3). Phase A runs
+before the wrapped function; Phase B validates output after. Passing
+`pre_call_enforcement=True` explicitly is equivalent to the default.
+
+To use the legacy unified mode (deprecated):
 
 ```python
 from aigc import governed
@@ -130,14 +135,11 @@ from aigc import governed
     role="assistant",
     model_provider="anthropic",
     model_identifier="claude-sonnet-4-6",
-    pre_call_enforcement=True,
+    pre_call_enforcement=False,  # deprecated; will be removed in a future release
 )
 def run_model(input_data, context):
     return model.generate(input_data)
 ```
-
-With `pre_call_enforcement=True`, AIGC runs Phase A before the wrapped function
-executes. If Phase A fails, the function is never called.
 
 ## Recipe 5: Persisting audit artifacts
 
@@ -353,3 +355,47 @@ from aigc import AIGC, enforce_invocation, JsonFileAuditSink
 
 Do not build production integrations on `aigc._internal.*`. That namespace is
 private implementation detail and may change between releases.
+
+## Recipe 11: Lineage-aware compliance report
+
+Add `--lineage` to include DAG topology analysis alongside the standard compliance
+stats. Useful for auditing agentic workflows where invocations derive from prior
+invocations.
+
+```bash
+aigc compliance export --input audit_trail.jsonl --lineage
+```
+
+Write to a file and combine with `--include-artifacts`:
+
+```bash
+aigc compliance export \
+  --input audit_trail.jsonl \
+  --output compliance-report.json \
+  --include-artifacts \
+  --lineage
+```
+
+The report gains a `"lineage"` key with `total_nodes`, `duplicate_artifacts`,
+`root_count`, `leaf_count`, `orphan_count`, `has_cycle`, and checksum lists
+`roots`, `leaves`, `orphans`. `total_nodes == total_artifacts - duplicate_artifacts`
+always holds.
+
+## Recipe 12: Risk trend monitoring with `RiskHistory`
+
+```python
+from aigc import AIGC, RiskHistory
+
+aigc = AIGC()
+history = RiskHistory("summarizer-workflow")
+
+for invocation in workflow_invocations:
+    audit = aigc.enforce(invocation)
+    risk_score = audit.get("risk_score")
+    if risk_score is not None:
+        history.record(risk_score)
+
+if len(history.scores) >= 2:
+    print(f"Trajectory: {history.trajectory()}")
+    # "improving" | "stable" | "degrading"
+```

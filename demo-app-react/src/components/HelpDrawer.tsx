@@ -17,6 +17,9 @@ const LABS_LABEL: Record<number, string> = {
   5: 'Lab 5 — Loaders & Versioning',
   6: 'Lab 6 — Custom Gates',
   7: 'Lab 7 — Compliance Dashboard',
+  8: 'Lab 8 — Governed Knowledge Base',
+  9: 'Lab 9 — Governed vs. Ungoverned',
+  10: 'Lab 10 — Split Enforcement Explorer',
 }
 
 export default function HelpDrawer({ labId, isOpen, onClose }: Props) {

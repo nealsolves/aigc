@@ -25,7 +25,7 @@ from gates import GATES, get_gate_info
 from loaders import InMemoryPolicyLoader
 import yaml as yaml_lib
 
-app = FastAPI(title="AIGC Demo API", version="0.3.2")
+app = FastAPI(title="AIGC Demo API", version="0.3.3")
 
 app.add_middleware(
     CORSMiddleware,
@@ -446,6 +446,158 @@ def run_policy_tests(req: PolicyTestRequest):
             for r in raw_results
         ],
         "all_met_expectations": suite.all_passed(raw_results),
+        "error": None,
+    }
+
+
+class Lab8KBRequest(BaseModel):
+    scenario_key: str = "kb_sourced_pass"
+
+
+@app.post("/api/lab8/query-kb")
+def lab8_query_kb(req: Lab8KBRequest):
+    if req.scenario_key not in SCENARIOS:
+        raise HTTPException(status_code=422, detail=f"Unknown scenario_key: {req.scenario_key!r}")
+    scenario = SCENARIOS[req.scenario_key]
+    policy_path = str(SAMPLE_POLICIES_DIR / scenario["policy"])
+
+    from aigc import ProvenanceGate
+    aigc_instance = AIGC(custom_gates=[ProvenanceGate()])
+    invocation = _build_full_invocation(scenario, policy_path)
+    source_ids = scenario["context"].get("provenance", {}).get("source_ids", [])
+
+    try:
+        artifact = aigc_instance.enforce(invocation)
+        return {"artifact": artifact, "source_ids": source_ids, "error": None}
+    except AIGCError as exc:
+        artifact = getattr(exc, "audit_artifact", None)
+        return {"artifact": artifact, "source_ids": source_ids, "error": str(exc)}
+
+
+class Lab9CompareRequest(BaseModel):
+    scenario_key: str = "low_risk_faq"
+
+
+@app.post("/api/lab9/compare")
+def lab9_compare(req: Lab9CompareRequest):
+    if req.scenario_key not in SCENARIOS:
+        raise HTTPException(status_code=422, detail=f"Unknown scenario_key: {req.scenario_key!r}")
+    scenario = SCENARIOS[req.scenario_key]
+    policy_path = str(SAMPLE_POLICIES_DIR / scenario["policy"])
+
+    # Governed path — strict mode exposes full policy impact (risk threshold enforced)
+    aigc_instance = AIGC(
+        risk_config={"mode": "strict", "threshold": 0.7, "factors": MEDICAL_FACTORS}
+    )
+    governed_artifact = None
+    governed_error = None
+    try:
+        governed_artifact = aigc_instance.enforce(_build_full_invocation(scenario, policy_path))
+    except AIGCError as exc:
+        governed_artifact = getattr(exc, "audit_artifact", None)
+        governed_error = str(exc)
+
+    # Ungoverned path — synthetic record representing raw model output with no enforcement
+    ungoverned_artifact = {
+        "enforcement_result": "PASS",
+        "model_provider": scenario["model_provider"],
+        "model_identifier": scenario["model_id"],
+        "role": scenario["role"],
+        "policy_version": "ungoverned",
+        "metadata": {
+            "gates_evaluated": [],
+            "risk_scoring": None,
+            "mode": "ungoverned",
+        },
+        "output": scenario["output"],
+    }
+
+    return {
+        # Top-level artifact key so useApi auto-ingests the governed result into auditHistory
+        "artifact": governed_artifact,
+        "governed": {"artifact": governed_artifact, "error": governed_error},
+        "ungoverned": {"artifact": ungoverned_artifact, "error": None},
+        "scenario_key": req.scenario_key,
+    }
+
+
+class Lab10SplitRequest(BaseModel):
+    scenario_key: str = "split_precall_block"
+    mode: Literal["strict", "risk_scored", "warn_only"] = "risk_scored"
+
+
+@app.post("/api/lab10/split-trace")
+def lab10_split_trace(req: Lab10SplitRequest):
+    if req.scenario_key not in SCENARIOS:
+        raise HTTPException(status_code=422, detail=f"Unknown scenario_key: {req.scenario_key!r}")
+    scenario = SCENARIOS[req.scenario_key]
+    policy_path = str(SAMPLE_POLICIES_DIR / scenario["policy"])
+
+    aigc_instance = AIGC(
+        risk_config={"mode": req.mode, "threshold": 0.7, "factors": MEDICAL_FACTORS}
+    )
+    pre_invocation = _build_pre_call_invocation(scenario, policy_path)
+
+    try:
+        pre_result = aigc_instance.enforce_pre_call(pre_invocation)
+    except AIGCError as exc:
+        # Phase A blocked
+        artifact = getattr(exc, "audit_artifact", None)
+        meta = (artifact or {}).get("metadata", {})
+        return {
+            "phase_a": {
+                "result": "FAIL",
+                "gates_evaluated": meta.get("pre_call_gates_evaluated", []),
+                "failures": (artifact or {}).get("failures", []),
+                "blocked": True,
+            },
+            "phase_b": None,
+            "artifact": artifact,
+            "combined_result": "FAIL",
+            "error": str(exc),
+        }
+
+    # Phase A passed — record its metadata from the PreCallResult token
+    phase_a_meta = pre_result.phase_a_metadata
+    phase_a = {
+        "result": "PASS",
+        "gates_evaluated": phase_a_meta.get("pre_call_gates_evaluated", []),
+        "failures": [],
+        "blocked": False,
+    }
+
+    # Phase B
+    try:
+        artifact = aigc_instance.enforce_post_call(pre_result, scenario["output"])
+    except AIGCError as exc:
+        artifact = getattr(exc, "audit_artifact", None)
+        meta = (artifact or {}).get("metadata", {})
+        return {
+            "phase_a": phase_a,
+            "phase_b": {
+                "result": "FAIL",
+                "gates_evaluated": meta.get("post_call_gates_evaluated", []),
+                "failures": (artifact or {}).get("failures", []),
+                "blocked": True,
+            },
+            "artifact": artifact,
+            "combined_result": "FAIL",
+            "error": str(exc),
+        }
+
+    meta = artifact.get("metadata", {})
+    phase_b = {
+        "result": artifact["enforcement_result"],
+        "gates_evaluated": meta.get("post_call_gates_evaluated", []),
+        "failures": artifact.get("failures") or [],
+        "blocked": artifact["enforcement_result"] == "FAIL",
+    }
+
+    return {
+        "phase_a": phase_a,
+        "phase_b": phase_b,
+        "artifact": artifact,
+        "combined_result": artifact["enforcement_result"],
         "error": None,
     }
 

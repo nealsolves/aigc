@@ -256,3 +256,36 @@ class TestPrePipelineProvenancePreservation:
 
         artifact = exc_info.value.audit_artifact
         assert artifact["provenance"] is None
+
+    def test_malformed_provenance_emits_fail_artifact_not_value_error(self) -> None:
+        """Pre-pipeline failure with non-JSON-serializable provenance must still emit a
+        FAIL artifact attached to AIGCError — not raise ValueError.
+
+        Invariant D: every enforcement attempt produces an artifact.
+        A set inside source_ids is non-JSON-serializable; _normalize_provenance()
+        raises ValueError for it, which must be caught so the FAIL path completes.
+        """
+        invocation = {
+            "policy_file": "nonexistent/policy.yaml",
+            "model_provider": "test",
+            "model_identifier": "test-model",
+            "role": "tester",
+            "input": {"prompt": "hello"},
+            "output": {"result": "world"},
+            "context": {
+                "provenance": {
+                    "source_ids": [{"set_element_a", "set_element_b"}],
+                },
+            },
+        }
+
+        with pytest.raises(AIGCError) as exc_info:
+            enforce_invocation(invocation)
+
+        artifact = exc_info.value.audit_artifact
+        assert artifact is not None, (
+            "FAIL artifact must be emitted even when provenance is non-JSON-serializable"
+        )
+        assert artifact["enforcement_result"] == "FAIL"
+        # Malformed provenance is dropped rather than crashing artifact emission.
+        assert artifact["provenance"] is None

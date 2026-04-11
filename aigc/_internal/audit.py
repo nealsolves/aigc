@@ -273,6 +273,15 @@ def generate_audit_artifact(
         keys = list(context_dict.keys())[:MAX_CONTEXT_KEYS]
         context_dict = {k: context_dict[k] for k in keys}
 
+    try:
+        normalized_provenance = _normalize_provenance(provenance)
+    except ValueError:
+        logger.warning(
+            "provenance normalization failed (non-JSON-serializable data); "
+            "emitting artifact with provenance=null to preserve audit invariant"
+        )
+        normalized_provenance = None
+
     return {
         "audit_schema_version": AUDIT_SCHEMA_VERSION,
         "policy_file": invocation["policy_file"],
@@ -292,5 +301,5 @@ def generate_audit_artifact(
         "metadata": metadata_dict,
         "risk_score": risk_score,
         "signature": None,
-        "provenance": _normalize_provenance(provenance),
+        "provenance": normalized_provenance,
     }

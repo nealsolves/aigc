@@ -359,6 +359,38 @@ def test_non_json_serializable_compilation_hash_still_raises():
         _normalize_provenance({"compilation_source_hash": {"not-a-string-but-a-set"}})
 
 
+# ── P2 regression: non-Mapping provenance must degrade to null, not raise ─────
+
+def test_generate_artifact_degrades_gracefully_on_scalar_provenance():
+    """generate_audit_artifact() must emit provenance=null (not raise AttributeError)
+    when provenance is a scalar integer.
+
+    _normalize_provenance() previously called provenance.items() before checking
+    isinstance(provenance, Mapping), so scalars raised AttributeError which was
+    not caught by the except ValueError guard, destroying the audit record.
+    """
+    artifact = _make_artifact(provenance=42)
+    assert artifact["provenance"] is None
+
+
+def test_generate_artifact_degrades_gracefully_on_list_provenance():
+    """generate_audit_artifact() must emit provenance=null (not raise AttributeError)
+    when provenance is a list.
+    """
+    artifact = _make_artifact(provenance=[{"source_ids": ["s1"]}])
+    assert artifact["provenance"] is None
+
+
+def test_normalize_provenance_returns_none_for_scalar():
+    """_normalize_provenance() returns None for a scalar input, not AttributeError."""
+    assert _normalize_provenance(42) is None
+
+
+def test_normalize_provenance_returns_none_for_list():
+    """_normalize_provenance() returns None for a list input."""
+    assert _normalize_provenance(["source_ids"]) is None
+
+
 def test_normalizer_empty_source_ids_artifact_is_schema_valid(audit_schema):
     """After hardening: source_ids=[] → provenance=null → artifact passes schema."""
     from jsonschema import validate

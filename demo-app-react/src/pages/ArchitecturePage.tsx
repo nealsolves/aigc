@@ -70,7 +70,7 @@ export default function ArchitecturePage() {
             Pre-pipeline failures produce schema-valid FAIL artifacts with <Code>policy_version: &quot;unknown&quot;</Code>, but bypass the core gate sequence.
           </NoteCard>
           <NoteCard label="Async + Instance APIs">
-            <Code>enforce_invocation_async</Code>, <Code>enforce_pre_call_async</Code>, <Code>enforce_post_call_async</Code>, and the matching <Code>AIGC</Code> instance methods ship in the v0.3.2 runtime and remain available in v0.3.3.
+            <Code>enforce_invocation_async</Code>, <Code>enforce_pre_call_async</Code>, <Code>enforce_post_call_async</Code>, and the matching <Code>AIGC</Code> instance methods ship in the current v0.3.3 runtime.
           </NoteCard>
         </div>
       </div>

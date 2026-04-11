@@ -15,7 +15,7 @@ flowchart TB
     subgraph Host["HOST APPLICATION"]
         direction LR
         App["App / Agent / Orchestrator"]
-        Gov["@governed decorator\ndefault unified / split opt-in"]
+        Gov["@governed decorator\ndefault split / unified opt-out"]
         Provider["Model Provider\nOpenAI · Anthropic · local"]
 
         App -->|"decorated call"| Gov
@@ -23,7 +23,7 @@ flowchart TB
         Provider -->|"model output"| Gov
     end
 
-    subgraph SDK["AIGC SDK v0.3.2"]
+    subgraph SDK["AIGC SDK v0.3.3"]
         direction TB
 
         subgraph Entry["INVOCATION BOUNDARY (UNIFIED + SPLIT)"]
@@ -72,8 +72,8 @@ flowchart TB
     App -->|"direct"| E1
     App -->|"instance"| E2
     App -->|"split phases"| E3
-    Gov -->|"default mode"| E1
-    Gov -->|"split mode"| E3
+    Gov -->|"legacy unified opt-out"| E1
+    Gov -->|"default split mode"| E3
 
     E1 --> Loader
     E2 --> Cache --> Loader

@@ -306,8 +306,11 @@ output = await analyze(
 )
 ```
 
-The decorator captures `input_data` as input, `context` as context, and the return value as
-output, then calls `enforce_invocation_async()`. Governance exceptions propagate unchanged.
+The decorator captures `input_data` as input, `context` as context, and runs split
+enforcement by default (since v0.3.3): Phase A (`enforce_pre_call_async()`) runs before
+the wrapped function; Phase B (`enforce_post_call_async()`) validates the return value.
+Pass `pre_call_enforcement=False` for legacy unified mode (deprecated).
+Governance exceptions propagate unchanged.
 
 The decorator uses the global audit sink (via `set_audit_sink`). For per-instance sinks,
 signers, or custom gates, use the `AIGC` class directly as shown in sections 2.3–2.5.

@@ -13,10 +13,11 @@ Governance in AIGC is runtime enforcement, not documentation and not prompting.
 
 - Package: `pip install aigc-sdk`
 - Import: `import aigc`
-- Current release: `v0.3.2` on `2026-04-05`
-- Current release scope: split enforcement, audit schema `v1.3`, token
-  integrity hardening, unified-mode compatibility retained
-- Verification baseline: `818 tests`, coverage above the `90%` CI gate
+- Current release: `v0.3.3` on `2026-04-10`
+- Current release scope: workflow-aware governance, audit schema `v1.4`,
+  `AuditLineage`, `ProvenanceGate`, `RiskHistory`, `@governed` defaults to
+  split enforcement
+- Verification baseline: `959 tests`, coverage above the `90%` CI gate
 
 ## Why This Repo Exists
 
@@ -61,7 +62,7 @@ release by release.
 | `0.3.0` | 2026-03-15 | Governance hardening: risk scoring, artifact signing, audit chain utility, pluggable `PolicyLoader`, policy dates, telemetry, policy testing, compliance export, custom gate isolation and metadata preservation |
 | `0.3.1` | 2026-04-04 | Demo parity release: React demo and FastAPI backend became the maintained hands-on surface for all 7 labs |
 | `0.3.2` | 2026-04-05 | Split enforcement release: `enforce_pre_call()` / `enforce_post_call()`, `PreCallResult`, split decorator mode, audit schema `v1.3`, and post-release security hardening from the 2026-04-05 audit |
-| `0.3.3` | _in progress_ | Workflow-aware governance: audit schema `v1.4` provenance metadata (PR-02 ✓), `AuditLineage` DAG reconstruction (PR-03 ✓), `ProvenanceGate` built-in enforcement gate (PR-05 ✓); `RiskHistory` risk trend tracking (PR-06 ✓); `@governed` defaults to `pre_call_enforcement=True`, split enforcement is the standard execution model (PR-07 ✓) |
+| `0.3.3` | `2026-04-10` | Workflow-aware governance: audit schema `v1.4` provenance metadata, `AuditLineage` DAG reconstruction, `ProvenanceGate` built-in enforcement gate, `RiskHistory` risk trend tracking, `@governed` defaults to `pre_call_enforcement=True` (split enforcement is the standard execution model) |
 
 For the full change log, use [CHANGELOG.md](CHANGELOG.md).
 

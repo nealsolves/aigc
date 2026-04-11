@@ -11,10 +11,10 @@
 
 # --- Current-state values ---
 
-version: "0.3.2"
-test_count: 818
+version: "0.3.3"
+test_count: 959
 coverage_threshold: 90
-audit_schema_version: "1.3"
+audit_schema_version: "1.4"
 
 # --- Documentation parity set ---
 # These docs must stay synchronized with implementation.

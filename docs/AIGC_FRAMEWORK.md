@@ -84,6 +84,14 @@ The key architectural point is that split enforcement preserves the same
 effective policy across both phases. Phase B does not reload or reinterpret the
 policy from scratch. It continues from the contract resolved in Phase A.
 
+#### `v0.3.3`: workflow-aware contract
+
+`v0.3.3` adds provenance fields to the audit artifact (`audit schema v1.4`),
+enabling the contract to express cross-invocation derivation relationships. The
+`AuditLineage` utility reconstructs derivation graphs from stored artifacts;
+`ProvenanceGate` enforces provenance requirements at `pre_output`. `RiskHistory`
+tracks risk score trends advisory-only.
+
 ### The engineering principle
 
 The Contract must be externally readable and structurally enforceable. An
@@ -181,6 +189,12 @@ It adds:
 The critical design constraint is that split mode does not change the relative
 order of governance gates. It moves the host model call boundary, not the
 governance semantics.
+
+#### `v0.3.3`: split enforcement becomes the default
+
+`v0.3.3` makes split enforcement the standard execution model. `@governed` now
+defaults to `pre_call_enforcement=True`. Call sites that relied on unified mode
+must pass `pre_call_enforcement=False` explicitly (emits `DeprecationWarning`).
 
 ### Inbound and outbound control
 

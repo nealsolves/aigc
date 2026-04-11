@@ -9,8 +9,8 @@
   <rect width="1100" height="310" fill="#ffffff" rx="8"/>
 
   <!-- Title -->
-  <text x="40" y="34" fill="#0f62fe" font-size="11" font-weight="600" letter-spacing="1.5" font-family="'IBM Plex Mono', monospace">AIGC v0.3.2</text>
-  <text x="40" y="50" fill="#878d96" font-size="11" letter-spacing="0.5" font-family="'IBM Plex Mono', monospace">Split view shows the Phase A / Phase B boundary; unified mode runs the same ordered gates in one call</text>
+  <text x="40" y="34" fill="#0f62fe" font-size="11" font-weight="600" letter-spacing="1.5" font-family="'IBM Plex Mono', monospace">AIGC v0.3.3</text>
+  <text x="40" y="50" fill="#878d96" font-size="11" letter-spacing="0.5" font-family="'IBM Plex Mono', monospace">Split view shows the default v0.3.3 decorator path; unified mode runs the same ordered gates in one call</text>
 
   <!-- ════ ROW 1: Authorization Phase ════ -->
   <text x="56" y="80" fill="#878d96" font-size="9" font-weight="600" letter-spacing="1" font-family="'IBM Plex Mono', monospace">PHASE A / PRE-CALL</text>

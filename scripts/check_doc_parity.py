@@ -433,7 +433,131 @@ def check_parity_docs_exist(manifest: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Check H: Semantic behavioral claims
+# Check H: Implementation-truth consistency
+# ---------------------------------------------------------------------------
+
+def check_implementation_truth(manifest: dict) -> list[str]:
+    """Verify manifest values match actual implementation sources.
+
+    Reads the canonical values directly from:
+      - pyproject.toml  (project.version)
+      - aigc/__init__.py  (__version__)
+      - aigc/_internal/audit.py  (AUDIT_SCHEMA_VERSION)
+      - README.md  ("Current release:" line)
+      - CHANGELOG.md  (first versioned section header)
+
+    Fails if any source disagrees with the manifest or with each other.
+    """
+    errors: list[str] = []
+    manifest_version = manifest["version"]
+    manifest_audit_ver = manifest["audit_schema_version"]
+
+    # 1. pyproject.toml
+    pyproject_path = REPO_ROOT / "pyproject.toml"
+    pyproject_version: str | None = None
+    if pyproject_path.exists():
+        text = pyproject_path.read_text(encoding="utf-8")
+        m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
+        if m:
+            pyproject_version = m.group(1)
+            if pyproject_version != manifest_version:
+                errors.append(
+                    f"[impl-truth] pyproject.toml version '{pyproject_version}' "
+                    f"!= manifest version '{manifest_version}'"
+                )
+        else:
+            errors.append("[impl-truth] pyproject.toml: could not parse version")
+    else:
+        errors.append("[impl-truth] pyproject.toml not found")
+
+    # 2. aigc/__init__.py __version__
+    init_path = REPO_ROOT / "aigc" / "__init__.py"
+    if init_path.exists():
+        text = init_path.read_text(encoding="utf-8")
+        m = re.search(r'^__version__\s*=\s*"([^"]+)"', text, re.MULTILINE)
+        if m:
+            init_version = m.group(1)
+            if init_version != manifest_version:
+                errors.append(
+                    f"[impl-truth] aigc/__init__.py __version__ '{init_version}' "
+                    f"!= manifest version '{manifest_version}'"
+                )
+        else:
+            errors.append("[impl-truth] aigc/__init__.py: could not parse __version__")
+    else:
+        errors.append("[impl-truth] aigc/__init__.py not found")
+
+    # 3. AUDIT_SCHEMA_VERSION in aigc/_internal/audit.py
+    audit_py_path = REPO_ROOT / "aigc" / "_internal" / "audit.py"
+    if audit_py_path.exists():
+        text = audit_py_path.read_text(encoding="utf-8")
+        m = re.search(r'^AUDIT_SCHEMA_VERSION\s*=\s*"([^"]+)"', text, re.MULTILINE)
+        if m:
+            code_audit_ver = m.group(1)
+            if code_audit_ver != manifest_audit_ver:
+                errors.append(
+                    f"[impl-truth] aigc/_internal/audit.py AUDIT_SCHEMA_VERSION "
+                    f"'{code_audit_ver}' != manifest audit_schema_version "
+                    f"'{manifest_audit_ver}'"
+                )
+        else:
+            errors.append(
+                "[impl-truth] aigc/_internal/audit.py: could not parse "
+                "AUDIT_SCHEMA_VERSION"
+            )
+    else:
+        errors.append("[impl-truth] aigc/_internal/audit.py not found")
+
+    # 4. README.md "Current release:" line
+    readme_path = REPO_ROOT / "README.md"
+    if readme_path.exists():
+        text = readme_path.read_text(encoding="utf-8")
+        m = re.search(r"Current release:\s*`v([\d.]+)`", text)
+        if m:
+            readme_version = m.group(1)
+            if readme_version != manifest_version:
+                errors.append(
+                    f"[impl-truth] README.md 'Current release' shows "
+                    f"'v{readme_version}' != manifest version '{manifest_version}'"
+                )
+        else:
+            errors.append(
+                "[impl-truth] README.md: could not find 'Current release:' line"
+            )
+    else:
+        errors.append("[impl-truth] README.md not found")
+
+    # 5. CHANGELOG.md — first versioned section must be the manifest version
+    #    (not Unreleased), confirming the release is promoted.
+    changelog_path = REPO_ROOT / "CHANGELOG.md"
+    if changelog_path.exists():
+        text = changelog_path.read_text(encoding="utf-8")
+        # Match the first "## [X.Y.Z]" or "## [Unreleased]" header
+        m = re.search(r"^## \[([^\]]+)\]", text, re.MULTILINE)
+        if m:
+            first_section = m.group(1)
+            if first_section.lower() == "unreleased":
+                errors.append(
+                    f"[impl-truth] CHANGELOG.md top section is '[Unreleased]' — "
+                    f"promote to '[{manifest_version}]' before release"
+                )
+            elif first_section != manifest_version:
+                errors.append(
+                    f"[impl-truth] CHANGELOG.md top section '[{first_section}]' "
+                    f"!= manifest version '{manifest_version}'"
+                )
+        else:
+            errors.append(
+                "[impl-truth] CHANGELOG.md: could not find a versioned section header"
+            )
+    else:
+        errors.append("[impl-truth] CHANGELOG.md not found")
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check I: Semantic behavioral claims
 # ---------------------------------------------------------------------------
 
 _RISK_SCORED_BLOCKING_RE = re.compile(
@@ -471,9 +595,9 @@ _WRAPPED_FUNCTION_ERROR_DOCS = [
 def check_semantic_claims() -> list[str]:
     """Check that docs don't contain known false semantic claims.
 
-    H1: risk_scored must not be described as blocking on threshold exceedance.
-    H2: aigc audit commands must not appear in active CLI-behavior docs.
-    H3: wrapped_function_error must not be described as pre-v0.3.2 or
+    I1: risk_scored must not be described as blocking on threshold exceedance.
+    I2: aigc audit commands must not appear in active CLI-behavior docs.
+    I3: wrapped_function_error must not be described as pre-v0.3.2 or
         schema-neutral.
     """
     errors: list[str] = []
@@ -486,7 +610,7 @@ def check_semantic_claims() -> list[str]:
         for m in _RISK_SCORED_BLOCKING_RE.finditer(text):
             line = text[: m.start()].count("\n") + 1
             errors.append(
-                f"[semantic-H1] {rel}:{line}: describes risk_scored as blocking "
+                f"[semantic-I1] {rel}:{line}: describes risk_scored as blocking "
                 f"on threshold exceedance — only strict mode blocks; "
                 f"matched: {m.group()!r}"
             )
@@ -499,7 +623,7 @@ def check_semantic_claims() -> list[str]:
         for m in _AUDIT_CMD_RE.finditer(text):
             line = text[: m.start()].count("\n") + 1
             errors.append(
-                f"[semantic-H2] {rel}:{line}: references 'aigc audit' which does "
+                f"[semantic-I2] {rel}:{line}: references 'aigc audit' which does "
                 f"not exist in the CLI; use 'aigc compliance export' instead"
             )
 
@@ -511,7 +635,7 @@ def check_semantic_claims() -> list[str]:
         for m in _WRAPPED_FUNCTION_ERROR_MIGRATION_RE.finditer(text):
             line = text[: m.start()].count("\n") + 1
             errors.append(
-                f"[semantic-H3] {rel}:{line}: describes "
+                f"[semantic-I3] {rel}:{line}: describes "
                 f"'wrapped_function_error' as pre-v0.3.2 or as requiring no "
                 f"schema change; this value is additive in v0.3.2"
             )
@@ -538,7 +662,8 @@ def main() -> int:
         ("E. Archive hygiene", check_archive_hygiene),
         ("F. Gate-ID consistency", lambda: check_gate_id_consistency(manifest)),
         ("G. Parity-set docs exist", lambda: check_parity_docs_exist(manifest)),
-        ("H. Semantic behavioral claims", check_semantic_claims),
+        ("H. Implementation-truth consistency", lambda: check_implementation_truth(manifest)),
+        ("I. Semantic behavioral claims", check_semantic_claims),
     ]
 
     for name, check_fn in checks:

@@ -21,27 +21,37 @@ from typing import Any
 from aigc._internal.utils import canonical_json_bytes
 
 
+# Fields written by AuditChain that must be excluded when computing the lineage
+# node key.  The key is therefore sha256(content-only fields), which is stable
+# across chain.append(): checksum_of(artifact) returns the same value before
+# and after chaining, so derived_from_audit_checksums references remain valid
+# regardless of when in the workflow the parent is chained.
+#
+# AuditChain's stored ``checksum`` field (sha256 of the full artifact minus the
+# checksum field itself) covers chain_id / chain_index / previous_audit_checksum
+# and is a separate, chain-integrity concern — not the lineage identity.
+_CHAIN_FIELDS = frozenset(
+    {"chain_id", "chain_index", "previous_audit_checksum", "checksum"}
+)
+
+
 def _artifact_checksum(artifact: dict[str, Any]) -> str:
     """
-    Derive the node key for an artifact.
+    Derive the stable content-only node key for an artifact.
 
-    If the artifact carries a stored 'checksum' field (written by AuditChain
-    as sha256 of the artifact-without-checksum), use that value directly —
-    it is the canonical identifier callers already reference in
-    derived_from_audit_checksums (per the integration guide).
+    Returns sha256(canonical_json(artifact_without_chain_fields)) where chain
+    fields are: chain_id, chain_index, previous_audit_checksum, checksum.
 
-    For artifacts without a stored checksum (not processed by AuditChain),
-    fall back to sha256(canonical_json(artifact)).
+    This value is invariant with respect to AuditChain.append(): stripping
+    chain fields that were not present before chaining (or were present but
+    are excluded here) gives the same digest before and after.
+
+    Callers should obtain parent checksums via lineage.checksum_of() or this
+    function — NOT by reading artifact["checksum"], which is the chain-integrity
+    hash (a different value that includes chain metadata).
     """
-    stored = artifact.get("checksum")
-    if stored is not None:
-        if not isinstance(stored, str):
-            raise ValueError(
-                f"checksum field must be a str, got {type(stored).__name__!r}"
-            )
-        if stored:
-            return stored
-    return hashlib.sha256(canonical_json_bytes(artifact)).hexdigest()
+    content = {k: v for k, v in artifact.items() if k not in _CHAIN_FIELDS}
+    return hashlib.sha256(canonical_json_bytes(content)).hexdigest()
 
 
 class AuditLineage:

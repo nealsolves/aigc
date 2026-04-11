@@ -144,6 +144,8 @@ def _normalize_provenance(
     """
     if provenance is None:
         return None
+    if not isinstance(provenance, Mapping):
+        return None
 
     out: dict[str, Any] = {}
     for k, v in provenance.items():

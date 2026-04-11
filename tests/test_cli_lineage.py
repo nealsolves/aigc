@@ -304,23 +304,31 @@ def test_lineage_excludes_schema_invalid_artifacts(tmp_path, capsys):
 # Test 10: Stored checksum (AuditChain path) used as node key
 # ---------------------------------------------------------------------------
 
-def test_lineage_stored_checksum_used_as_node_key(tmp_path, capsys):
-    """When an artifact has a stored 'checksum' field (AuditChain path),
-    that value is used as the node key in roots/leaves — not the fallback
-    sha256(canonical_json(artifact)).
+def test_lineage_node_key_is_content_hash(tmp_path, capsys):
+    """The lineage node key is sha256(artifact-without-chain-fields).
 
-    Pins the AuditLineage._artifact_checksum() branch at lineage.py:28.
-    A regression that ignored the stored field would emit a different hash
-    in roots[], causing downstream callers that already have the stored
-    checksum to fail to cross-reference.
+    AuditChain stamps artifact['checksum'] with a chain-integrity hash that
+    includes chain_id/chain_index/previous_audit_checksum.  That value differs
+    from the content key, so callers must use _artifact_checksum(artifact) (or
+    lineage.checksum_of()) — not artifact['checksum'] — when populating
+    derived_from_audit_checksums.
+
+    This test confirms that derived_from references built from the content key
+    resolve correctly in the CLI report (orphan_count == 0).
     """
-    stored_key = "e" * 64  # simulates a checksum stamped by AuditChain
     parent = _make_artifact("parent")
-    parent["checksum"] = stored_key  # AuditChain stamps this field
+    # Obtain the stable content key BEFORE any chaining
+    parent_key = _artifact_checksum(parent)
+
+    # Simulate AuditChain stamping a chain-integrity hash (different from parent_key)
+    parent["chain_id"] = "some-chain"
+    parent["chain_index"] = 0
+    parent["previous_audit_checksum"] = None
+    parent["checksum"] = "e" * 64  # chain-integrity hash, ≠ parent_key
 
     child = _make_artifact(
         "child",
-        provenance={"derived_from_audit_checksums": [stored_key]},
+        provenance={"derived_from_audit_checksums": [parent_key]},
     )
 
     input_file = tmp_path / "trail.jsonl"
@@ -334,8 +342,8 @@ def test_lineage_stored_checksum_used_as_node_key(tmp_path, capsys):
     assert exit_code == 0
     report = json.loads(capsys.readouterr().out)
     lin = report["lineage"]
-    # The stored checksum must appear in roots — not a fallback sha256
-    assert stored_key in lin["roots"]
+    # Content key (not chain-integrity hash) must appear in roots
+    assert parent_key in lin["roots"]
     assert lin["root_count"] == 1
     assert lin["leaf_count"] == 1
     assert lin["orphan_count"] == 0

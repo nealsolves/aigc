@@ -302,43 +302,62 @@ def test_has_cycle_true_when_cycle_injected():
 # Stored checksum field (AuditChain integration path)
 # ---------------------------------------------------------------------------
 
-def test_stored_checksum_field_used_as_node_key():
-    """If artifact carries a stored 'checksum' field, it is used as the node key."""
+def test_lineage_key_is_content_only_hash():
+    """Lineage node key is sha256(artifact-without-chain-fields), not the stored checksum.
+
+    AuditChain writes artifact['checksum'] = sha256(artifact_with_chain_fields).
+    That value must NOT be used as the lineage key; otherwise checksum_of() returns
+    different values before and after chain.append(), breaking derived_from references.
+    """
     stored = "a" * 64
     artifact = _make_artifact(checksum=stored)
     lineage = AuditLineage()
     key = lineage.add_artifact(artifact)
-    assert key == stored
-    assert lineage.get(stored) == artifact
+    assert key != stored, "stored chain checksum must not be used as lineage node key"
+    assert lineage.checksum_of(artifact) == key
 
 
-def test_stored_checksum_preferred_over_canonical_hash():
-    """Node key from stored checksum differs from sha256(canonical_json)."""
-    stored = "b" * 64
-    artifact = _make_artifact(checksum=stored)
+def test_lineage_key_stable_when_chain_fields_present():
+    """Adding chain fields to an artifact does not change its lineage key.
+
+    AuditChain.append() adds chain_id, chain_index, previous_audit_checksum,
+    and checksum.  All four are stripped before hashing, so checksum_of()
+    returns the same digest before and after chaining.
+    """
+    artifact = _make_artifact()
+    key_before = _artifact_checksum(artifact)
+
+    # Simulate AuditChain.append() mutating the artifact in place.
+    artifact["chain_id"] = "some-chain"
+    artifact["chain_index"] = 0
+    artifact["previous_audit_checksum"] = None
+    artifact["checksum"] = "b" * 64  # chain-integrity hash, different from key
+
+    key_after = _artifact_checksum(artifact)
+    assert key_before == key_after, "lineage key must be invariant across chaining"
+
+
+def test_lineage_edges_use_checksum_of_for_parent_reference():
+    """Edges resolve when derived_from_audit_checksums uses checksum_of(parent).
+
+    The integration contract: obtain parent checksums via checksum_of() (or
+    lineage.add_artifact() return value), not by reading artifact['checksum'].
+    """
     lineage = AuditLineage()
-    key = lineage.add_artifact(artifact)
-    # The stored value must win; canonical hash of this artifact would not be "b"*64
-    assert key == stored
-
-
-def test_lineage_edges_work_with_stored_checksums():
-    """derived_from_audit_checksums referencing a stored checksum builds edges correctly."""
-    parent_checksum = "c" * 64
-    parent = _make_artifact(checksum=parent_checksum, input_checksum="a" * 64)
-    lineage = AuditLineage()
-    lineage.add_artifact(parent)
+    parent = _make_artifact(input_checksum="a" * 64)
+    parent_key = lineage.add_artifact(parent)
+    assert parent_key == lineage.checksum_of(parent)
 
     child = _make_artifact(
         input_checksum="b" * 64,
-        provenance={"derived_from_audit_checksums": [parent_checksum]},
+        provenance={"derived_from_audit_checksums": [parent_key]},
     )
     child_key = lineage.add_artifact(child)
 
     assert parent in lineage.roots()
     assert child in lineage.leaves()
     assert parent in lineage.ancestors(child_key)
-    assert child in lineage.descendants(parent_checksum)
+    assert child in lineage.descendants(parent_key)
 
 
 # ---------------------------------------------------------------------------
@@ -365,18 +384,19 @@ def test_string_derived_from_checksums_raises_value_error():
         lineage.add_artifact(artifact)
 
 
-def test_non_string_checksum_field_raises_value_error():
-    """Stored checksum field that is not a str raises ValueError.
+def test_non_string_checksum_field_is_ignored():
+    """A non-string checksum field is stripped and does not affect the lineage key.
 
-    An integer checksum (e.g. {"checksum": 123}) is truthy and would be
-    returned as-is, inserting an int key into _artifacts/_parents/_children
-    and breaking all subsequent str-keyed lookups.
+    Under content-based keys, artifact['checksum'] is a chain-integrity field
+    that is always excluded from hashing.  A malformed value (e.g. int 123)
+    is stripped harmlessly; it does not propagate into _artifacts/_parents/_children
+    as a non-string key.
     """
-    import pytest
     lineage = AuditLineage()
     artifact = _make_artifact(checksum=123)
-    with pytest.raises(ValueError, match="checksum"):
-        lineage.add_artifact(artifact)
+    key = lineage.add_artifact(artifact)
+    assert isinstance(key, str)
+    assert len(key) == 64
 
 
 def test_non_string_element_in_checksums_list_raises_value_error():
@@ -395,42 +415,33 @@ def test_non_string_element_in_checksums_list_raises_value_error():
         lineage.add_artifact(artifact)
 
 
-def test_add_artifact_duplicate_key_resets_parent_edges():
-    """Re-adding an artifact with the same stored checksum clears stale parent edges.
+def test_add_artifact_re_add_idempotent():
+    """Re-adding the same artifact does not duplicate edges.
 
-    Duplicate node keys can only arise via the stored-checksum path (AuditChain
-    artifacts): two artifacts with different provenance produce different
-    canonical hashes under the fallback path, so they are never the same key.
+    Under content-based keys, the same content always maps to the same key.
+    Edges must be rebuilt consistently without duplication.
     """
     lineage = AuditLineage()
-    parent_a = _make_artifact(input_checksum="a" * 64)
-    parent_b = _make_artifact(input_checksum="b" * 64)
-    pa_key = lineage.add_artifact(parent_a)
-    pb_key = lineage.add_artifact(parent_b)
-
-    shared_checksum = "d" * 64  # same stored checksum for both versions of child
-
-    # Add child (v1) with stored checksum pointing to parent_a
-    child_v1 = _make_artifact(
-        checksum=shared_checksum,
-        input_checksum="c" * 64,
-        provenance={"derived_from_audit_checksums": [pa_key]},
+    parent = _make_artifact(input_checksum="a" * 64)
+    parent_key = lineage.add_artifact(parent)
+    child = _make_artifact(
+        input_checksum="b" * 64,
+        provenance={"derived_from_audit_checksums": [parent_key]},
     )
-    child_key = lineage.add_artifact(child_v1)
-    assert child_key == shared_checksum
-    assert pa_key in lineage._parents[child_key]
+    child_key = lineage.add_artifact(child)
 
-    # Re-add same stored checksum but pointing to parent_b instead
-    child_v2 = _make_artifact(
-        checksum=shared_checksum,
-        input_checksum="c" * 64,
-        provenance={"derived_from_audit_checksums": [pb_key]},
+    # Re-add with identical content (same key, same edges).
+    lineage.add_artifact(
+        _make_artifact(
+            input_checksum="b" * 64,
+            provenance={"derived_from_audit_checksums": [parent_key]},
+        )
     )
-    lineage.add_artifact(child_v2)
 
-    assert pa_key not in lineage._parents[child_key], "stale parent_a edge must be cleared"
-    assert pb_key in lineage._parents[child_key], "new parent_b edge must be present"
-    assert child_key not in lineage._children[pa_key], "parent_a must not list child anymore"
+    assert lineage._parents[child_key].count(parent_key) == 1, \
+        "parent edge must not be duplicated on re-add"
+    assert lineage._children[parent_key].count(child_key) == 1, \
+        "child back-edge must not be duplicated on re-add"
 
 
 # ---------------------------------------------------------------------------
@@ -460,42 +471,97 @@ def test_failed_add_new_artifact_leaves_graph_unchanged():
     assert lineage._children == {}
 
 
-def test_failed_overwrite_preserves_existing_edges():
-    """A failed overwrite attempt must leave the original node's edges intact.
+# ---------------------------------------------------------------------------
+# P1 regression: lineage key must be stable across AuditChain.append()
+# ---------------------------------------------------------------------------
 
-    If a node already exists and a second add_artifact() call fails validation,
-    the original node's parent/child edges must be unchanged — a partial
-    overwrite that destroys existing edges while raising is worse than doing
-    nothing.
+def test_lineage_key_stable_across_audit_chain_append():
+    """Node key must not change when AuditChain.append() adds chain metadata.
+
+    Workflow: host calls checksum_of(parent) BEFORE chaining to obtain the key
+    used in a child's derived_from_audit_checksums.  After chain.append(parent),
+    the parent's lineage key must be the same value so ancestors() / descendants()
+    / orphans() all resolve the relationship correctly.
+    """
+    from aigc._internal.audit import generate_audit_artifact
+    from aigc._internal.audit_chain import AuditChain
+
+    invocation = {
+        "policy_file": "test_policy.yaml",
+        "model_provider": "test_provider",
+        "model_identifier": "test_model",
+        "role": "tester",
+        "input": {},
+        "output": {},
+        "context": {},
+    }
+    policy = {"policy_version": "1.0"}
+
+    parent = generate_audit_artifact(invocation, policy, timestamp=1700000000)
+
+    # Capture key BEFORE chaining (simulates typical host provenance workflow)
+    lineage = AuditLineage()
+    pre_chain_key = lineage.checksum_of(parent)
+
+    # Chain the parent — must not change its effective lineage key
+    chain = AuditChain()
+    chain.append(parent)
+
+    # Generate child referencing the pre-chain key
+    child_invocation = dict(invocation, input={"step": 2})
+    child = generate_audit_artifact(
+        child_invocation, policy,
+        provenance={"derived_from_audit_checksums": [pre_chain_key]},
+        timestamp=1700000001,
+    )
+
+    parent_key = lineage.add_artifact(parent)
+    child_key = lineage.add_artifact(child)
+
+    assert parent_key == pre_chain_key, (
+        "AuditChain.append() must not shift the artifact's lineage node key; "
+        f"pre-chain={pre_chain_key!r}, post-chain={parent_key!r}"
+    )
+    assert parent in lineage.ancestors(child_key), \
+        "parent must appear in child's ancestors()"
+    assert child in lineage.descendants(parent_key), \
+        "child must appear in parent's descendants()"
+    assert lineage.orphans() == [], \
+        "child must not be an orphan when parent is present"
+
+
+def test_failed_add_distinct_artifact_leaves_existing_edges_intact():
+    """A failed add_artifact() for a distinct artifact must not corrupt existing edges.
+
+    Under content-based keys, different provenance → different hash → distinct
+    node.  A validation failure on a new node must never affect the edges of
+    an already-present node.
     """
     import pytest
     lineage = AuditLineage()
     parent = _make_artifact(input_checksum="a" * 64)
     parent_key = lineage.add_artifact(parent)
 
-    shared_checksum = "cc" * 32  # 64 hex chars
-    child_v1 = _make_artifact(
-        checksum=shared_checksum,
+    child = _make_artifact(
         input_checksum="b" * 64,
         provenance={"derived_from_audit_checksums": [parent_key]},
     )
-    lineage.add_artifact(child_v1)
+    child_key = lineage.add_artifact(child)
 
-    # Confirm edges are wired before the attempted overwrite.
-    assert parent_key in lineage._parents[shared_checksum]
-    assert shared_checksum in lineage._children[parent_key]
+    assert parent_key in lineage._parents[child_key]
+    assert child_key in lineage._children[parent_key]
 
-    # Attempt to overwrite the child with invalid provenance.
-    bad_overwrite = _make_artifact(
-        checksum=shared_checksum,
-        input_checksum="b" * 64,
-        provenance={"derived_from_audit_checksums": [999]},  # int, not str
+    # Attempt to add a different artifact with invalid provenance (int, not str).
+    bad = _make_artifact(
+        input_checksum="c" * 64,
+        provenance={"derived_from_audit_checksums": [999]},
     )
     with pytest.raises(ValueError):
-        lineage.add_artifact(bad_overwrite)
+        lineage.add_artifact(bad)
 
-    # Original edges must still be intact.
-    assert parent_key in lineage._parents[shared_checksum], \
-        "parent edge must survive a failed overwrite"
-    assert shared_checksum in lineage._children[parent_key], \
-        "child back-edge must survive a failed overwrite"
+    # Existing edges must still be intact.
+    assert parent_key in lineage._parents[child_key], \
+        "child-to-parent edge must survive a failed add of a distinct artifact"
+    assert child_key in lineage._children[parent_key], \
+        "parent-to-child back-edge must survive a failed add of a distinct artifact"
+    assert len(lineage) == 2

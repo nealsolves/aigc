@@ -360,7 +360,7 @@ artifact = generate_audit_artifact(
     policy,
     provenance={
         "source_ids": ["workflow-step-1", "workflow-step-2"],
-        "derived_from_audit_checksums": [prior_audit["checksum"]],
+        "derived_from_audit_checksums": [lineage.checksum_of(prior_audit)],
         "compilation_source_hash": "e3b0c44298fc1c149afbf4c8996fb924"
                                    "27ae41e4649b934ca495991b7852b855",
     },
@@ -476,16 +476,18 @@ has_cycle = lineage.has_cycle()
 
 ### Node identity
 
-Each artifact's node key uses the stored `"checksum"` field if the artifact
-was processed by `AuditChain` — that value is already the canonical identifier
-that `derived_from_audit_checksums` entries should reference. For artifacts
-not processed by `AuditChain`, the node key falls back to
-`sha256(canonical_json_bytes(artifact))`.
+Each artifact's node key is `sha256(canonical_json_bytes(artifact_without_chain_fields))`,
+where chain fields are `chain_id`, `chain_index`, `previous_audit_checksum`, and
+`checksum`. This content-only hash is stable regardless of whether and when
+`AuditChain.append()` has been called on the artifact.
 
-To obtain the node key without calling `add_artifact()`, use
-`lineage.checksum_of(artifact)`. When writing provenance for a downstream
-artifact, pass the key returned by `add_artifact()` (or `checksum_of()`)
-as a `derived_from_audit_checksums` entry.
+**Do not use `artifact["checksum"]` as a lineage key.** That field is
+`AuditChain`'s chain-integrity hash — it includes chain metadata and is a
+different value from the lineage node key.
+
+To obtain the node key, use `lineage.checksum_of(artifact)` or the return
+value of `add_artifact()`. When writing provenance for a downstream artifact,
+pass that key as a `derived_from_audit_checksums` entry.
 
 ### CLI lineage mode
 
@@ -655,8 +657,9 @@ audit = enforce_invocation({
         "session_id": session_id,
         "provenance": {
             "source_ids": ["doc-abc123", "kb-entry-42"],
-            # prior_audit["checksum"] is the field written by AuditChain
-            "derived_from_audit_checksums": [prior_audit["checksum"]],
+            # Use checksum_of() — NOT prior_audit["checksum"] — to get the
+            # stable lineage node key (content-only hash, chain-field-agnostic).
+            "derived_from_audit_checksums": [lineage.checksum_of(prior_audit)],
         },
     },
 })

@@ -930,10 +930,12 @@ invocation context dict.
 | `orphans()` | `list[dict]` | Artifacts with missing parents |
 | `has_cycle()` | `bool` | True if graph contains a cycle |
 
-**Node identity:** If artifact carries a stored `"checksum"` field (set by
-`AuditChain`), that value is used directly as the node key — this is the
-canonical identifier to use in `derived_from_audit_checksums`. For artifacts
-without a stored checksum, falls back to `sha256(canonical_json_bytes(artifact))`.
+**Node identity:** The node key is `sha256(canonical_json_bytes(artifact_without_chain_fields))`,
+where chain fields (`chain_id`, `chain_index`, `previous_audit_checksum`, `checksum`) are
+excluded before hashing. This content-only key is stable regardless of whether
+`AuditChain.append()` has been called. **Do not use `artifact["checksum"]`** as a lineage
+key — that is `AuditChain`'s chain-integrity hash and differs from the lineage node key.
+Use `lineage.checksum_of(artifact)` or the return value of `add_artifact()` instead.
 
 **No new dependencies** — standard library only.
 

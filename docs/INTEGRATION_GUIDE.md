@@ -631,8 +631,8 @@ def call_model(input_data: dict, context: dict = None): ...
 def call_model(input_data: dict, context: dict = None): ...
 ```
 
-Note: `@governed` normalizes the first argument as `input_data`. It must be a `dict`
-(or `None`) — a bare string or non-mapping type will be coerced to `{}`, silently
+Note: `@governed` normalizes the first argument as `input_data`. It must be a `dict` —
+a bare string, `None`, or any non-mapping type will be coerced to `{}`, silently
 producing an empty-input audit artifact. Always pass a dict-shaped first argument.
 
 The `pre_call_enforcement=False` opt-out remains functional but emits
@@ -700,7 +700,9 @@ from aigc import RiskHistory, TRAJECTORY_DEGRADING
 
 # entity_id is required; stability_band is optional (default 0.05)
 history = RiskHistory("session-42")
-history.record(audit["risk_score"])   # float or RiskScore; call for each audit
+risk = audit.get("risk_score")        # None when policy has no risk block
+if risk is not None:
+    history.record(risk)              # float or RiskScore
 trajectory = history.trajectory()     # needs >= 2 recorded scores
 if trajectory == TRAJECTORY_DEGRADING:
     alert_ops()

@@ -78,29 +78,29 @@ Checklist:
 
 Workflow-aware SDK outcome:
 
-- [ ] provenance is tracked across invocations
-- [ ] lineage can be reconstructed across invocations
-- [ ] source-aware gating is available
-- [ ] graduated trust over time is available
+- [x] provenance is tracked across invocations
+- [x] lineage can be reconstructed across invocations
+- [x] source-aware gating is available
+- [x] graduated trust over time is available
 - [x] pre-call governance is the default execution model
 
 Documentation parity targets:
 
-- [ ] `README.md`
-- [ ] `PROJECT.md`
-- [ ] `CHANGELOG.md`
-- [ ] `docs/INTEGRATION_GUIDE.md`
-- [ ] `docs/PUBLIC_INTEGRATION_CONTRACT.md`
-- [ ] `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`
-- [ ] `docs/architecture/ENFORCEMENT_PIPELINE.md`
-- [ ] `docs/architecture/ARCHITECTURAL_INVARIANTS.md`
-- [ ] `schemas/audit_artifact.schema.json`
-- [ ] public lineage module docs are updated
-- [ ] public risk-history module docs are updated
+- [x] `README.md`
+- [x] `PROJECT.md`
+- [x] `CHANGELOG.md`
+- [x] `docs/INTEGRATION_GUIDE.md`
+- [x] `docs/PUBLIC_INTEGRATION_CONTRACT.md`
+- [x] `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`
+- [x] `docs/architecture/ENFORCEMENT_PIPELINE.md`
+- [x] `docs/architecture/ARCHITECTURAL_INVARIANTS.md`
+- [x] `schemas/audit_artifact.schema.json`
+- [x] public lineage module docs are updated
+- [x] public risk-history module docs are updated
 
 Release readiness:
 
-- [ ] release notes drafted
-- [ ] migration notes drafted
-- [ ] final changelog entry drafted
-- [ ] release checklist reviewed
+- [x] release notes drafted
+- [x] migration notes drafted
+- [x] final changelog entry drafted
+- [x] release checklist reviewed

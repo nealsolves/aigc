@@ -35,7 +35,7 @@ describe('ArchitecturePage', () => {
     expect(screen.getByText('Audit Chain')).toBeInTheDocument()
     expect(screen.getByText('Lineage Analysis')).toBeInTheDocument()
     expect(screen.getByText('Pre-Pipeline Failures')).toBeInTheDocument()
-    expect(screen.getAllByText('RiskHistory').length).toBeGreaterThan(0)
+    expect(screen.getByText('Risk History')).toBeInTheDocument()
     expect(screen.getByText('Async + Instance APIs')).toBeInTheDocument()
   })
 

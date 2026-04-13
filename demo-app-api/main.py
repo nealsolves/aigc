@@ -380,9 +380,12 @@ class PolicyTestRequest(BaseModel):
 
 @app.post("/api/policy/test")
 def run_policy_tests(req: PolicyTestRequest):
-    policy_path = str(SAMPLE_POLICIES_DIR / req.policy_name)
-    if not (SAMPLE_POLICIES_DIR / req.policy_name).exists():
+    path = (SAMPLE_POLICIES_DIR / req.policy_name).resolve()
+    if not path.is_relative_to(SAMPLE_POLICIES_DIR.resolve()):
+        return {"results": [], "error": "Access denied"}
+    if not path.exists():
         return {"results": [], "error": f"Not found: {req.policy_name}"}
+    policy_path = str(path)
 
     cases = [
         (PolicyTestCase(

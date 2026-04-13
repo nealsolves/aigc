@@ -24,9 +24,13 @@ def test_lab10_both_phases_pass():
     assert data["phase_b"] is not None
     assert data["artifact"]["enforcement_result"] in ("PASS", "FAIL")
     assert data["artifact"]["metadata"]["enforcement_mode"] == "split"
-    # Both phase gate lists must be present
+    # Both phase gate lists must be present in artifact metadata
     assert "pre_call_gates_evaluated" in data["artifact"]["metadata"]
     assert "post_call_gates_evaluated" in data["artifact"]["metadata"]
+    # Phase A response must reflect the gates that actually ran, not an empty list
+    assert len(data["phase_a"]["gates_evaluated"]) > 0, (
+        "phase_a.gates_evaluated was empty — key mismatch between API and PreCallResult"
+    )
 
 
 def test_lab10_unknown_scenario():

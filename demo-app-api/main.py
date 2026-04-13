@@ -563,7 +563,7 @@ def lab10_split_trace(req: Lab10SplitRequest):
     phase_a_meta = pre_result.phase_a_metadata
     phase_a = {
         "result": "PASS",
-        "gates_evaluated": phase_a_meta.get("pre_call_gates_evaluated", []),
+        "gates_evaluated": phase_a_meta.get("gates_evaluated", []),
         "failures": [],
         "blocked": False,
     }

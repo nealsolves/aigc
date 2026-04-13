@@ -1,0 +1,39 @@
+name: "Demo CI"
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  demo-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+      - name: Install aigc SDK
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install --no-build-isolation -e '.[dev]'
+      - name: Install demo-app-api dependencies
+        run: pip install -r demo-app-api/requirements.txt
+      - name: Run demo-app-api tests
+        working-directory: demo-app-api
+        run: python -m pytest tests/ -v
+
+  demo-react:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm --prefix demo-app-react ci
+      - name: Run tests
+        run: npm --prefix demo-app-react test
+      - name: Build
+        run: npm --prefix demo-app-react run build

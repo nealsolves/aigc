@@ -53,7 +53,7 @@ function scenarioRequiresSplit(flowHint: 'unified' | 'split'): boolean {
 export default function Lab1RiskScoring() {
   const [scenarioIdx,     setScenarioIdx]     = useState(1)
   const [mode,            setMode]            = useState<RiskMode>('risk_scored')
-  const [flow,            setFlow]            = useState<EnforcementFlow>('unified')
+  const [flow,            setFlow]            = useState<EnforcementFlow>('split')
   const [artifact,        setArtifact]        = useState<Artifact | null>(null)
   const [scenarioDetail,  setScenarioDetail]  = useState<ScenarioDetail | null>(null)
 

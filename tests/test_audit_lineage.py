@@ -15,6 +15,8 @@ import json
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from aigc._internal.lineage import AuditLineage, _artifact_checksum
 
 
@@ -565,3 +567,38 @@ def test_failed_add_distinct_artifact_leaves_existing_edges_intact():
     assert child_key in lineage._children[parent_key], \
         "parent-to-child back-edge must survive a failed add of a distinct artifact"
     assert len(lineage) == 2
+
+
+def test_non_mapping_provenance_raises_value_error_not_attribute_error():
+    """A non-mapping provenance (e.g. a plain string from external JSONL) must
+    raise ValueError, not AttributeError from provenance.get().
+
+    The add_artifact() contract guarantees ValueError for malformed provenance.
+    Callers (including from_jsonl) rely on this for controlled error handling.
+    """
+    lineage = AuditLineage()
+    for bad_provenance in ("some_string", 42, ["list", "not", "mapping"], True):
+        artifact = _make_artifact()
+        artifact["provenance"] = bad_provenance
+        with pytest.raises(ValueError, match="provenance must be a mapping"):
+            lineage.add_artifact(artifact)
+
+
+def test_non_mapping_provenance_does_not_mutate_graph():
+    """A rejected non-mapping provenance must leave the graph unchanged.
+
+    Validation runs before any mutation, so a malformed artifact from an
+    external JSONL source must not corrupt an in-progress lineage graph.
+    """
+    import pytest
+    lineage = AuditLineage()
+    existing = _make_artifact(input_checksum="a" * 64)
+    existing_key = lineage.add_artifact(existing)
+
+    bad = _make_artifact(input_checksum="b" * 64)
+    bad["provenance"] = "this is not a mapping"
+    with pytest.raises(ValueError):
+        lineage.add_artifact(bad)
+
+    assert len(lineage) == 1
+    assert existing_key in lineage._artifacts

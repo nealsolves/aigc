@@ -502,9 +502,13 @@ def _make_custom_gate_runner(
         if meta:
             all_custom_metadata.update(meta)
         if failures:
+            first = failures[0]
+            first_msg = (
+                first.get("message", "unknown") if isinstance(first, dict)
+                else str(first)
+            )
             raise CustomGateViolationError(
-                f"Custom gate failed at {insertion_point}: "
-                f"{failures[0].get('message', 'unknown')}",
+                f"Custom gate failed at {insertion_point}: {first_msg}",
                 details={
                     "custom_gate_failures": failures,
                     "insertion_point": insertion_point,
@@ -930,6 +934,24 @@ def _run_phase_b(
                 # surfacing — custom gates may inadvertently echo user input.
                 sanitized_gate_failures = []
                 for gf in exc.details["custom_gate_failures"]:
+                    if not isinstance(gf, dict):
+                        # Gate returned a non-dict failure entry.  Normalize
+                        # it so a malformed gate cannot crash the error path
+                        # before the FAIL artifact is attached/emitted.
+                        # Apply the same sanitization as dict entries — the
+                        # raw value may contain user input or secrets.
+                        gf_raw_msg, gf_redacted = sanitize_failure_message(
+                            str(gf), redaction_patterns,
+                        )
+                        for r in gf_redacted:
+                            if r not in redacted_fields:
+                                redacted_fields.append(r)
+                        sanitized_gate_failures.append({
+                            "code": "CUSTOM_GATE_MALFORMED_FAILURE",
+                            "message": gf_raw_msg,
+                            "field": None,
+                        })
+                        continue
                     gf_msg = str(gf.get("message", ""))
                     sanitized_gf_msg, gf_redacted = sanitize_failure_message(
                         gf_msg, redaction_patterns,

@@ -202,8 +202,8 @@ experience, not just inspect.
 
 Released `2026-04-05`.
 
-`0.3.2` is the current release and the most important architectural change in
-the repo today.
+`0.3.2` was the most important architectural change in the `0.3.x` line up to
+that point.
 
 What shipped:
 
@@ -226,11 +226,13 @@ What hardened immediately after release:
 This release preserves the original gate ordering and unified-mode behavior
 while allowing hosts to block before token spend.
 
-### `0.3.3` — Governed agentic workflows (in progress)
+### `0.3.3` — Governed agentic workflows
+
+Released `2026-04-10`.
 
 `0.3.3` extends AIGC from invocation governance to workflow governance.
 
-What has shipped so far:
+What shipped:
 
 - audit schema `v1.4`: optional `provenance` object on artifacts — `source_ids`,
   `derived_from_audit_checksums`, `compilation_source_hash`
@@ -264,7 +266,9 @@ Use the docs in this order if you are orienting yourself quickly:
 
 - Older files in the repo still reference internal phase or milestone labels.
   Treat those as development history, not the primary public narrative.
-- The current release architecture is represented by the `v0.3.2` diagram
-  assets under `docs/architecture/diagrams/`.
+- The diagram assets under `docs/architecture/diagrams/` were introduced with
+  `v0.3.2` and remain the baseline visualization for the enforcement pipeline.
+  `v0.3.3` capabilities (lineage, provenance, risk history, split-by-default
+  decorator behavior) are described in the current docs and changelog.
 - The demo apps are important orientation tools, but the SDK package under
   `aigc/` is the authoritative product surface.

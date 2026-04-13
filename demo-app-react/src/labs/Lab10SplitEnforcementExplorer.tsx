@@ -97,9 +97,9 @@ export default function Lab10SplitEnforcementExplorer() {
                 </span>
                 {result.phase_a && <StatusBadge status={result.phase_a.result} />}
               </div>
-              {result.phase_a?.gates_evaluated?.length > 0 && (
+              {(result.phase_a?.gates_evaluated?.length ?? 0) > 0 && (
                 <ul className="text-xs font-mono space-y-0.5 mb-2">
-                  {result.phase_a.gates_evaluated.map((g, i) => (
+                  {result.phase_a!.gates_evaluated.map((g, i) => (
                     <li key={i} style={{ color: 'var(--text-secondary)' }}>→ {g}</li>
                   ))}
                 </ul>

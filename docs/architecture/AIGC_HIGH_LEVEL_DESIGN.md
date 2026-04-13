@@ -2,7 +2,7 @@
 
 **Auditable Intelligence Governance Contract**
 
-Version: 1.3.0 | Status: Authoritative | Last Updated: 2026-04-05
+Version: 1.4.0 | Status: Authoritative | Last Updated: 2026-04-13
 
 ---
 
@@ -57,7 +57,7 @@ artifacts) at every invocation.
 | --------- | ------- |
 | **Governance is data, not code** | Policies are declarative YAML validated against JSON Schema. No executable policy logic. |
 | **Enforcement is deterministic** | Given the same invocation and policy, the SDK always produces the same pass/fail decision. Timestamps and checksums are the only volatile fields. |
-| **Audit is mandatory** | Every successful enforcement produces an artifact. There is no "silent" mode. |
+| **Audit is mandatory** | Every enforcement attempt produces an artifact. PASS artifacts are returned; FAIL artifacts are attached to raised exceptions. There is no "silent" mode. |
 | **Provider-agnostic** | The SDK governs invocations, not providers. It works with OpenAI, Anthropic, Bedrock, local models, or any future provider. |
 | **Fail-closed** | Missing preconditions, invalid schemas, unauthorized roles — all raise typed exceptions. The default answer is "no." |
 | **Portable** | The SDK has no dependency on any specific host application. It can be embedded in any Python system. |
@@ -732,7 +732,7 @@ These properties must hold for every enforcement:
 | **Policy** | Declarative YAML contract defining governance rules |
 | **Invocation** | Structured dict representing a single model interaction |
 | **Enforcement** | The act of evaluating an invocation against a policy |
-| **Audit Artifact** | Immutable record produced by successful enforcement |
+| **Audit Artifact** | Immutable record produced by enforcement attempts (PASS returned, FAIL attached to exception) |
 | **Golden Replay** | Deterministic test fixture encoding expected governance behavior |
 | **Guard** | Conditional policy expansion triggered by runtime context |
 | **Gate** | A single validation step in the enforcement pipeline |

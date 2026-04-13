@@ -725,7 +725,9 @@ evidence = validate_policy_dates(policy, clock=lambda: date(2025, 6, 15))
 Load policies from sources other than the filesystem:
 
 ```python
-from aigc import PolicyLoaderBase, AIGC
+import yaml
+
+from aigc import AIGC, PolicyLoaderBase, PolicyLoadError
 
 
 class DatabasePolicyLoader(PolicyLoaderBase):

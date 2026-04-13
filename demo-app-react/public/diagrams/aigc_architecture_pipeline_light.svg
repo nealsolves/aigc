@@ -64,7 +64,7 @@
   <text x="1003" y="123" fill="#8a3ffc" font-size="8" text-anchor="middle">custom gates</text>
 
   <!-- Wrap arrow -->
-  <path d="M 1003 132 L 1003 168 Q 1003 178 993 178 L 172 178 L 172 198"
+  <path d="M 1003 132 L 1003 168 Q 1003 178 993 178 L 208 178 L 208 198"
         fill="none" stroke="#0f62fe" stroke-width="1" marker-end="url(#arr)"/>
 
   <!-- ════ ROW 2: Output Phase ════ -->
@@ -120,15 +120,15 @@
   <text x="406" y="308" fill="#525252" font-size="8">source_ids, derived_from_audit_checksums, compilation_source_hash.</text>
   <polyline points="882,238 882,248 546,248 546,258" fill="none" stroke="#42be65" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
 
-  <rect x="736" y="258" width="308" height="64" rx="6" fill="#ffffff" stroke="#0f62fe" stroke-width="0.9"/>
-  <text x="754" y="278" fill="#0f62fe" font-size="9" font-weight="600" font-family="'IBM Plex Mono', monospace">Downstream Analysis, Not Runtime Gates</text>
-  <text x="754" y="294" fill="#161616" font-size="9">AuditLineage and compliance export <tspan font-family="'IBM Plex Mono', monospace">--lineage</tspan> read stored trails.</text>
-  <text x="754" y="308" fill="#525252" font-size="8">RiskHistory classifies emitted risk-score trends without changing enforcement order.</text>
+  <rect x="724" y="258" width="364" height="72" rx="6" fill="#ffffff" stroke="#0f62fe" stroke-width="0.9"/>
+  <text x="742" y="278" fill="#0f62fe" font-size="9" font-weight="600" font-family="'IBM Plex Mono', monospace">Downstream Analysis, Not Runtime Gates</text>
+  <text x="742" y="294" fill="#161616" font-size="9">AuditLineage and compliance export <tspan font-family="'IBM Plex Mono', monospace">--lineage</tspan> read stored trails.</text>
+  <text x="742" y="310" fill="#525252" font-size="8">RiskHistory classifies emitted risk-score trends without changing enforcement order.</text>
   <polyline points="882,238 882,248 890,248 890,258" fill="none" stroke="#0f62fe" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
   <polyline points="732,238 732,248 936,248 936,258" fill="none" stroke="#0f62fe" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
 
   <!-- Legend -->
-  <rect x="56" y="338" width="420" height="24" rx="4" fill="#f2f4f8" stroke="#c1c7cd" stroke-width="0.5"/>
+  <rect x="56" y="338" width="600" height="24" rx="4" fill="#f2f4f8" stroke="#c1c7cd" stroke-width="0.5"/>
   <rect x="72" y="348" width="16" height="3" rx="1" fill="#be95ff"/>
   <text x="96" y="352" fill="#878d96" font-size="8">built-in or custom gate insertion point</text>
   <rect x="292" y="348" width="16" height="3" rx="1" fill="#42be65"/>

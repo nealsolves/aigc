@@ -75,7 +75,7 @@ export default function ArchitecturePage() {
           <NoteCard label="Pre-Pipeline Failures">
             Pre-pipeline failures produce schema-valid FAIL artifacts with <Code>policy_version: &quot;unknown&quot;</Code>, but bypass the core gate sequence.
           </NoteCard>
-          <NoteCard label="RiskHistory">
+          <NoteCard label="Risk History">
             <Code>RiskHistory</Code> is advisory over emitted risk scores. It classifies improving, stable, or degrading trajectories without changing enforcement order.
           </NoteCard>
           <NoteCard label="Async + Instance APIs">

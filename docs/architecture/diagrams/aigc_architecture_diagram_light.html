@@ -211,8 +211,8 @@
       How the host application, SDK enforcement core, workflow-aware provenance surfaces, and operational utilities connect at runtime.
     </p>
     <div class="diagram-container">
-      <object type="image/svg+xml" data="aigc_architecture_component_light.svg?v=20260411v033b">
-        <img src="aigc_architecture_component_light.svg?v=20260411v033b" alt="AIGC Component View"/>
+      <object type="image/svg+xml" data="aigc_architecture_component_light.svg?v=20260413v033k">
+        <img src="aigc_architecture_component_light.svg?v=20260413v033k" alt="AIGC Component View"/>
       </object>
     </div>
   </div>
@@ -227,8 +227,8 @@
       The sequential gate order for the core enforcement pipeline, including the v0.3.3 workflow-aware surfaces that hang off pre_output, emitted provenance, and downstream trail analysis.
     </p>
     <div class="diagram-container">
-      <object type="image/svg+xml" data="aigc_architecture_pipeline_light.svg?v=20260411v033b">
-        <img src="aigc_architecture_pipeline_light.svg?v=20260411v033b" alt="AIGC Enforcement Pipeline"/>
+      <object type="image/svg+xml" data="aigc_architecture_pipeline_light.svg?v=20260413v033d">
+        <img src="aigc_architecture_pipeline_light.svg?v=20260413v033d" alt="AIGC Enforcement Pipeline"/>
       </object>
     </div>
   </div>
@@ -269,7 +269,7 @@
         <p>Pre-pipeline failures produce schema-valid FAIL artifacts with <code>policy_version: "unknown"</code>, but bypass the core gate sequence.</p>
       </div>
       <div class="note-card">
-        <div class="note-label">RiskHistory</div>
+        <div class="note-label">Risk History</div>
         <p><code>RiskHistory</code> is an advisory utility over emitted risk scores. It classifies trend direction over time and does not alter gate order or blocking semantics.</p>
       </div>
       <div class="note-card">

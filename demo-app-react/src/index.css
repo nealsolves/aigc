@@ -45,7 +45,12 @@
   --gauge-track:    rgba(255,255,255,0.05);
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
+  overflow-x: hidden;
   font-family: 'IBM Plex Sans', sans-serif;
   background-color: var(--bg-base);
   color: var(--text-primary);

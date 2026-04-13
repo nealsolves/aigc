@@ -58,6 +58,10 @@ jobs:
               validate(policy, policy_schema)
               print(f"validated: {policy_path}")
           PY
+      - name: Demo API — install and test
+        run: |
+          pip install -r demo-app-api/requirements.txt
+          python -m pytest demo-app-api/tests
       - name: React demo — install, test, and build
         run: |
           npm --prefix demo-app-react ci

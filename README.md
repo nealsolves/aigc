@@ -17,7 +17,7 @@ Governance in AIGC is runtime enforcement, not documentation and not prompting.
 - Current release scope: workflow-aware governance, audit schema `v1.4`,
   `AuditLineage`, `ProvenanceGate`, `RiskHistory`, `@governed` defaults to
   split enforcement
-- Verification baseline: `959 tests`, coverage above the `90%` CI gate
+- Verification baseline: `966 tests`, coverage above the `90%` CI gate
 
 ## Why This Repo Exists
 

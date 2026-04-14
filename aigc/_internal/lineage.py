@@ -88,6 +88,10 @@ class AuditLineage:
         # Validate provenance before any graph mutation so that a bad artifact
         # cannot corrupt an otherwise-valid graph state.
         provenance = artifact.get("provenance") or {}
+        if not isinstance(provenance, dict):
+            raise ValueError(
+                f"provenance must be a mapping, got {type(provenance).__name__!r}"
+            )
         raw_parents = provenance.get("derived_from_audit_checksums") or []
         if not isinstance(raw_parents, list):
             raise ValueError(

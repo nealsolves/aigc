@@ -26,19 +26,22 @@ describe('ArchitecturePage', () => {
     expect(screen.getByText('Key Boundaries')).toBeInTheDocument()
   })
 
-  it('renders the current v0.3.2 boundary notes', () => {
+  it('renders the current v0.3.3 boundary notes', () => {
     renderPage()
     expect(screen.getByText('Decorator Modes')).toBeInTheDocument()
     expect(screen.getByText('Phase A / Phase B')).toBeInTheDocument()
+    expect(screen.getAllByText('ProvenanceGate').length).toBeGreaterThan(0)
+    expect(screen.getByText('Artifact Provenance')).toBeInTheDocument()
     expect(screen.getByText('Audit Chain')).toBeInTheDocument()
-    expect(screen.getByText('Compliance Export')).toBeInTheDocument()
+    expect(screen.getByText('Lineage Analysis')).toBeInTheDocument()
     expect(screen.getByText('Pre-Pipeline Failures')).toBeInTheDocument()
+    expect(screen.getByText('Risk History')).toBeInTheDocument()
     expect(screen.getByText('Async + Instance APIs')).toBeInTheDocument()
   })
 
-  it('labels the page as v0.3.2', () => {
+  it('labels the page as v0.3.3', () => {
     renderPage()
-    expect(screen.getByText('AIGC v0.3.2')).toBeInTheDocument()
+    expect(screen.getByText('AIGC v0.3.3')).toBeInTheDocument()
   })
 
   it('renders diagram images', () => {

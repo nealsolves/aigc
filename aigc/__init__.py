@@ -52,6 +52,14 @@ from aigc.gates import (
     INSERTION_POST_OUTPUT,
 )
 from aigc.audit_chain import AuditChain, verify_chain
+from aigc.lineage import AuditLineage
+from aigc.provenance_gate import ProvenanceGate
+from aigc.risk_history import (
+    RiskHistory,
+    TRAJECTORY_DEGRADING,
+    TRAJECTORY_IMPROVING,
+    TRAJECTORY_STABLE,
+)
 from aigc.policy_loader import (
     PolicyLoaderBase,
     FilePolicyLoader,
@@ -81,7 +89,7 @@ from aigc.policy_testing import (
 # Host applications configure log levels and handlers on their own loggers.
 logging.getLogger("aigc").addHandler(logging.NullHandler())
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 __all__ = [
     "AIGC",
@@ -89,6 +97,7 @@ __all__ = [
     "PreCallResult",
     "ArtifactSigner",
     "AuditChain",
+    "AuditLineage",
     "AuditSink",
     "AuditSinkError",
     "COMPOSITION_INTERSECT",
@@ -117,15 +126,20 @@ __all__ = [
     "PolicyTestResult",
     "PolicyTestSuite",
     "PolicyValidationError",
+    "ProvenanceGate",
     "PreconditionError",
     "RISK_MODE_RISK_SCORED",
     "RISK_MODE_STRICT",
     "RISK_MODE_WARN_ONLY",
     "RetryExhaustedError",
+    "RiskHistory",
     "RiskScore",
     "RiskThresholdError",
     "SchemaValidationError",
     "ToolConstraintViolationError",
+    "TRAJECTORY_DEGRADING",
+    "TRAJECTORY_IMPROVING",
+    "TRAJECTORY_STABLE",
     "compute_risk_score",
     "enforce_invocation",
     "enforce_invocation_async",

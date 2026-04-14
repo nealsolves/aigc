@@ -11,7 +11,9 @@ architecture, and release context.
 ## Current State
 
 AIGC is a Python SDK that enforces governance at the AI invocation boundary.
-The current release line is `v0.3.2` (`2026-04-05`).
+The current release is `v0.3.3` (`2026-04-10`).
+`v0.3.3` delivers workflow-aware governance: audit schema `v1.4`, `AuditLineage`,
+`ProvenanceGate`, `RiskHistory`, and split enforcement as the `@governed` default.
 
 The shipped runtime supports:
 
@@ -61,8 +63,9 @@ Current architecture assets:
    postconditions, custom post-output gates, and optional risk scoring.
 4. Emit one final PASS or FAIL audit artifact for the invocation attempt.
 
-`v0.3.2` keeps unified mode as the default compatibility path and adds the
-split handoff token (`PreCallResult`) for hosts that need pre-call governance.
+`v0.3.3` makes split enforcement the default (`@governed` defaults to
+`pre_call_enforcement=True`). Unified mode is retained as a deprecated opt-out
+via `pre_call_enforcement=False`.
 
 ## Repository Map
 
@@ -199,8 +202,8 @@ experience, not just inspect.
 
 Released `2026-04-05`.
 
-`0.3.2` is the current release and the most important architectural change in
-the repo today.
+`0.3.2` was the most important architectural change in the `0.3.x` line up to
+that point.
 
 What shipped:
 
@@ -223,6 +226,28 @@ What hardened immediately after release:
 This release preserves the original gate ordering and unified-mode behavior
 while allowing hosts to block before token spend.
 
+### `0.3.3` — Governed agentic workflows
+
+Released `2026-04-10`.
+
+`0.3.3` extends AIGC from invocation governance to workflow governance.
+
+What shipped:
+
+- audit schema `v1.4`: optional `provenance` object on artifacts — `source_ids`,
+  `derived_from_audit_checksums`, `compilation_source_hash`
+- `generate_audit_artifact()` accepts a `provenance` kwarg
+- `AuditLineage`: reconstruct a DAG of governed invocations from a JSONL audit
+  trail; traverse ancestors/descendants, detect orphans and cycles
+- `ProvenanceGate`: built-in gate for source-aware enforcement; blocks output
+  when `context.provenance.source_ids` is absent; provenance flows into every
+  emitted audit artifact
+- `RiskHistory` advisory utility — tracks risk scores over time, computes
+  improving / stable / degrading trajectory (PR-06)
+- `@governed` defaults to `pre_call_enforcement=True` — split enforcement is the
+  standard execution model; legacy unified mode via `pre_call_enforcement=False`
+  remains available but emits `DeprecationWarning` (PR-07)
+
 ## How Documentation Is Organized
 
 Use the docs in this order if you are orienting yourself quickly:
@@ -241,7 +266,9 @@ Use the docs in this order if you are orienting yourself quickly:
 
 - Older files in the repo still reference internal phase or milestone labels.
   Treat those as development history, not the primary public narrative.
-- The current release architecture is represented by the `v0.3.2` diagram
-  assets under `docs/architecture/diagrams/`.
+- The diagram assets under `docs/architecture/diagrams/` were introduced with
+  `v0.3.2` and remain the baseline visualization for the enforcement pipeline.
+  `v0.3.3` capabilities (lineage, provenance, risk history, split-by-default
+  decorator behavior) are described in the current docs and changelog.
 - The demo apps are important orientation tools, but the SDK package under
   `aigc/` is the authoritative product surface.

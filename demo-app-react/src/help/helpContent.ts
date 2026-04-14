@@ -30,7 +30,7 @@ export const helpContent: Record<number, LabHelp> = {
     whatThisLabShows: [
       'Where the host app, model provider, policy layer, and SDK enforcement core sit at runtime.',
       'Which checks belong to the core fail-closed pipeline and which capabilities are opt-in utilities.',
-      'How unified default mode and opt-in split enforcement share the same ordered gates.',
+      'How split enforcement (the default since v0.3.3) and legacy unified mode share the same ordered gates.',
       'Why AIGC is provider-agnostic: it wraps model calls instead of replacing the model itself.',
     ],
     howToNavigate: [
@@ -46,7 +46,7 @@ export const helpContent: Record<number, LabHelp> = {
           'Your app, agent, or orchestrator calls a model through the SDK. The SDK loads the policy, ' +
           'runs the enforcement core, then returns the governance result and audit artifact to your app. ' +
           'The model provider still does the generation in the middle; AIGC governs the call boundary around it.',
-        tip: 'The @governed decorator defaults to unified post-call enforcement. Set pre_call_enforcement=True to run Phase A before the wrapped function executes.',
+        tip: 'Since v0.3.3, @governed defaults to split enforcement (Phase A before the model call, Phase B after). Pass pre_call_enforcement=False for legacy unified mode (deprecated).',
       },
       {
         title: 'Enforcement Pipeline - the gate sequence',
@@ -57,7 +57,7 @@ export const helpContent: Record<number, LabHelp> = {
           'The core gates are fail-closed: a violation stops the pipeline and produces a FAIL artifact.',
       },
       {
-        title: 'Phase boundary in v0.3.2',
+        title: 'Phase boundary in v0.3.3',
         instruction:
           'Split mode moves the model-call boundary between post_authorization and pre_output. ' +
           'Phase A is authorize-before-call; Phase B is validate-after-output. Unified mode still uses the same gate order, but inside one enforcement call.',
@@ -83,7 +83,7 @@ export const helpContent: Record<number, LabHelp> = {
       { term: 'enforce_invocation()', definition: 'The SDK entry point. Accepts policy, input, output, context, model identity, and role, then returns an audit artifact or raises with one attached.' },
       { term: 'enforce_pre_call()', definition: 'The split-mode Phase A entry point. It authorizes the invocation before the model call and returns a PreCallResult token for Phase B.' },
       { term: 'Audit artifact', definition: 'The immutable record produced after each enforcement run. It contains checksums, policy metadata, result, and supporting evidence.' },
-      { term: '@governed', definition: 'A decorator that defaults to unified post-call enforcement and can opt into split pre/post enforcement with pre_call_enforcement=True.' },
+      { term: '@governed', definition: 'A decorator that defaults to split enforcement since v0.3.3 (Phase A before the model call, Phase B after). Pass pre_call_enforcement=False for legacy unified mode (deprecated).' },
       { term: 'Fail-closed', definition: 'If a core governance check fails, the invocation is rejected and a FAIL artifact is emitted. The system does not silently continue.' },
     ],
   },
@@ -451,6 +451,176 @@ export const helpContent: Record<number, LabHelp> = {
       { term: 'Enforcement result', definition: 'The final governance decision: PASS when allowed, FAIL when blocked.' },
       { term: 'Signed (checkmark)', definition: 'Indicates signing was enabled for that invocation. Verification still requires the original signing key.' },
       { term: 'Sample mode', definition: 'An explicit mode activated by clicking Load Sample Data. It shows fixture records with a banner and can be cleared.' },
+    ],
+  },
+  8: {
+    title: 'Governed Knowledge Base Guide',
+    overview:
+      'This lab introduces a governed knowledge base in beginner-friendly terms. ' +
+      'Think of it as a retrieval answer that is only allowed to pass when the app can ' +
+      'name the documents it used. You choose one scenario, run one query, and then read ' +
+      'the result cards, source IDs, and artifact together.',
+    whyItMatters:
+      'Retrieval and RAG systems often sound confident even when they cannot prove where ' +
+      'an answer came from. Provenance enforcement turns "please cite your sources" into ' +
+      'a runtime rule: if no source IDs are present, the answer is blocked.',
+    whatThisLabShows: [
+      'Why the same knowledge-base workflow passes when context.provenance.source_ids is present and fails when it is missing.',
+      'How the source IDs metric changes from zero, to one cited document, to several cited documents.',
+      'Where to find the key evidence surfaces: the enforcement result, provenance gate status, error line, and artifact JSON.',
+      'How a built-in custom gate can enforce attribution without changing the rest of the policy model.',
+    ],
+    howToNavigate: [
+      'Start with "Single source (pass)" to establish the clean baseline before you trigger a failure.',
+      'Switch to "Unsourced (fail)" next so the missing-provenance block is easy to spot.',
+      'Use "Multi-source (pass)" last to see that provenance is not just yes-or-no; the lab records how many source IDs were supplied.',
+      'After each run, read the three metric cards first, then the source IDs or error line, then the artifact JSON.',
+    ],
+    steps: [
+      {
+        title: 'Establish the baseline with one cited source',
+        instruction:
+          'Choose "Single source (pass)" and click "Run KB Query". This gives you the ' +
+          'easiest first run to read: enforcement_result is PASS, source IDs is 1, and the ' +
+          'provenance gate card shows ALLOWED.',
+        tip: 'Start here if you are new. It is easier to learn the screen from a clean pass before you compare failures.',
+      },
+      {
+        title: 'Trigger the provenance failure',
+        instruction:
+          'Choose "Unsourced (fail)" and run the same workflow again. The built-in ProvenanceGate runs at pre_output and blocks the response because context.provenance.source_ids is missing.',
+        tip: 'On this run, the cards change together: enforcement_result becomes FAIL, source IDs drops to 0, provenance gate flips to BLOCKED, and the error line explains what was missing.',
+      },
+      {
+        title: 'Compare one source with many sources',
+        instruction:
+          'Run "Multi-source (pass)" after the baseline pass. Both sourced scenarios succeed, ' +
+          'but the source IDs count grows from 1 to 3. That shows provenance is capturing specific supporting documents, not just a generic citation flag.',
+      },
+      {
+        title: 'Read the artifact evidence',
+        instruction:
+          'Use the artifact JSON to confirm what happened. Passing runs show metadata with ' +
+          'gates_evaluated including custom:provenance_gate. Failing runs keep the audit trail but also include failures that name the missing provenance reason.',
+      },
+    ],
+    takeaway:
+      'A governed knowledge-base answer is not just text. It is an answer plus enforceable source attribution, and this lab shows exactly where that evidence appears.',
+    glossary: [
+      { term: 'ProvenanceGate', definition: 'A built-in EnforcementGate that blocks output when context.provenance.source_ids is missing or empty. Runs at the pre_output insertion point.' },
+      { term: 'source_ids', definition: 'A list of document identifiers in context.provenance.source_ids that attribute the response to specific knowledge sources.' },
+      { term: 'provenance', definition: 'The invocation context field that carries source attribution data for the response.' },
+      { term: 'custom:provenance_gate', definition: 'The gate identifier recorded in gates_evaluated when the provenance gate runs during enforcement.' },
+    ],
+  },
+  9: {
+    title: 'Governed vs. Ungoverned Guide',
+    overview:
+      'This lab is a side-by-side comparison for new users. It sends the same medical AI ' +
+      'scenario down two paths: governed with AIGC and ungoverned with no checks. That ' +
+      'makes governance visible without asking you to learn the whole SDK first.',
+    whyItMatters:
+      'Teams evaluating AIGC usually ask what governance adds beyond a normal model call. ' +
+      'This lab answers with evidence instead of theory: the governed path produces an ' +
+      'actual decision and metadata trail, while the ungoverned path does not.',
+    whatThisLabShows: [
+      'How the same prompt can produce a governed PASS or FAIL while the ungoverned path always returns PASS because there are no checks.',
+      'Which evidence fields, such as policy_version, gates_evaluated, and risk_scoring, appear only on the governed side.',
+      'Why a blocked high-risk scenario is the clearest demonstration of what an ungoverned path would miss.',
+      'How the top metric cards summarize the governed decision before you inspect the two metadata panels.',
+    ],
+    howToNavigate: [
+      'Start with "Low risk (governed PASS)" so you can see a normal successful run on both sides.',
+      'Switch to "High risk (governed FAIL)" next because it creates the strongest governed-versus-ungoverned contrast.',
+      'Use the top cards for the quick summary, then read the Governed and Ungoverned metadata panels side by side.',
+      'Pay special attention to metadata.mode, gates_evaluated, and risk_scoring because those expose the evidence gap immediately.',
+    ],
+    steps: [
+      {
+        title: 'Start with a passing baseline',
+        instruction:
+          'Choose "Low risk (governed PASS)" and click "Compare". The governed side runs strict AIGC enforcement, while the ungoverned side returns a synthetic PASS record with no governance checks applied.',
+        tip: 'This baseline helps you see that even when both sides pass, only the governed side produces meaningful governance evidence.',
+      },
+      {
+        title: 'Run the high-risk contrast case',
+        instruction:
+          'Switch to "High risk (governed FAIL)" and compare again. In strict mode the governed path can fail on risk threshold or policy checks, but the ungoverned side still reports PASS because there is nothing to enforce.',
+        tip: 'The ungoverned path can never produce a real FAIL in this lab because there are no gates to fail.',
+      },
+      {
+        title: 'Read the metadata panels',
+        instruction:
+          'Read the two code panels as a before-and-after comparison. The governed panel shows governance metadata such as policy_version, gates_evaluated, and risk_scoring. The ungoverned panel shows metadata.mode set to ungoverned with an empty gates_evaluated list.',
+      },
+      {
+        title: 'Interpret the evidence gap',
+        instruction:
+          'Use the top cards and metadata panels together to decide what would be missing in production without governance. If a decision, score, or gate list exists only on the governed side, that is evidence the ungoverned path would never capture.',
+      },
+    ],
+    takeaway:
+      'Governance changes more than the verdict. It adds the evidence needed to explain, audit, and defend that verdict.',
+    glossary: [
+      { term: 'Governed path', definition: 'The side of the comparison that runs the scenario through AIGC enforcement and returns a policy-driven result.' },
+      { term: 'Ungoverned path', definition: 'The side of the comparison that returns output without policy checks. In this lab it is represented by a synthetic PASS record.' },
+      { term: 'metadata.mode', definition: 'A metadata field that marks the ungoverned comparison record with mode: "ungoverned".' },
+      { term: 'Evidence gap', definition: 'The missing decision data, risk data, and gate history you lose when an AI call is not governed.' },
+    ],
+  },
+  10: {
+    title: 'Split Enforcement Explorer Guide',
+    overview:
+      'This lab breaks split enforcement into two visible phases so new users can see where ' +
+      'the model call sits. Instead of treating split mode as magic, it shows what runs before ' +
+      'the call, what runs after the output returns, and what happens when the request is blocked early.',
+    whyItMatters:
+      'Split enforcement changes when governance work happens, not just how it is labeled. ' +
+      'Phase A can stop an unauthorized request before token spend, while Phase B validates ' +
+      'the returned output afterward. This is the default execution model since v0.3.3.',
+    whatThisLabShows: [
+      'Which checks belong to Phase A (pre-call authorization) and which belong to Phase B (post-output validation).',
+      'How a Phase A failure prevents Phase B from running and avoids the model call altogether.',
+      'How the lab summarizes each phase with its own result badge and gate count.',
+      'How enforcement_mode distinguishes a full split run from a pre-call-only block.',
+    ],
+    howToNavigate: [
+      'Start with "Low risk (both phases pass)" so you can see the full two-phase flow before you trigger a block.',
+      'Then run "Pre-call block (Phase A fails)" to see the Phase B panel dim and show "not reached - token cost avoided".',
+      'Use the four metric cards first, then compare the gate lists in the Phase A and Phase B panels.',
+      'Finish by reading the footer line for the combined result and enforcement_mode value.',
+    ],
+    steps: [
+      {
+        title: 'See the full split flow first',
+        instruction:
+          'Choose "Low risk (both phases pass)" and click "Run Split Trace". Both phase panels populate, the Phase A and Phase B metric cards show PASS, and the gate counts tell you how much work happened in each phase.',
+        tip: 'Start here if split enforcement is new to you. It is easier to learn the layout when both panels are active.',
+      },
+      {
+        title: 'Trigger a Phase A block',
+        instruction:
+          'Switch to "Pre-call block (Phase A fails)" and run again. Phase A fails on pre-call checks such as role or precondition validation, and the Phase B panel shows "not reached - token cost avoided".',
+        tip: 'When this happens, the footer reports enforcement_mode: split_pre_call_only.',
+      },
+      {
+        title: 'Read the phase gate lists',
+        instruction:
+          'Compare the gate names listed under each phase. Phase A covers pre_authorization and post_authorization work such as guards, roles, and preconditions. Phase B covers pre_output, schema, postconditions, post_output, and risk scoring.',
+      },
+      {
+        title: 'Use enforcement_mode as the summary',
+        instruction:
+          'Read the footer after each run. enforcement_mode: split means both phases ran. enforcement_mode: split_pre_call_only means Phase A blocked the request before the model call.',
+      },
+    ],
+    takeaway:
+      'Split enforcement makes the policy boundary visible. Phase A protects the model call, Phase B validates the output, and the lab shows both pieces separately.',
+    glossary: [
+      { term: 'Phase A', definition: 'Pre-call authorization phase. Runs pre_authorization and post_authorization gates before the model call. A failure here prevents the model from being called.' },
+      { term: 'Phase B', definition: 'Post-output validation phase. Runs pre_output, schema, postconditions, post_output, and risk scoring after the model returns output.' },
+      { term: 'split_pre_call_only', definition: 'enforcement_mode value when Phase A blocked the call. Phase B never ran.' },
+      { term: 'split', definition: 'enforcement_mode value when both Phase A and Phase B ran as part of split enforcement.' },
     ],
   },
 }

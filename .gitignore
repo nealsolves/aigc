@@ -85,3 +85,6 @@ AIGC_0.3.0_Release_Readiness_Audit.md
 
 # Git worktrees
 .worktrees/
+
+# Node modules (root-level, prevents Vitest cache from entering diff)
+node_modules/

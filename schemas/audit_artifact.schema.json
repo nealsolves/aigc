@@ -115,6 +115,35 @@
       "type": ["string", "null"],
       "description": "Cryptographic signature of the artifact"
     },
+    "provenance": {
+      "type": ["object", "null"],
+      "description": "Workflow provenance metadata supplied by the caller",
+      "minProperties": 1,
+      "properties": {
+        "source_ids": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true,
+          "maxItems": 1000,
+          "description": "Identifiers of source invocations that contributed to this one"
+        },
+        "derived_from_audit_checksums": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "maxItems": 1000,
+          "description": "SHA-256 checksums of prior audit artifacts this invocation derived from"
+        },
+        "compilation_source_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Orchestrator-supplied hash of the raw source compilation set"
+        }
+      },
+      "additionalProperties": false
+    },
     "chain_id": {
       "type": ["string", "null"],
       "description": "Audit chain identifier for tamper-evident chaining"

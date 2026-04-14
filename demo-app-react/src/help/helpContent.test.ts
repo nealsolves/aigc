@@ -1,15 +1,15 @@
 import { helpContent } from './helpContent'
 
 describe('helpContent', () => {
-  it('has an architecture entry and entries for all 7 labs', () => {
+  it('has an architecture entry and entries for all 10 labs', () => {
     expect(helpContent[0]).toBeDefined()
-    for (let i = 1; i <= 7; i++) {
+    for (let i = 1; i <= 10; i++) {
       expect(helpContent[i]).toBeDefined()
     }
   })
 
   it('every guide has a non-empty title, overview, whyItMatters, and takeaway', () => {
-    for (let i = 0; i <= 7; i++) {
+    for (let i = 0; i <= 10; i++) {
       expect(helpContent[i].title.length).toBeGreaterThan(0)
       expect(helpContent[i].overview.length).toBeGreaterThan(0)
       expect(helpContent[i].whyItMatters.length).toBeGreaterThan(0)
@@ -18,20 +18,20 @@ describe('helpContent', () => {
   })
 
   it('every guide has at least 3 steps', () => {
-    for (let i = 0; i <= 7; i++) {
+    for (let i = 0; i <= 10; i++) {
       expect(helpContent[i].steps.length).toBeGreaterThanOrEqual(3)
     }
   })
 
   it('every guide has framework sections for learning and navigation', () => {
-    for (let i = 0; i <= 7; i++) {
+    for (let i = 0; i <= 10; i++) {
       expect(helpContent[i].whatThisLabShows.length).toBeGreaterThanOrEqual(2)
       expect(helpContent[i].howToNavigate.length).toBeGreaterThanOrEqual(2)
     }
   })
 
   it('every step has a non-empty title and instruction', () => {
-    for (let i = 0; i <= 7; i++) {
+    for (let i = 0; i <= 10; i++) {
       for (const step of helpContent[i].steps) {
         expect(step.title.length).toBeGreaterThan(0)
         expect(step.instruction.length).toBeGreaterThan(0)
@@ -153,6 +153,58 @@ describe('helpContent', () => {
     expect(content).toMatch(/JSON/i)
     expect(content).toMatch(/CSV/i)
     expect(content).toMatch(/aigc compliance export/i)
+  })
+
+  it('labs 8-10 keep the newer guides aligned with the established guide naming and depth', () => {
+    for (const labId of [8, 9, 10] as const) {
+      expect(helpContent[labId].title).toMatch(/Guide$/)
+      expect(helpContent[labId].steps.length).toBeGreaterThanOrEqual(4)
+      expect((helpContent[labId].glossary ?? []).length).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('lab 8 guide uses the current knowledge-base labels and provenance cues', () => {
+    const content = [
+      helpContent[8].overview,
+      helpContent[8].howToNavigate.join(' '),
+      helpContent[8].steps.map(s => s.title + ' ' + s.instruction + ' ' + (s.tip ?? '')).join(' '),
+      (helpContent[8].glossary ?? []).map(g => `${g.term} ${g.definition}`).join(' '),
+    ].join(' ')
+    expect(content).toMatch(/Run KB Query/i)
+    expect(content).toMatch(/Single source \(pass\)/i)
+    expect(content).toMatch(/Unsourced \(fail\)/i)
+    expect(content).toMatch(/Multi-source \(pass\)/i)
+    expect(content).toMatch(/source IDs/i)
+    expect(content).toMatch(/custom:provenance_gate/i)
+  })
+
+  it('lab 9 guide stays aligned with the side-by-side metadata UI', () => {
+    const content = [
+      helpContent[9].overview,
+      helpContent[9].howToNavigate.join(' '),
+      helpContent[9].steps.map(s => s.title + ' ' + s.instruction + ' ' + (s.tip ?? '')).join(' '),
+      (helpContent[9].glossary ?? []).map(g => `${g.term} ${g.definition}`).join(' '),
+    ].join(' ')
+    expect(content).toMatch(/Compare/i)
+    expect(content).toMatch(/metadata\.mode/i)
+    expect(content).toMatch(/gates_evaluated/i)
+    expect(content).toMatch(/risk_scoring/i)
+    expect(content).not.toMatch(/Expand both raw artifacts/i)
+  })
+
+  it('lab 10 guide uses the current split explorer labels and enforcement mode language', () => {
+    const content = [
+      helpContent[10].overview,
+      helpContent[10].howToNavigate.join(' '),
+      helpContent[10].steps.map(s => s.title + ' ' + s.instruction + ' ' + (s.tip ?? '')).join(' '),
+      (helpContent[10].glossary ?? []).map(g => `${g.term} ${g.definition}`).join(' '),
+    ].join(' ')
+    expect(content).toMatch(/Run Split Trace/i)
+    expect(content).toMatch(/Low risk \(both phases pass\)/i)
+    expect(content).toMatch(/Pre-call block \(Phase A fails\)/i)
+    expect(content).toMatch(/split_pre_call_only/i)
+    expect(content).toMatch(/enforcement_mode/i)
+    expect(content).not.toMatch(/Low risk \(full pass\)/i)
   })
 
   it('architecture content explains unified default mode and split opt-in', () => {

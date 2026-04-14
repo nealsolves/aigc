@@ -306,8 +306,11 @@ output = await analyze(
 )
 ```
 
-The decorator captures `input_data` as input, `context` as context, and the return value as
-output, then calls `enforce_invocation_async()`. Governance exceptions propagate unchanged.
+The decorator captures `input_data` as input, `context` as context, and runs split
+enforcement by default (since v0.3.3): Phase A (`enforce_pre_call_async()`) runs before
+the wrapped function; Phase B (`enforce_post_call_async()`) validates the return value.
+Pass `pre_call_enforcement=False` for legacy unified mode (deprecated).
+Governance exceptions propagate unchanged.
 
 The decorator uses the global audit sink (via `set_audit_sink`). For per-instance sinks,
 signers, or custom gates, use the `AIGC` class directly as shown in sections 2.3–2.5.
@@ -586,6 +589,23 @@ Gate metadata is merged into `metadata.custom_gate_metadata` in the audit artifa
 cannot suppress earlier failures. Unhandled exceptions are converted to failures (code
 `CUSTOM_GATE_ERROR`), never to crashes.
 
+### Built-In Gates
+
+The SDK ships `ProvenanceGate` — a workflow-aware built-in gate for source
+presence enforcement. Import and register it like any custom gate:
+
+```python
+from aigc import AIGC, ProvenanceGate
+
+aigc = AIGC(custom_gates=[ProvenanceGate()])
+```
+
+Available built-in gates:
+
+| Gate | Module | Insertion Point | Enforces |
+|------|--------|-----------------|---------|
+| `ProvenanceGate` | `aigc.provenance_gate` | `pre_output` | `source_ids` present in context provenance |
+
 ### 3.7 Risk scoring
 
 Risk scoring evaluates the structural quality of a policy and invocation. Configure it in
@@ -705,7 +725,9 @@ evidence = validate_policy_dates(policy, clock=lambda: date(2025, 6, 15))
 Load policies from sources other than the filesystem:
 
 ```python
-from aigc import PolicyLoaderBase, AIGC
+import yaml
+
+from aigc import AIGC, PolicyLoaderBase, PolicyLoadError
 
 
 class DatabasePolicyLoader(PolicyLoaderBase):
@@ -831,7 +853,7 @@ await aigc.enforce_post_call_async(pre_result, output)
 These have the same contract as the module-level functions and respect the
 instance's sink, signer, gates, and policy loader configuration.
 
-**Decorator opt-in:**
+**Decorator default (v0.3.3+):**
 
 ```python
 @governed(
@@ -839,21 +861,122 @@ instance's sink, signer, gates, and policy loader configuration.
     role="assistant",
     model_provider="anthropic",
     model_identifier="claude-sonnet-4-6",
-    pre_call_enforcement=True,
 )
 def run_model(input_data, context):
     return model.generate(input_data)
 ```
 
-When `pre_call_enforcement=True`, phase A runs before the wrapped function and
-blocks execution on failure. Phase B runs after the function returns. Without
-this parameter, `@governed` behaves identically to previous releases.
+Phase A runs before the wrapped function and blocks execution on failure. Phase B
+runs after the function returns.
 
-**Compatibility:** Unified mode (`enforce_invocation`, `enforce_invocation_async`,
-`@governed` without `pre_call_enforcement`) is unchanged. No migration is
-required for existing integrations.
+**Migration from v0.3.2:** Call sites that omit `pre_call_enforcement` now run in
+split mode. Call sites that pass `pre_call_enforcement=True` are unchanged. Call
+sites that rely on unified mode must add `pre_call_enforcement=False` explicitly;
+this emits `DeprecationWarning` and will be removed in a future release. The
+direct split APIs (`enforce_pre_call`, `enforce_post_call`) and unified API
+(`enforce_invocation`, `enforce_invocation_async`) are unchanged.
 
-### 3.16 Planned extension points (not yet available)
+### 3.16 Provenance metadata (v0.3.3+)
+
+`generate_audit_artifact()` accepts an optional `provenance` keyword argument.
+When supplied, the artifact's top-level `provenance` field contains a sparse
+dict with any subset of the following fields:
+
+| Field | Type | Constraint |
+|-------|------|-----------|
+| `source_ids` | `string[]` | `minItems: 1`, `uniqueItems: true`, `maxItems: 1000` |
+| `derived_from_audit_checksums` | `string[]` | SHA-256 hex pattern, `minItems: 1`, `uniqueItems: true`, `maxItems: 1000` |
+| `compilation_source_hash` | `string` | SHA-256 hex pattern |
+
+**Null/absent semantics:**
+
+- `provenance: null`: emitted when no provenance was supplied (default); valid under the v1.4 schema
+- `provenance: {}`: unreachable via `generate_audit_artifact()` — an empty dict is normalized to `null`; would fail `minProperties: 1` if submitted directly to schema validation
+- v1.3 artifacts lacking the `provenance` key entirely: valid (key is not in `required`)
+
+**Enforcement entrypoints (v0.3.3+):** `enforce_invocation()`, split-mode
+methods, and `AIGC` enforcement methods automatically forward
+`invocation["context"]["provenance"]` into every emitted audit artifact (PASS
+and FAIL). Scalar values are normalized to `null`. No separate `provenance`
+argument is accepted at the entrypoint level — supply provenance in the
+invocation context dict.
+
+---
+
+### 3.17 AuditLineage (v0.3.3+)
+
+`AuditLineage` is available as `from aigc import AuditLineage`.
+
+**Loading:**
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `from_jsonl` | `(path: str \| Path) → AuditLineage` | Load JSONL trail |
+| `add_artifact` | `(artifact: dict) → str` | Add one artifact; returns checksum |
+
+**Traversal:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get(checksum)` | `dict \| None` | Look up artifact by checksum |
+| `checksum_of(artifact)` | `str` | Derive node key (same as add_artifact) |
+| `roots()` | `list[dict]` | Artifacts with no declared parents |
+| `leaves()` | `list[dict]` | Artifacts with no children |
+| `ancestors(checksum)` | `list[dict]` | All upstream artifacts (BFS) |
+| `descendants(checksum)` | `list[dict]` | All downstream artifacts (BFS) |
+
+**Integrity:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `orphans()` | `list[dict]` | Artifacts with missing parents |
+| `has_cycle()` | `bool` | True if graph contains a cycle |
+
+**Node identity:** The node key is `sha256(canonical_json_bytes(artifact_without_chain_fields))`,
+where chain fields (`chain_id`, `chain_index`, `previous_audit_checksum`, `checksum`) are
+excluded before hashing. This content-only key is stable regardless of whether
+`AuditChain.append()` has been called. **Do not use `artifact["checksum"]`** as a lineage
+key — that is `AuditChain`'s chain-integrity hash and differs from the lineage node key.
+Use `lineage.checksum_of(artifact)` or the return value of `add_artifact()` instead.
+
+**No new dependencies** — standard library only.
+
+---
+
+### 3.18 RiskHistory (v0.3.3+)
+
+`RiskHistory` tracks risk scores over time for a named entity and exposes a
+`trajectory()` signal — advisory only, does not affect enforcement.
+
+```python
+from aigc import RiskHistory, compute_risk_score
+
+history = RiskHistory("planner:summarize")
+
+for invocation in batch:
+    risk = compute_risk_score(invocation, policy, risk_config=risk_cfg)
+    history.record(risk)          # accepts RiskScore or float
+
+if len(history.scores) >= 2:
+    print(history.trajectory())   # "improving" | "stable" | "degrading"
+    print(history.latest)         # most recent score
+    print(history.scores)         # (score0, score1, ...) oldest-first tuple
+```
+
+**Trajectory classification** is based on first-vs-last delta vs. a configurable
+`stability_band` (default `0.05`):
+
+| Return value | Condition |
+| ------------ | --------- |
+| `"improving"` | latest − first < −stability_band |
+| `"stable"` | \|latest − first\| ≤ stability_band |
+| `"degrading"` | latest − first > stability_band |
+
+Custom band: `RiskHistory("my-agent", stability_band=0.10)`
+
+---
+
+### 3.19 Planned extension points (not yet available)
 
 The following extension mechanisms appear in architecture documentation but are **not yet
 implemented** in the current SDK. Do not attempt to import them:
@@ -1043,7 +1166,7 @@ in tests):
 
 | Field | Description |
 | ----- | ----------- |
-| `audit_schema_version` | Schema version (e.g., `"1.3"`) |
+| `audit_schema_version` | Schema version (e.g., `"1.4"`) |
 | `policy_file` | Path to the policy file used |
 | `policy_version` | Value of `policy_version` from the policy YAML |
 | `policy_schema_version` | JSON Schema draft used to validate the policy |

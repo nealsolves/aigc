@@ -15,7 +15,7 @@ flowchart TB
     subgraph Host["HOST APPLICATION"]
         direction LR
         App["App / Agent / Orchestrator"]
-        Gov["@governed decorator\ndefault unified / split opt-in"]
+        Gov["@governed decorator\ndefault split / unified opt-out"]
         Provider["Model Provider\nOpenAI · Anthropic · local"]
 
         App -->|"decorated call"| Gov
@@ -23,7 +23,7 @@ flowchart TB
         Provider -->|"model output"| Gov
     end
 
-    subgraph SDK["AIGC SDK v0.3.2"]
+    subgraph SDK["AIGC SDK v0.3.3"]
         direction TB
 
         subgraph Entry["INVOCATION BOUNDARY (UNIFIED + SPLIT)"]
@@ -50,13 +50,15 @@ flowchart TB
             G3["Precondition\nValidation"]
             G4["Tool Constraint\nValidation"]
             G5["post_authorization\ncustom gates"]
-            G6["pre_output\ncustom gates"]
+            %% * includes ProvenanceGate
+            G6["pre_output\ncustom + built-in gates*"]
             G7["Output Schema\nValidation"]
             G8["Postcondition\nValidation"]
             G9["post_output\ncustom gates"]
             G10["Risk Scoring\nstrict · risk_scored · warn_only"]
         end
 
+        Prov["Artifact provenance v1.4\nsource_ids · derived_from_audit_checksums\ncompilation_source_hash"]
         Artifact["Audit Artifact\nPASS or FAIL"]
         Sign["ArtifactSigner / HMACSigner\noptional"]
         Sink["AuditSink\nJSONL · callback · custom"]
@@ -66,14 +68,15 @@ flowchart TB
     subgraph Ops["OPERATIONAL UTILITIES"]
         direction LR
         Chain["AuditChain.append()\nopt-in · host-managed"]
-        CLI["aigc compliance export\nreads stored audit trails"]
+        Trail["Stored-trail analysis\naigc compliance export --lineage\nAuditLineage DAG traversal"]
+        Trend["RiskHistory\nadvisory score trajectory"]
     end
 
     App -->|"direct"| E1
     App -->|"instance"| E2
     App -->|"split phases"| E3
-    Gov -->|"default mode"| E1
-    Gov -->|"split mode"| E3
+    Gov -->|"legacy unified opt-out"| E1
+    Gov -->|"default split mode"| E3
 
     E1 --> Loader
     E2 --> Cache --> Loader
@@ -86,9 +89,12 @@ flowchart TB
     Telemetry -.-> G0
     Telemetry -.-> Artifact
 
+    Artifact -->|"includes provenance"| Prov
     Artifact -->|"unsigned"| Sink
     Artifact -->|"sign if configured"| Sign --> Sink
     Artifact --> App
 
     Artifact -.->|"optional chaining"| Chain
-    Sink -->|"stored trail"| CLI
+    Sink -->|"stored trail"| Trail
+    Prov -.->|"parent checksums"| Trail
+    Artifact -.->|"risk metadata"| Trend

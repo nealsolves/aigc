@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIGC v0.3.2 Architecture</title>
+<title>AIGC v0.3.3 Architecture</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
@@ -198,7 +198,7 @@
 <body>
 <div class="page">
 
-  <div class="page-title">AIGC v0.3.2</div>
+  <div class="page-title">AIGC v0.3.3</div>
   <div class="page-subtitle">Runtime Architecture Diagrams</div>
 
   <!-- COMPONENT VIEW -->
@@ -208,11 +208,11 @@
       <span class="section-title">Component View</span>
     </div>
     <p class="section-desc">
-      How the host application, SDK enforcement core, policy layer, and operational utilities connect at runtime.
+      How the host application, SDK enforcement core, workflow-aware provenance surfaces, and operational utilities connect at runtime.
     </p>
     <div class="diagram-container">
-      <object type="image/svg+xml" data="aigc_architecture_component.svg?v=20260405v032">
-        <img src="aigc_architecture_component.svg?v=20260405v032" alt="AIGC Component View"/>
+      <object type="image/svg+xml" data="aigc_architecture_component.svg?v=20260413v033k">
+        <img src="aigc_architecture_component.svg?v=20260413v033k" alt="AIGC Component View"/>
       </object>
     </div>
   </div>
@@ -224,11 +224,11 @@
       <span class="section-title">Enforcement Pipeline</span>
     </div>
     <p class="section-desc">
-      The sequential gate order for the core enforcement pipeline. Core governance gates are fail-closed; risk scoring may be blocking or audit-only depending on mode.
+      The sequential gate order for the core enforcement pipeline, including the v0.3.3 workflow-aware surfaces that hang off pre_output, emitted provenance, and downstream trail analysis.
     </p>
     <div class="diagram-container">
-      <object type="image/svg+xml" data="aigc_architecture_pipeline.svg?v=20260405v032">
-        <img src="aigc_architecture_pipeline.svg?v=20260405v032" alt="AIGC Enforcement Pipeline"/>
+      <object type="image/svg+xml" data="aigc_architecture_pipeline.svg?v=20260413v033d">
+        <img src="aigc_architecture_pipeline.svg?v=20260413v033d" alt="AIGC Enforcement Pipeline"/>
       </object>
     </div>
   </div>
@@ -242,23 +242,35 @@
     <div class="notes-grid">
       <div class="note-card">
         <div class="note-label">Decorator Modes</div>
-        <p><code>@governed</code> defaults to unified post-call enforcement for backward compatibility. Set <code>pre_call_enforcement=True</code> to run Phase A before the wrapped function and Phase B after it returns.</p>
+        <p><code>@governed</code> defaults to split enforcement since v0.3.3. Phase A runs before the wrapped function executes and Phase B runs after it returns. Pass <code>pre_call_enforcement=False</code> for legacy unified mode (deprecated).</p>
       </div>
       <div class="note-card">
         <div class="note-label">Phase A / Phase B</div>
         <p>Split mode moves the model call boundary between <code>post_authorization</code> and <code>pre_output</code>. Unified mode still evaluates the same ordered gates in one enforcement call.</p>
       </div>
       <div class="note-card">
+        <div class="note-label">ProvenanceGate</div>
+        <p><code>ProvenanceGate</code> is a built-in gate registered at <code>pre_output</code>. It blocks output when <code>context.provenance.source_ids</code> is missing or empty.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Artifact Provenance</div>
+        <p>Every PASS or FAIL artifact can carry v1.4 provenance fields: <code>source_ids</code>, <code>derived_from_audit_checksums</code>, and <code>compilation_source_hash</code>.</p>
+      </div>
+      <div class="note-card">
         <div class="note-label">Audit Chain</div>
         <p><code>AuditChain</code> is not part of the automatic enforcement pipeline. It is an opt-in utility the host applies to artifacts after enforcement.</p>
       </div>
       <div class="note-card">
-        <div class="note-label">Compliance Export</div>
-        <p><code>aigc compliance export</code> is an offline analysis step over stored audit artifacts, not a live runtime gate.</p>
+        <div class="note-label">Lineage Analysis</div>
+        <p><code>AuditLineage</code> reconstructs parent and child relationships from stored audit trails, and <code>aigc compliance export --lineage</code> exposes that analysis offline.</p>
       </div>
       <div class="note-card">
         <div class="note-label">Pre-Pipeline Failures</div>
         <p>Pre-pipeline failures produce schema-valid FAIL artifacts with <code>policy_version: "unknown"</code>, but bypass the core gate sequence.</p>
+      </div>
+      <div class="note-card">
+        <div class="note-label">Risk History</div>
+        <p><code>RiskHistory</code> is an advisory utility over emitted risk scores. It classifies trend direction over time and does not alter gate order or blocking semantics.</p>
       </div>
       <div class="note-card">
         <div class="note-label">Signing Semantics</div>
@@ -266,12 +278,12 @@
       </div>
       <div class="note-card">
         <div class="note-label">Async + Instance APIs</div>
-        <p><code>enforce_invocation_async()</code>, <code>enforce_pre_call_async()</code>, <code>enforce_post_call_async()</code>, and the matching <code>AIGC</code> instance methods ship in the v0.3.2 runtime.</p>
+        <p><code>enforce_invocation_async()</code>, <code>enforce_pre_call_async()</code>, <code>enforce_post_call_async()</code>, and the matching <code>AIGC</code> instance methods ship in the v0.3.3 runtime.</p>
       </div>
     </div>
   </div>
 
-  <div class="watermark">AIGC v0.3.2 · github.com/nealsolves/aigc · MIT License</div>
+  <div class="watermark">AIGC v0.3.3 · github.com/nealsolves/aigc · MIT License</div>
 
 </div>
 </body>

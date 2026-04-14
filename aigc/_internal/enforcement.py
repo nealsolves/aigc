@@ -502,9 +502,13 @@ def _make_custom_gate_runner(
         if meta:
             all_custom_metadata.update(meta)
         if failures:
+            first = failures[0]
+            first_msg = (
+                first.get("message", "unknown") if isinstance(first, dict)
+                else str(first)
+            )
             raise CustomGateViolationError(
-                f"Custom gate failed at {insertion_point}: "
-                f"{failures[0].get('message', 'unknown')}",
+                f"Custom gate failed at {insertion_point}: {first_msg}",
                 details={
                     "custom_gate_failures": failures,
                     "insertion_point": insertion_point,
@@ -568,6 +572,9 @@ def _build_phase_a_mid_pipeline_fail_artifact(
         "redacted_fields": redacted_fields,
     }
 
+    _ctx_prov = (safe_inv.get("context") or {}).get("provenance")
+    _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
     return generate_audit_artifact(
         safe_inv,
         policy,
@@ -576,6 +583,7 @@ def _build_phase_a_mid_pipeline_fail_artifact(
         failure_gate=failure_gate,
         failure_reason=failure_reason,
         metadata=fail_metadata,
+        provenance=_provenance,
     )
 
 
@@ -842,6 +850,13 @@ def _run_phase_b(
         if risk_result is not None:
             metadata["risk_scoring"] = risk_result.to_dict()
 
+        # Extract caller-supplied provenance from invocation context so it
+        # flows into the audit artifact and is available to AuditLineage.
+        # Guard: scalar provenance (e.g. from ProvenanceGate migration stubs)
+        # must not reach _normalize_provenance() which calls .items().
+        _ctx_prov = (invocation.get("context") or {}).get("provenance")
+        _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
         audit_record = generate_audit_artifact(
             invocation,
             policy,
@@ -850,6 +865,7 @@ def _run_phase_b(
             risk_score=(
                 risk_result.score if risk_result is not None else None
             ),
+            provenance=_provenance,
         )
 
         # Sign artifact if signer is configured
@@ -906,6 +922,45 @@ def _run_phase_b(
                     ),
                 }
             ]
+            # For CustomGateViolationError, surface the individual gate
+            # failures (with their specific codes) instead of the synthetic
+            # wrapper, so callers can inspect per-gate failure codes.
+            if (
+                isinstance(exc, CustomGateViolationError)
+                and isinstance(exc.details, dict)
+                and exc.details.get("custom_gate_failures")
+            ):
+                # Sanitize each gate failure message for PII/secrets before
+                # surfacing — custom gates may inadvertently echo user input.
+                sanitized_gate_failures = []
+                for gf in exc.details["custom_gate_failures"]:
+                    if not isinstance(gf, dict):
+                        # Gate returned a non-dict failure entry.  Normalize
+                        # it so a malformed gate cannot crash the error path
+                        # before the FAIL artifact is attached/emitted.
+                        # Apply the same sanitization as dict entries — the
+                        # raw value may contain user input or secrets.
+                        gf_raw_msg, gf_redacted = sanitize_failure_message(
+                            str(gf), redaction_patterns,
+                        )
+                        for r in gf_redacted:
+                            if r not in redacted_fields:
+                                redacted_fields.append(r)
+                        sanitized_gate_failures.append({
+                            "code": "CUSTOM_GATE_MALFORMED_FAILURE",
+                            "message": gf_raw_msg,
+                            "field": None,
+                        })
+                        continue
+                    gf_msg = str(gf.get("message", ""))
+                    sanitized_gf_msg, gf_redacted = sanitize_failure_message(
+                        gf_msg, redaction_patterns,
+                    )
+                    for r in gf_redacted:
+                        if r not in redacted_fields:
+                            redacted_fields.append(r)
+                    sanitized_gate_failures.append({**gf, "message": sanitized_gf_msg})
+                failures = sanitized_gate_failures
 
         if enforcement_mode == "unified":
             fail_metadata: dict[str, Any] = {
@@ -929,6 +984,9 @@ def _run_phase_b(
         ):
             fail_metadata["risk_scoring"] = exc.details
 
+        _ctx_prov = (invocation.get("context") or {}).get("provenance")
+        _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
         audit_record = generate_audit_artifact(
             invocation,
             policy,
@@ -937,6 +995,7 @@ def _run_phase_b(
             failure_gate=failure_gate,
             failure_reason=failure_reason,
             metadata=fail_metadata,
+            provenance=_provenance,
         )
 
         # Sign FAIL artifacts too
@@ -1076,6 +1135,9 @@ def _run_pipeline(
             ):
                 fail_metadata["risk_scoring"] = exc.details
 
+            _ctx_prov = (invocation.get("context") or {}).get("provenance")
+            _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
             audit_record = generate_audit_artifact(
                 invocation,
                 policy,
@@ -1084,6 +1146,7 @@ def _run_pipeline(
                 failure_gate=failure_gate,
                 failure_reason=failure_reason,
                 metadata=fail_metadata,
+                provenance=_provenance,
             )
             if signer is not None:
                 sign_artifact(audit_record, signer)
@@ -2103,6 +2166,16 @@ def _generate_pre_pipeline_fail_artifact(
         except (TypeError, ValueError):
             return {}
 
+    # Extract provenance from the raw context BEFORE _safe_dict() may collapse
+    # it.  If context contains any non-JSON-serializable entry alongside a valid
+    # provenance mapping, _safe_dict() would drop the whole context to {}, losing
+    # provenance.  Reading from the raw invocation here preserves it.
+    _raw_ctx = invocation.get("context")
+    _ctx_prov = (
+        _raw_ctx.get("provenance") if isinstance(_raw_ctx, Mapping) else None
+    )
+    _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
     safe_invocation = {
         "policy_file": _safe_str(invocation.get("policy_file")),
         "model_provider": _safe_str(invocation.get("model_provider")),
@@ -2137,6 +2210,7 @@ def _generate_pre_pipeline_fail_artifact(
             "redacted_fields": list(reason_redacted),
             "pre_pipeline_failure": True,
         },
+        provenance=_provenance,
     )
 
 
@@ -2170,6 +2244,9 @@ def emit_split_fn_failure_artifact(
         }
     ]
 
+    _ctx_prov = (inv_snap.get("context") or {}).get("provenance")
+    _provenance = _ctx_prov if isinstance(_ctx_prov, Mapping) else None
+
     artifact = generate_audit_artifact(
         inv_snap,
         policy,
@@ -2183,6 +2260,7 @@ def emit_split_fn_failure_artifact(
                 "gates_evaluated", []
             ),
         },
+        provenance=_provenance,
     )
 
     try:

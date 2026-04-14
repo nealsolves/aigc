@@ -66,6 +66,9 @@ export default function ArchitecturePage() {
           <NoteCard label="Artifact Provenance">
             PASS and FAIL artifacts can carry v1.4 provenance fields: <Code>source_ids</Code>, <Code>derived_from_audit_checksums</Code>, and <Code>compilation_source_hash</Code>.
           </NoteCard>
+          <NoteCard label="Signing Semantics">
+            If signing is configured, the same audit artifact is signed before sink emission and before it is returned to the caller. PASS and FAIL artifacts can both carry signatures.
+          </NoteCard>
           <NoteCard label="Audit Chain">
             <Code>AuditChain</Code> is not part of the automatic enforcement pipeline. It is an opt-in utility the host applies to artifacts after enforcement.
           </NoteCard>

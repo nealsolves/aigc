@@ -1,5 +1,6 @@
 # Claude Code
 CLAUDE.md
+!CLAUDE.md
 .claude/
 
 # IDE / Editor
@@ -69,9 +70,16 @@ docs/_archive/
 # Internal dev artifacts
 implementation_plan.md
 implementation_status.md
+!implementation_status.md
 /ARCHITECTURAL_INVARIANTS.md
 docs/dev/
+!docs/dev/
+docs/dev/*
+!docs/dev/pr_context.md
 docs/plans/
+!docs/plans/
+docs/plans/*
+!docs/plans/*.md
 docs/prs/
 docs/superpowers/
 docs/releases/

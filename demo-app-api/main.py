@@ -13,6 +13,7 @@ from scenarios import SCENARIOS
 from aigc import (
     AIGC, AIGCError, HMACSigner, verify_artifact, verify_chain,
     validate_policy_dates, PolicyTestCase, PolicyTestSuite,
+    PolicyValidationError,
 )
 from aigc.policy_loader import (
     merge_policies,
@@ -20,7 +21,6 @@ from aigc.policy_loader import (
     COMPOSITION_UNION,
     COMPOSITION_REPLACE,
 )
-from aigc._internal.errors import PolicyValidationError
 from gates import GATES, get_gate_info
 from loaders import InMemoryPolicyLoader
 import yaml as yaml_lib
@@ -178,10 +178,31 @@ def verify_signature(req: VerifySignatureRequest):
     return {"valid": valid}
 
 
+def _normalize_for_canonical_json(obj):
+    """Mirror the runtime checksum normalization without importing internals."""
+    if isinstance(obj, float):
+        if obj != obj:
+            return obj
+        if obj.is_integer():
+            return int(obj)
+        return obj
+    if isinstance(obj, dict):
+        return {k: _normalize_for_canonical_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_normalize_for_canonical_json(v) for v in obj]
+    return obj
+
+
 def _canonical_sha256(obj: dict) -> str:
     """Replicates AuditChain._compute_artifact_checksum for stateless use."""
-    from aigc._internal.utils import canonical_json_bytes
-    return hashlib.sha256(canonical_json_bytes(obj)).hexdigest()
+    canonical = json.dumps(
+        _normalize_for_canonical_json(obj),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
 
 
 class ChainAppendRequest(BaseModel):

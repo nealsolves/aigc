@@ -110,12 +110,19 @@ Default-path rules:
 - Invocation-only users keep working on supported public APIs.
 - Workflow adoption remains instance-scoped through `AIGC.open_session(...)`.
 - `v0.9.0` does not introduce a new module-level `open_session(...)` public API.
+- The frozen golden-path CLI inventory is `aigc policy init`,
+  `aigc workflow init`, `aigc workflow lint`, `aigc workflow doctor`,
+  `aigc workflow trace`, and `aigc workflow export`.
 - `GovernanceSession`, `SessionPreCallResult`, and `AIGC.open_session(...)`
   are frozen as planned-only contract surfaces before runtime work lands.
   PR-02 documents and tests them; it does not ship placeholder runtime stubs.
 - Public examples, quickstarts, starter assets, presets, recipes, and demo code must use only public APIs and must never import from `aigc._internal`.
 - Hand-authored workflow DSL remains supported but is advanced mode.
 - Starter packs, `workflow init`, and thin presets are the default adoption path.
+- The frozen scaffold profiles are `minimal`, `standard`, and
+  `regulated-high-assurance`.
+- Required starter coverage is local multi-step review, approval checkpoint,
+  source-required, and tool-budget flows.
 - Thin presets compile to ordinary session plus policy plus manifest behavior. They do not hide host orchestration ownership or create alternate enforcement semantics.
 
 ### Evidence model
@@ -202,6 +209,52 @@ Rules:
 - External protocol evidence is untrusted until validated against the relevant adapter or validator contract.
 - Provider metadata is descriptive unless policy explicitly marks a validated host-backed source authoritative for a governed decision.
 - Ambiguous or incomplete identity evidence fails closed whenever policy requires authoritative binding.
+
+### Golden-path contract freeze
+
+Frozen CLI command inventory:
+
+- `aigc policy init`
+- `aigc workflow init`
+- `aigc workflow lint`
+- `aigc workflow doctor`
+- `aigc workflow trace`
+- `aigc workflow export`
+
+Frozen scaffold profiles:
+
+- `minimal`
+- `standard`
+- `regulated-high-assurance`
+
+Required starter coverage:
+
+- local multi-step review
+- approval checkpoint
+- source required
+- tool budget
+
+Frozen first-user diagnostic reason codes:
+
+- `WORKFLOW_INVALID_TRANSITION`
+- `WORKFLOW_APPROVAL_REQUIRED`
+- `WORKFLOW_SOURCE_REQUIRED`
+- `WORKFLOW_TOOL_BUDGET_EXCEEDED`
+- `WORKFLOW_UNSUPPORTED_BINDING`
+- `WORKFLOW_SESSION_TOKEN_INVALID`
+- `WORKFLOW_STARTER_INTEGRITY_ERROR`
+
+Frozen first-adopter docs order:
+
+1. workflow quickstart
+2. migration from invocation-only to workflow
+3. troubleshooting and `workflow doctor` / `workflow lint` guide
+4. starter recipes and starter index
+5. workflow CLI guide
+6. public API boundary and integration contract
+7. supported environments
+8. operations runbook
+9. adapter docs as advanced follow-on material
 
 ### Beta framing
 
@@ -330,9 +383,10 @@ Two isolated adopter validations are not enough for `1.0.0` promotion.
 - Branch: `feat/v0.9-03-golden-path-contract`
 - Goal: freeze the first-adopter surface before later features compete for attention.
 - Implement:
-  - freeze the default CLI surface for `workflow init`, `workflow lint`, `workflow doctor`, `workflow trace`, and `workflow export`
+  - freeze the default CLI surface for `policy init`, `workflow init`, `workflow lint`, `workflow doctor`, `workflow trace`, and `workflow export`
   - freeze scaffold profiles: `minimal`, `standard`, `regulated-high-assurance`
-  - freeze starter coverage for local review, approval checkpoint, source-required, and tool-budget flows
+  - freeze starter coverage for local multi-step review, approval checkpoint, source-required, and tool-budget flows
+  - freeze the rule that hand-authored workflow DSL is advanced mode and not required for the default path
   - freeze public-import-only rules for all examples and docs snippets
   - freeze docs order for first adopters
   - freeze minimum diagnostic reason-code coverage for common first-user failures

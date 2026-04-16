@@ -1201,14 +1201,46 @@ def _extract_bullets_after_label(text: str, label: str) -> list[str] | None:
     return items if items else None
 
 
+def _extract_numbered_items_after_label(text: str, label: str) -> list[str] | None:
+    idx = text.find(label)
+    if idx == -1:
+        return None
+
+    items: list[str] = []
+    started = False
+    for raw_line in text[idx + len(label):].splitlines():
+        stripped = raw_line.strip()
+        # Deliberately match _extract_bullets_after_label(): once list parsing
+        # has started, a blank line terminates the list instead of being
+        # skipped. Keep numbered lists contiguous in contract docs.
+        if not stripped:
+            if started:
+                break
+            continue
+        match = re.match(r"^\d+\.\s+(.*)$", stripped)
+        if match:
+            items.append(_normalize_inline_markdown(match.group(1)))
+            started = True
+            continue
+        if started:
+            break
+
+    return items if items else None
+
+
 def _require_all(
-    errors: list[str], rel: str, text: str, required: list[str], label: str
+    errors: list[str],
+    rel: str,
+    text: str,
+    required: list[str],
+    label: str,
+    error_prefix: str = "[v0.9.0-pr02]",
 ) -> None:
     normalized_text = re.sub(r"\s+", " ", text)
     for needle in required:
         normalized_needle = re.sub(r"\s+", " ", needle)
         if normalized_needle not in normalized_text:
-            errors.append(f"[v0.9.0-pr02] {rel}: missing {label}: {needle}")
+            errors.append(f"{error_prefix} {rel}: missing {label}: {needle}")
 
 
 def _check_exact_list(
@@ -1218,14 +1250,34 @@ def _check_exact_list(
     label: str,
     expected: list[str],
     name: str,
+    error_prefix: str = "[v0.9.0-pr02]",
 ) -> None:
     actual = _extract_bullets_after_label(text, label)
     if actual is None:
-        errors.append(f"[v0.9.0-pr02] {rel}: could not find {name} list")
+        errors.append(f"{error_prefix} {rel}: could not find {name} list")
         return
     if actual != expected:
         errors.append(
-            f"[v0.9.0-pr02] {rel}: {name} list {actual} does not match "
+            f"{error_prefix} {rel}: {name} list {actual} does not match "
+            f"expected {expected}"
+        )
+
+
+def _check_exact_numbered_list(
+    errors: list[str],
+    rel: str,
+    text: str,
+    label: str,
+    expected: list[str],
+    name: str,
+) -> None:
+    actual = _extract_numbered_items_after_label(text, label)
+    if actual is None:
+        errors.append(f"[v0.9.0-pr03] {rel}: could not find {name} list")
+        return
+    if actual != expected:
+        errors.append(
+            f"[v0.9.0-pr03] {rel}: {name} list {actual} does not match "
             f"expected {expected}"
         )
 
@@ -1386,6 +1438,215 @@ def check_v090_pr02_contract() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Check M: v0.9.0 PR-03 golden-path contract truth
+# ---------------------------------------------------------------------------
+
+_V090_PR03_ACTIVE_BRANCH = "feat/v0.9-03-golden-path-contract"
+_V090_PR03_EXPECTED_CLI_COMMANDS = [
+    "aigc policy init",
+    "aigc workflow init",
+    "aigc workflow lint",
+    "aigc workflow doctor",
+    "aigc workflow trace",
+    "aigc workflow export",
+]
+_V090_PR03_EXPECTED_SCAFFOLD_PROFILES = [
+    "minimal",
+    "standard",
+    "regulated-high-assurance",
+]
+_V090_PR03_EXPECTED_STARTER_COVERAGE = [
+    "local multi-step review",
+    "approval checkpoint",
+    "source required",
+    "tool budget",
+]
+_V090_PR03_EXPECTED_REASON_CODES = [
+    "WORKFLOW_INVALID_TRANSITION",
+    "WORKFLOW_APPROVAL_REQUIRED",
+    "WORKFLOW_SOURCE_REQUIRED",
+    "WORKFLOW_TOOL_BUDGET_EXCEEDED",
+    "WORKFLOW_UNSUPPORTED_BINDING",
+    "WORKFLOW_SESSION_TOKEN_INVALID",
+    "WORKFLOW_STARTER_INTEGRITY_ERROR",
+]
+_V090_PR03_EXPECTED_DOCS_ORDER = [
+    "workflow quickstart",
+    "migration from invocation-only to workflow",
+    "troubleshooting and workflow doctor / workflow lint guide",
+    "starter recipes and starter index",
+    "workflow CLI guide",
+    "public API boundary and integration contract",
+    "supported environments",
+    "operations runbook",
+    "adapter docs as advanced follow-on material",
+]
+
+
+def check_v090_pr03_contract() -> list[str]:
+    """Ensure PR-03 freezes the first-adopter contract without shipping it."""
+    errors: list[str] = []
+
+    required_files = [
+        _V090_PLAN_REL,
+        _V090_HLD_REL,
+        "README.md",
+        _V090_PUBLIC_CONTRACT_REL,
+        _V090_PR_CONTEXT_REL,
+        "RELEASE_GATES.md",
+        "implementation_status.md",
+    ]
+    texts: dict[str, str] = {}
+    for rel in required_files:
+        text = _read_text(rel)
+        if not text:
+            errors.append(f"[v0.9.0-pr03] missing required file: {rel}")
+            continue
+        texts[rel] = text
+
+    if errors:
+        return errors
+
+    for rel in (_V090_PLAN_REL, _V090_HLD_REL):
+        text = texts[rel]
+        _check_exact_list(
+            errors,
+            rel,
+            text,
+            "Frozen CLI command inventory:",
+            _V090_PR03_EXPECTED_CLI_COMMANDS,
+            "CLI command inventory",
+            error_prefix="[v0.9.0-pr03]",
+        )
+        _check_exact_list(
+            errors,
+            rel,
+            text,
+            "Frozen scaffold profiles:",
+            _V090_PR03_EXPECTED_SCAFFOLD_PROFILES,
+            "scaffold profiles",
+            error_prefix="[v0.9.0-pr03]",
+        )
+        _check_exact_list(
+            errors,
+            rel,
+            text,
+            "Required starter coverage:",
+            _V090_PR03_EXPECTED_STARTER_COVERAGE,
+            "starter coverage",
+            error_prefix="[v0.9.0-pr03]",
+        )
+        _check_exact_list(
+            errors,
+            rel,
+            text,
+            "Frozen first-user diagnostic reason codes:",
+            _V090_PR03_EXPECTED_REASON_CODES,
+            "first-user reason codes",
+            error_prefix="[v0.9.0-pr03]",
+        )
+        _check_exact_numbered_list(
+            errors,
+            rel,
+            text,
+            "Frozen first-adopter docs order:",
+            _V090_PR03_EXPECTED_DOCS_ORDER,
+            "first-adopter docs order",
+        )
+
+    _require_all(
+        errors,
+        _V090_PLAN_REL,
+        texts[_V090_PLAN_REL],
+        [
+            "- Hand-authored workflow DSL remains supported but is advanced mode.",
+            "- Public examples, quickstarts, starter assets, presets, recipes, and demo code must use only public APIs and must never import from `aigc._internal`.",
+        ],
+        "frozen plan golden-path rules",
+        error_prefix="[v0.9.0-pr03]",
+    )
+    _require_all(
+        errors,
+        _V090_HLD_REL,
+        texts[_V090_HLD_REL],
+        [
+            "- hand-authored workflow DSL remains supported as advanced mode and is not required for the default path",
+            "- public quickstarts, starter packs, presets, demo code, and docs snippets must use public `aigc` imports only and must not depend on `aigc._internal`",
+            "`aigc policy init`",
+        ],
+        "frozen HLD golden-path rules",
+        error_prefix="[v0.9.0-pr03]",
+    )
+    _require_all(
+        errors,
+        "README.md",
+        texts["README.md"],
+        [
+            "`aigc policy init`",
+            "`aigc workflow init`",
+            "`aigc workflow lint`",
+            "`aigc workflow doctor`",
+            "`aigc workflow trace`",
+            "`aigc workflow export`",
+            "none of those workflow surfaces are part of the shipped `v0.3.3` runtime or CLI",
+        ],
+        "planned-only README CLI boundary",
+        error_prefix="[v0.9.0-pr03]",
+    )
+    _require_all(
+        errors,
+        _V090_PUBLIC_CONTRACT_REL,
+        texts[_V090_PUBLIC_CONTRACT_REL],
+        [
+            "`aigc policy init`",
+            "`aigc workflow ...` commands",
+            "must use public `aigc` imports only and must not depend on `aigc._internal`",
+        ],
+        "planned-only public integration boundary",
+        error_prefix="[v0.9.0-pr03]",
+    )
+    _require_all(
+        errors,
+        _V090_PR_CONTEXT_REL,
+        texts[_V090_PR_CONTEXT_REL],
+        [
+            f"Active branch: `{_V090_PR03_ACTIVE_BRANCH}`",
+            "- docs, CI, sentinel tests, and public-import hygiene only",
+            "- The frozen golden-path CLI inventory is `aigc policy init`,",
+            "- PR-03 is docs, CI, sentinel tests, and public-import hygiene only. Workflow\n  runtime implementation still starts in PR-04.",
+        ],
+        "PR-03 branch and scope",
+        error_prefix="[v0.9.0-pr03]",
+    )
+    _require_all(
+        errors,
+        "RELEASE_GATES.md",
+        texts["RELEASE_GATES.md"],
+        [
+            "## PR-03 — Golden-Path Contract Freeze Gate",
+            "- [ ] staged CLI sentinel tests prove the current shipped CLI still exposes no\n      `workflow` or `policy init` commands while freezing the future command\n      names in docs",
+            "- [ ] public-import boundary tests confirm maintained onboarding examples and\n      demo code use public `aigc` imports only",
+        ],
+        "PR-03 release gate",
+        error_prefix="[v0.9.0-pr03]",
+    )
+    _require_all(
+        errors,
+        "implementation_status.md",
+        texts["implementation_status.md"],
+        [
+            f"**Active Branch:** `{_V090_PR03_ACTIVE_BRANCH}`",
+            "- PR-03 is golden-path contract freeze only. It updates docs, CI, sentinel\n  tests, and public-import hygiene only.",
+            "## PR-03 Deliverables",
+        ],
+        "PR-03 implementation status",
+        error_prefix="[v0.9.0-pr03]",
+    )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -1408,7 +1669,7 @@ def main() -> int:
         ("I. Semantic behavioral claims", check_semantic_claims),
         ("J. v0.9.0 plan truth", check_v090_plan_truth),
         ("K. v0.9.0 release truth", check_v090_release_truth),
-        ("L. v0.9.0 PR-02 contract freeze truth", check_v090_pr02_contract),
+        ("L. v0.9.0 PR-03 golden-path contract truth", check_v090_pr03_contract),
     ]
 
     for name, check_fn in checks:

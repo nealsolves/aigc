@@ -52,9 +52,12 @@ legacy unified mode (deprecated).
 The target-state `1.0.0` architecture expands this invocation-first model with
 planned workflow governance built around `AIGC.open_session(...)`,
 `GovernanceSession`, `SessionPreCallResult`, and optional Bedrock/A2A
-normalization adapters. These remain planned-only surfaces today and are not
-part of the shipped `v0.3.3` runtime or CLI. That future-state design is
-captured in `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
+normalization adapters. The planned golden-path CLI names —
+`aigc policy init`, `aigc workflow init`, `aigc workflow lint`,
+`aigc workflow doctor`, `aigc workflow trace`, and
+`aigc workflow export` — are also frozen in the repo docs, but none of those
+workflow surfaces are part of the shipped `v0.3.3` runtime or CLI. That
+future-state design is captured in `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
 
 ## Release Narrative
 
@@ -181,6 +184,10 @@ The `aigc` console script exposes three practical commands:
   for offline compliance reporting over stored audit trails; add `--lineage` to
   include DAG-level lineage analysis (node counts, duplicate detection,
   root/leaf/orphan lists, cycle detection)
+
+Planned `v0.9.0` starter and workflow commands may be named in target-state
+docs, but `aigc policy init` and all `aigc workflow ...` commands remain
+unshipped in the current `v0.3.3` CLI.
 
 ## Repo Guide
 

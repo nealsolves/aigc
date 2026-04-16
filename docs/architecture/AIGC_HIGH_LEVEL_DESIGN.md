@@ -24,8 +24,8 @@ Availability boundary: this document describes the intended `1.0.0` public
 surface. The shipped `0.3.3` package and CLI do not yet export
 `GovernanceSession`, `SessionPreCallResult`, `AgentIdentity`,
 `AgentCapabilityManifest`, `ValidatorHook`, `BedrockTraceAdapter`,
-`A2AAdapter`, or `aigc workflow ...` commands, and `AIGC.open_session(...)`
-is not part of the installable runtime yet.
+`A2AAdapter`, `aigc policy init`, or `aigc workflow ...` commands, and
+`AIGC.open_session(...)` is not part of the installable runtime yet.
 
 Headline 1.0.0 capabilities:
 
@@ -617,7 +617,7 @@ in the `0.3.3` CLI, and not safe for current integrations to depend on yet:
 | `ValidatorHook` | workflow validator extension point |
 | `BedrockTraceAdapter` | optional Bedrock normalization adapter |
 | `A2AAdapter` | optional A2A normalization adapter |
-| workflow CLI commands | operator inspection and export surface |
+| `aigc policy init` and workflow CLI commands | starter generation plus operator inspection and export surface |
 
 ### 13.2 Stability Contract After `1.0.0` GA
 
@@ -653,6 +653,59 @@ From `0.3.3` to `1.0.0`:
 
 Detailed migration steps belong in dedicated migration documents rather than in
 this architecture reference.
+
+### 13.4 Frozen First-Adopter Contract
+
+Frozen CLI command inventory:
+
+- `aigc policy init`
+- `aigc workflow init`
+- `aigc workflow lint`
+- `aigc workflow doctor`
+- `aigc workflow trace`
+- `aigc workflow export`
+
+Frozen scaffold profiles:
+
+- `minimal`
+- `standard`
+- `regulated-high-assurance`
+
+Required starter coverage:
+
+- local multi-step review
+- approval checkpoint
+- source required
+- tool budget
+
+Rules:
+
+- hand-authored workflow DSL remains supported as advanced mode and is not
+  required for the default path
+- public quickstarts, starter packs, presets, demo code, and docs snippets
+  must use public `aigc` imports only and must not depend on `aigc._internal`
+
+Frozen first-user diagnostic reason codes:
+
+- `WORKFLOW_INVALID_TRANSITION`
+- `WORKFLOW_APPROVAL_REQUIRED`
+- `WORKFLOW_SOURCE_REQUIRED`
+- `WORKFLOW_TOOL_BUDGET_EXCEEDED`
+- `WORKFLOW_UNSUPPORTED_BINDING`
+- `WORKFLOW_SESSION_TOKEN_INVALID`
+- `WORKFLOW_STARTER_INTEGRITY_ERROR`
+
+Frozen first-adopter docs order:
+
+1. workflow quickstart
+2. migration from invocation-only to workflow
+3. troubleshooting and `workflow doctor` / `workflow lint` guide
+4. starter recipes and starter index
+5. workflow CLI guide
+6. public API boundary and integration contract
+7. supported environments
+8. operations runbook
+9. adapter docs as advanced follow-on material
 
 ---
 

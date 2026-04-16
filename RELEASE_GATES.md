@@ -81,6 +81,36 @@ Checklist:
 
 ---
 
+## PR-03 — Golden-Path Contract Freeze Gate
+
+Branch:
+
+- `feat/v0.9-03-golden-path-contract`
+
+Checklist:
+
+- [ ] `docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md` and
+      `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md` freeze the golden-path CLI
+      command inventory, scaffold profiles, starter coverage, docs order, and
+      minimum first-user reason-code set
+- [ ] `README.md` and `docs/PUBLIC_INTEGRATION_CONTRACT.md` keep the shipped
+      `v0.3.3` surface honest while naming `aigc policy init` and
+      `aigc workflow ...` commands as planned-only
+- [ ] `docs/dev/pr_context.md`, `RELEASE_GATES.md`, and
+      `implementation_status.md` align on the PR-03 branch, scope, and exit
+      criteria
+- [ ] CI fails on PR-03 contract drift across the canonical plan, HLD,
+      onboarding docs, and release packet
+- [ ] staged CLI sentinel tests prove the current shipped CLI still exposes no
+      `workflow` or `policy init` commands while freezing the future command
+      names in docs
+- [ ] public-import boundary tests confirm maintained onboarding examples and
+      demo code use public `aigc` imports only
+- [ ] no workflow runtime, starter-generation, shipped CLI, schema, adapter,
+      demo-behavior, or version changes land in PR-03
+
+---
+
 ## Capability Gates
 
 ### PR-02 — Contract Freeze
@@ -93,8 +123,9 @@ Checklist:
 
 ### PR-03 — Golden-Path Contract Freeze
 
-- [ ] workflow CLI surface is frozen
+- [ ] golden-path CLI surface is frozen
 - [ ] scaffold profiles are frozen
+- [ ] starter coverage is frozen
 - [ ] public-import-only rules are frozen
 - [ ] docs order for first adopters is frozen
 - [ ] first-failure reason-code coverage is frozen

@@ -2,8 +2,8 @@
 
 **Target Version:** `0.9.0` Beta
 **Baseline Version:** `0.3.3`
-**Active Branch:** `feat/v0.9-02-contract-freeze`
-**Last Updated:** 2026-04-15
+**Active Branch:** `feat/v0.9-03-golden-path-contract`
+**Last Updated:** 2026-04-16
 
 ---
 
@@ -12,14 +12,15 @@
 Current state:
 
 - PR-01 is complete
-- PR-02 is in progress
+- PR-02 is complete
+- PR-03 is in progress
 - workflow runtime implementation still starts in PR-04
 
 | Track | Status | Notes |
 |-------|--------|-------|
 | Source of truth | complete | Canonical docs and CI truth checks are the baseline for later PRs |
-| Contract freeze | in progress | PR-02 is freezing the workflow contract through docs, CI, and sentinel tests |
-| Golden-path contract | not started | Starts in PR-03 |
+| Contract freeze | complete | PR-02 froze lifecycle, planned-only workflow surfaces, and protocol-boundary rules |
+| Golden-path contract | in progress | PR-03 is freezing command names, starter profiles, docs order, and public-import rules |
 | Minimal session flow | not started | Starts in PR-04 |
 | Starters and migration | not started | Starts in PR-05 |
 | Diagnostics | not started | Starts in PR-06 |
@@ -52,9 +53,11 @@ Current state:
 - PR-07 is the mandatory stop-ship checkpoint. If the golden path fails there,
   no further public-surface work proceeds until the default path is repaired.
 - The default adopter path must succeed without Bedrock or A2A.
-- PR-02 is contract freeze only. It updates docs, CI, and sentinel tests only.
-- No workflow runtime, public export stubs, workflow CLI commands, demo
-  changes, or adapter implementations land in PR-02.
+- PR-03 is golden-path contract freeze only. It updates docs, CI, sentinel
+  tests, and public-import hygiene only.
+- No workflow runtime, starter generation, shipped workflow CLI commands,
+  policy-init behavior, schema changes, demo behavior changes, or adapter
+  implementations land in PR-03.
 - Workflow runtime implementation begins in PR-04.
 
 ---
@@ -64,8 +67,8 @@ Current state:
 | PR | Branch | Status | Notes |
 |----|--------|--------|-------|
 | PR-01 | `feat/v0.9-01-source-of-truth` | complete | Canonical plan, release packet, supersession banners, and CI truth checks |
-| PR-02 | `feat/v0.9-02-contract-freeze` | in progress | Freeze lifecycle, `SessionPreCallResult`, `AIGC.open_session(...)`, and evidence separation |
-| PR-03 | `feat/v0.9-03-golden-path-contract` | not started | Freeze CLI shape, starter profiles, public-import rules, and docs order |
+| PR-02 | `feat/v0.9-02-contract-freeze` | complete | Freeze lifecycle, `SessionPreCallResult`, `AIGC.open_session(...)`, and evidence separation |
+| PR-03 | `feat/v0.9-03-golden-path-contract` | in progress | Freeze CLI shape, starter profiles, public-import rules, docs order, and first-user reason codes |
 | PR-04 | `feat/v0.9-04-minimal-session-flow` | not started | Smallest real governed local workflow path |
 | PR-05 | `feat/v0.9-05-starters-and-migration` | not started | Starters, thin presets, and migration helpers |
 | PR-06 | `feat/v0.9-06-doctor-and-lint` | not started | Diagnostics, stable reason codes, and fix guidance |
@@ -78,18 +81,22 @@ Current state:
 
 ---
 
-## PR-02 Deliverables
+## PR-03 Deliverables
 
-- [x] create `feat/v0.9-02-contract-freeze` from current `develop`
-- [x] rewrite `docs/dev/pr_context.md` for PR-02 branch, scope, and exit gates
-- [x] update `RELEASE_GATES.md` for the PR-02 contract-freeze gate
-- [x] update `implementation_status.md` for PR-02 progress and deliverables
-- [x] freeze lifecycle states and workflow artifact statuses in the canonical
+- [x] create `feat/v0.9-03-golden-path-contract` from current `develop`
+- [x] rewrite `docs/dev/pr_context.md` for the PR-03 branch, scope, and exit
+      gates
+- [x] update `RELEASE_GATES.md` for the PR-03 golden-path contract gate
+- [x] update `implementation_status.md` for PR-03 progress and deliverables
+- [x] freeze the golden-path CLI inventory in the canonical plan and HLD
+- [x] freeze scaffold profiles and required starter coverage in the canonical
       plan and HLD
-- [x] freeze `SessionPreCallResult` and `AIGC.open_session(...)` as
-      planned-only workflow contract surfaces
+- [x] freeze first-adopter docs order and minimum reason-code coverage in the
+      canonical plan and HLD
 - [x] align `README.md` and `docs/PUBLIC_INTEGRATION_CONTRACT.md` to the
-      shipped `v0.3.3` invocation-only surface
-- [x] extend doc parity checks for PR-02 contract drift
-- [x] add lifecycle, public-surface, and protocol-boundary sentinel tests
-- [x] verify targeted doc-parity and sentinel test coverage
+      shipped `v0.3.3` surface while naming `aigc policy init` and
+      `aigc workflow ...` as planned-only
+- [x] extend doc parity checks for PR-03 contract drift
+- [x] add staged CLI-shape and public-import boundary sentinel tests
+- [x] remove maintained demo `_internal` imports where public or local
+      equivalents already exist

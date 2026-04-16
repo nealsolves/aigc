@@ -1,8 +1,8 @@
-# PR Context — `v0.9.0` PR-02 Contract Freeze
+# PR Context — `v0.9.0` PR-03 Golden-Path Contract Freeze
 
-Date: 2026-04-15
+Date: 2026-04-16
 Status: Draft
-Active branch: `feat/v0.9-02-contract-freeze`
+Active branch: `feat/v0.9-03-golden-path-contract`
 
 ---
 
@@ -30,40 +30,40 @@ One branch per PR. All remote merges during active `v0.9.0` work target
 
 ## PR Summary
 
-This PR freezes the workflow contract for the `v0.9.0` beta before workflow
-runtime implementation starts.
+This PR freezes the default first-adopter contract for the `v0.9.0` beta
+before workflow runtime implementation starts.
 
 Theme:
 
-- contract freeze and public-surface guardrails
+- golden-path contract and public-import guardrails
 
 PR type:
 
-- docs, CI, and sentinel tests only
+- docs, CI, sentinel tests, and public-import hygiene only
 
 ---
 
 ## Goal
 
-Freeze session lifecycle, workflow artifact status mapping,
-`SessionPreCallResult`, `AIGC.open_session(...)`, invocation-vs-workflow
-evidence separation, and Bedrock/A2A fail-closed boundaries without adding
-workflow runtime behavior in this PR.
+Freeze the CLI command inventory, scaffold profiles, starter coverage,
+public-import-only rules, first-adopter docs order, and minimum diagnostic
+reason-code coverage without adding workflow runtime or workflow CLI behavior
+in this PR.
 
 ---
 
 ## In Scope
 
-- update the release packet for the PR-02 branch, scope, and exit criteria
-- freeze workflow lifecycle and artifact-status rules in the canonical plan and
-  HLD
-- freeze `SessionPreCallResult` and `AIGC.open_session(...)` as planned-only
-  workflow contract surfaces
+- update the release packet for the PR-03 branch, scope, and exit criteria
+- freeze the golden-path command inventory, starter profiles, starter coverage,
+  docs order, and reason-code minimums in the canonical plan and HLD
 - keep `README.md` and `docs/PUBLIC_INTEGRATION_CONTRACT.md` aligned to the
-  shipped `v0.3.3` invocation-only surface while naming workflow surfaces as
-  planned-only
-- extend CI truth checks for PR-02 contract drift
-- add lifecycle, public-surface, and protocol-boundary sentinel tests
+  shipped `v0.3.3` surface while naming `aigc policy init` and
+  `aigc workflow ...` commands as planned-only
+- extend CI truth checks for PR-03 contract drift
+- add staged CLI-shape, docs-order, and public-import boundary sentinel tests
+- remove `_internal` imports from maintained onboarding examples or demo code
+  where the public API already covers the same behavior
 
 ---
 
@@ -71,7 +71,9 @@ workflow runtime behavior in this PR.
 
 - workflow or session runtime implementation
 - public export stubs or placeholder workflow classes
-- workflow CLI behavior or new workflow CLI commands
+- executable workflow CLI behavior or newly shipped workflow CLI commands
+- executable `aigc policy init` behavior
+- starter asset generation
 - workflow schemas
 - demo-app behavior changes
 - Bedrock or A2A adapter runtime work
@@ -100,39 +102,51 @@ workflow runtime behavior in this PR.
   semantics, adapter fail-closed constraints, the PR table, and the
   `origin/main` freeze.
 - `GovernanceSession`, `SessionPreCallResult`, and `AIGC.open_session(...)`
-  remain planned-only contract surfaces in PR-02. No placeholder runtime
+  remain planned-only contract surfaces in PR-03. No placeholder runtime
   exports ship in this branch.
-- The frozen workflow entrypoint is `AIGC.open_session(...)`; there is no
-  module-level `open_session(...)` public API in `v0.9.0`.
-- PR-02 is docs, CI, and sentinel tests only. Workflow runtime implementation
-  starts in PR-04.
+- The frozen golden-path CLI inventory is `aigc policy init`,
+  `aigc workflow init`, `aigc workflow lint`, `aigc workflow doctor`,
+  `aigc workflow trace`, and `aigc workflow export`, but those commands are
+  still absent from the shipped `v0.3.3` CLI in PR-03.
+- The frozen scaffold profiles are `minimal`, `standard`, and
+  `regulated-high-assurance`.
+- Hand-authored workflow DSL remains advanced mode and is not required for the
+  default path.
+- Public quickstarts, starter packs, presets, demo code, and docs snippets
+  must use public `aigc` imports only and must not depend on `aigc._internal`.
+- PR-03 is docs, CI, sentinel tests, and public-import hygiene only. Workflow
+  runtime implementation still starts in PR-04.
 
 ---
 
 ## Reviewer Focus
 
-- confirm the PR is docs, CI, and sentinel tests only
+- confirm the PR is docs, CI, sentinel tests, and import-hygiene only
 - confirm the canonical plan, HLD, `README.md`, and
-  `docs/PUBLIC_INTEGRATION_CONTRACT.md` agree on lifecycle states, workflow
-  artifact statuses, `SessionPreCallResult`, and `AIGC.open_session(...)`
-- confirm the current public surface remains invocation-only
-- confirm Bedrock and A2A boundary rules are frozen in tests without runtime
-  adapters
-- confirm there are no runtime, schema, CLI, demo, or package-version changes
+  `docs/PUBLIC_INTEGRATION_CONTRACT.md` agree on the planned command names,
+  scaffold profiles, starter coverage, docs order, and reason-code minimums
+- confirm the current public surface remains invocation-only and the shipped
+  CLI still exposes no `workflow` or `policy init` commands
+- confirm maintained onboarding examples and demo code use only public `aigc`
+  imports
+- confirm there are no runtime, schema, starter-generation, shipped CLI,
+  adapter, or package-version changes
 
 ---
 
 ## Exit Gate
 
 - `docs/dev/pr_context.md`, `RELEASE_GATES.md`, and `implementation_status.md`
-  are aligned to the PR-02 branch and scope
-- the canonical plan and HLD freeze the workflow contract without adding
-  runtime placeholders
+  are aligned to the PR-03 branch and scope
+- the canonical plan and HLD freeze the golden-path command inventory,
+  scaffold profiles, starter coverage, docs order, and reason-code minimums
 - `README.md` and `docs/PUBLIC_INTEGRATION_CONTRACT.md` keep the shipped
-  `v0.3.3` surface honest while naming workflow surfaces as planned-only
-- doc truth checks fail closed on PR-02 contract drift
-- public-surface sentinel tests prove no workflow runtime or CLI surface
-  shipped early
-- protocol-boundary tests prove Bedrock and A2A fail-closed contract rules
-  stay frozen without adapter implementations
-- no workflow runtime, schema, CLI, demo, or package changes land in PR-02
+  `v0.3.3` surface honest while naming `aigc policy init` and
+  `aigc workflow ...` commands as planned-only
+- doc truth checks fail closed on PR-03 contract drift
+- staged CLI-shape sentinel tests freeze future command names while proving the
+  current shipped CLI still has no `workflow` or `policy init` commands
+- public-import boundary tests prove maintained onboarding examples and demo
+  code do not depend on `aigc._internal`
+- no workflow runtime, schema, starter-generation, shipped CLI, demo behavior,
+  or package changes land in PR-03

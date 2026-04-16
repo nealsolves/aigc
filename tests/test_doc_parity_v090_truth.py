@@ -565,3 +565,275 @@ def test_v090_pr02_contract_rejects_other_exact_list_drifts(
         expected_rel in error and expected_list_name in error
         for error in errors
     ), errors
+
+
+_PR03_PLAN_CONTENT = """\
+# AIGC v0.9.0 Implementation Plan
+
+### Public surface and migration posture
+
+- The frozen golden-path CLI inventory is `aigc policy init`, `aigc workflow init`, `aigc workflow lint`, `aigc workflow doctor`, `aigc workflow trace`, and `aigc workflow export`.
+- Public examples, quickstarts, starter assets, presets, recipes, and demo code must use only public APIs and must never import from `aigc._internal`.
+- Hand-authored workflow DSL remains supported but is advanced mode.
+
+### Golden-path contract freeze
+
+Frozen CLI command inventory:
+
+- `aigc policy init`
+- `aigc workflow init`
+- `aigc workflow lint`
+- `aigc workflow doctor`
+- `aigc workflow trace`
+- `aigc workflow export`
+
+Frozen scaffold profiles:
+
+- `minimal`
+- `standard`
+- `regulated-high-assurance`
+
+Required starter coverage:
+
+- local multi-step review
+- approval checkpoint
+- source required
+- tool budget
+
+Frozen first-user diagnostic reason codes:
+
+- `WORKFLOW_INVALID_TRANSITION`
+- `WORKFLOW_APPROVAL_REQUIRED`
+- `WORKFLOW_SOURCE_REQUIRED`
+- `WORKFLOW_TOOL_BUDGET_EXCEEDED`
+- `WORKFLOW_UNSUPPORTED_BINDING`
+- `WORKFLOW_SESSION_TOKEN_INVALID`
+- `WORKFLOW_STARTER_INTEGRITY_ERROR`
+
+Frozen first-adopter docs order:
+
+1. workflow quickstart
+2. migration from invocation-only to workflow
+3. troubleshooting and `workflow doctor` / `workflow lint` guide
+4. starter recipes and starter index
+5. workflow CLI guide
+6. public API boundary and integration contract
+7. supported environments
+8. operations runbook
+9. adapter docs as advanced follow-on material
+"""
+
+_PR03_HLD_CONTENT = """\
+# AIGC High-Level Design
+
+Availability boundary: this document describes the intended `1.0.0` public
+surface. The shipped `0.3.3` package and CLI do not yet export
+`GovernanceSession`, `SessionPreCallResult`, `AgentIdentity`,
+`AgentCapabilityManifest`, `ValidatorHook`, `BedrockTraceAdapter`,
+`A2AAdapter`, `aigc policy init`, or `aigc workflow ...` commands, and
+`AIGC.open_session(...)` is not part of the installable runtime yet.
+
+### 13.4 Frozen First-Adopter Contract
+
+Frozen CLI command inventory:
+
+- `aigc policy init`
+- `aigc workflow init`
+- `aigc workflow lint`
+- `aigc workflow doctor`
+- `aigc workflow trace`
+- `aigc workflow export`
+
+Frozen scaffold profiles:
+
+- `minimal`
+- `standard`
+- `regulated-high-assurance`
+
+Required starter coverage:
+
+- local multi-step review
+- approval checkpoint
+- source required
+- tool budget
+
+Rules:
+
+- hand-authored workflow DSL remains supported as advanced mode and is not required for the default path
+- public quickstarts, starter packs, presets, demo code, and docs snippets must use public `aigc` imports only and must not depend on `aigc._internal`
+
+Frozen first-user diagnostic reason codes:
+
+- `WORKFLOW_INVALID_TRANSITION`
+- `WORKFLOW_APPROVAL_REQUIRED`
+- `WORKFLOW_SOURCE_REQUIRED`
+- `WORKFLOW_TOOL_BUDGET_EXCEEDED`
+- `WORKFLOW_UNSUPPORTED_BINDING`
+- `WORKFLOW_SESSION_TOKEN_INVALID`
+- `WORKFLOW_STARTER_INTEGRITY_ERROR`
+
+Frozen first-adopter docs order:
+
+1. workflow quickstart
+2. migration from invocation-only to workflow
+3. troubleshooting and `workflow doctor` / `workflow lint` guide
+4. starter recipes and starter index
+5. workflow CLI guide
+6. public API boundary and integration contract
+7. supported environments
+8. operations runbook
+9. adapter docs as advanced follow-on material
+"""
+
+_PR03_README_CONTENT = """\
+# README
+
+The planned golden-path CLI names — `aigc policy init`, `aigc workflow init`,
+`aigc workflow lint`, `aigc workflow doctor`, `aigc workflow trace`, and
+`aigc workflow export` — are also frozen in the repo docs, but none of those
+workflow surfaces are part of the shipped `v0.3.3` runtime or CLI.
+"""
+
+_PR03_PUBLIC_CONTRACT_CONTENT = """\
+# Public Contract
+
+Planned-only surfaces described in that target-state document — including
+`aigc policy init` and `aigc workflow ...` commands — are not part of the
+installable `v0.3.3` artifact today.
+
+All public examples, starter packs, presets, demo code, and docs snippets
+must use public `aigc` imports only and must not depend on `aigc._internal`.
+"""
+
+_PR03_PR_CONTEXT_CONTENT = """\
+# PR Context
+
+Active branch: `feat/v0.9-03-golden-path-contract`
+
+PR type:
+
+- docs, CI, sentinel tests, and public-import hygiene only
+
+Contract Notes
+
+- The frozen golden-path CLI inventory is `aigc policy init`, `aigc workflow init`, `aigc workflow lint`, `aigc workflow doctor`, `aigc workflow trace`, and `aigc workflow export`, but those commands are still absent from the shipped `v0.3.3` CLI in PR-03.
+- PR-03 is docs, CI, sentinel tests, and public-import hygiene only. Workflow runtime implementation still starts in PR-04.
+"""
+
+_PR03_RELEASE_GATES_CONTENT = """\
+# Release Gates
+
+## PR-03 — Golden-Path Contract Freeze Gate
+
+- [ ] staged CLI sentinel tests prove the current shipped CLI still exposes no `workflow` or `policy init` commands while freezing the future command names in docs
+- [ ] public-import boundary tests confirm maintained onboarding examples and demo code use public `aigc` imports only
+"""
+
+_PR03_IMPLEMENTATION_STATUS_CONTENT = """\
+# Implementation Status
+
+**Active Branch:** `feat/v0.9-03-golden-path-contract`
+
+- PR-03 is golden-path contract freeze only. It updates docs, CI, sentinel tests, and public-import hygiene only.
+
+## PR-03 Deliverables
+"""
+
+
+def _seed_pr03_contract_repo(
+    root: Path,
+    *,
+    plan: str = _PR03_PLAN_CONTENT,
+    hld: str = _PR03_HLD_CONTENT,
+    readme: str = _PR03_README_CONTENT,
+    public_contract: str = _PR03_PUBLIC_CONTRACT_CONTENT,
+    pr_context: str = _PR03_PR_CONTEXT_CONTENT,
+    release_gates: str = _PR03_RELEASE_GATES_CONTENT,
+    implementation_status: str = _PR03_IMPLEMENTATION_STATUS_CONTENT,
+) -> None:
+    _write_file(root, "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md", plan)
+    _write_file(root, "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md", hld)
+    _write_file(root, "README.md", readme)
+    _write_file(root, "docs/PUBLIC_INTEGRATION_CONTRACT.md", public_contract)
+    _write_file(root, "docs/dev/pr_context.md", pr_context)
+    _write_file(root, "RELEASE_GATES.md", release_gates)
+    _write_file(root, "implementation_status.md", implementation_status)
+
+
+def test_v090_pr03_contract_accepts_frozen_golden_path_docs(tmp_path, monkeypatch):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    _seed_pr03_contract_repo(tmp_path)
+
+    assert module.check_v090_pr03_contract() == []
+
+
+def test_v090_pr03_contract_rejects_cli_inventory_drift(tmp_path, monkeypatch):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_plan = _PR03_PLAN_CONTENT.replace("- `aigc policy init`\n", "")
+    _seed_pr03_contract_repo(tmp_path, plan=bad_plan)
+
+    errors = module.check_v090_pr03_contract()
+
+    assert any(
+        "CLI command inventory list" in error
+        and "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md" in error
+        for error in errors
+    ), errors
+
+
+def test_v090_pr03_contract_rejects_docs_order_drift(tmp_path, monkeypatch):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_hld = _PR03_HLD_CONTENT.replace(
+        "5. workflow CLI guide\n6. public API boundary and integration contract\n",
+        "5. public API boundary and integration contract\n6. workflow CLI guide\n",
+    )
+    _seed_pr03_contract_repo(tmp_path, hld=bad_hld)
+
+    errors = module.check_v090_pr03_contract()
+
+    assert any(
+        "first-adopter docs order list" in error
+        and "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md" in error
+        for error in errors
+    ), errors
+
+
+def test_v090_pr03_contract_rejects_missing_readme_cli_boundary(tmp_path, monkeypatch):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_readme = _PR03_README_CONTENT.replace("`aigc policy init`, ", "")
+    _seed_pr03_contract_repo(tmp_path, readme=bad_readme)
+
+    errors = module.check_v090_pr03_contract()
+
+    assert any(
+        "missing planned-only README CLI boundary" in error
+        and "`aigc policy init`" in error
+        for error in errors
+    ), errors
+
+
+def test_v090_pr03_contract_rejects_missing_release_gate(tmp_path, monkeypatch):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_release_gates = _PR03_RELEASE_GATES_CONTENT.replace(
+        "## PR-03 — Golden-Path Contract Freeze Gate\n\n",
+        "",
+    )
+    _seed_pr03_contract_repo(tmp_path, release_gates=bad_release_gates)
+
+    errors = module.check_v090_pr03_contract()
+
+    assert any(
+        "missing PR-03 release gate" in error
+        and "## PR-03 — Golden-Path Contract Freeze Gate" in error
+        for error in errors
+    ), errors

@@ -53,6 +53,34 @@ Checklist:
 
 ---
 
+## PR-02 — Contract Freeze Gate
+
+Branch:
+
+- `feat/v0.9-02-contract-freeze`
+
+Checklist:
+
+- [ ] `docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md` and
+      `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md` freeze lifecycle states,
+      workflow artifact statuses, `SessionPreCallResult`, and
+      `AIGC.open_session(...)`
+- [ ] `README.md` and `docs/PUBLIC_INTEGRATION_CONTRACT.md` keep the shipped
+      `v0.3.3` surface honest while naming workflow surfaces as planned-only
+- [ ] `docs/dev/pr_context.md`, `RELEASE_GATES.md`, and
+      `implementation_status.md` align on the PR-02 branch, scope, and exit
+      criteria
+- [ ] CI fails on PR-02 contract drift across the canonical plan, HLD,
+      onboarding docs, and release packet
+- [ ] public-surface sentinel tests confirm no workflow runtime or workflow CLI
+      surface shipped early
+- [ ] protocol-boundary contract tests freeze Bedrock and A2A fail-closed
+      rules without runtime adapters
+- [ ] no workflow runtime, schema, CLI, demo, adapter, or version changes land
+      in PR-02
+
+---
+
 ## Capability Gates
 
 ### PR-02 — Contract Freeze

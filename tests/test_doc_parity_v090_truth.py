@@ -4,6 +4,8 @@ import importlib.util
 import textwrap
 from pathlib import Path
 
+import pytest
+
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "check_doc_parity.py"
 
@@ -214,3 +216,352 @@ def test_v090_release_truth_rejects_uncoupled_freeze_and_go_statements(tmp_path,
         in error
         for error in errors
     )
+
+
+_PR02_PLAN_CONTENT = """\
+# AIGC v0.9.0 Implementation Plan
+
+### Public surface and migration posture
+
+- `v0.9.0` does not introduce a new module-level `open_session(...)` public API.
+- `GovernanceSession`, `SessionPreCallResult`, and `AIGC.open_session(...)`
+  are frozen as planned-only contract surfaces before runtime work lands.
+  PR-02 documents and tests them; it does not ship placeholder runtime stubs.
+
+### Session and artifact semantics
+
+Canonical session lifecycle states:
+
+- `OPEN`
+- `PAUSED`
+- `FAILED`
+- `COMPLETED`
+- `CANCELED`
+- `FINALIZED`
+
+Canonical workflow artifact `status` values:
+
+- `COMPLETED`
+- `FAILED`
+- `CANCELED`
+- `INCOMPLETE`
+
+Rules:
+
+- `FINALIZED` is a lifecycle state only and is never serialized as an artifact status.
+- `finalize()` from `OPEN` or `PAUSED` is allowed and emits `INCOMPLETE`.
+
+### `SessionPreCallResult` semantics
+
+- `SessionPreCallResult` wraps a valid invocation `PreCallResult` plus immutable `session_id`, `step_id`, `participant_id`, and workflow-bound replay protection.
+- The wrapper is single-use.
+- A wrapped token cannot be completed through module-level `enforce_post_call(...)`; it must be completed through the owning `GovernanceSession`.
+- Session completion validates both underlying invocation integrity and workflow-step binding before post-call enforcement proceeds.
+
+### Bedrock contract lock
+
+- Governed Bedrock handoffs require alias-backed participant identity.
+- Descriptive names such as `collaboratorName` are descriptive evidence only and cannot be the sole binding key for governed authorization.
+
+### A2A contract lock
+
+- gRPC is out of scope for `v0.9.0` normalization and must fail with a typed protocol violation.
+- Compatibility is validated from `supportedInterfaces[].protocolVersion`, not descriptive Agent Card version text.
+- Wire task states must validate as normative ProtoJSON `TASK_STATE_*` values.
+- Informal or shorthand task-state names are rejected at the boundary.
+"""
+
+_PR02_HLD_CONTENT = """\
+# AIGC High-Level Design
+
+Availability boundary: this document describes the intended `1.0.0` public
+surface. The shipped `0.3.3` package and CLI do not yet export
+`GovernanceSession`, `SessionPreCallResult`, `AgentIdentity`,
+`AgentCapabilityManifest`, `ValidatorHook`, `BedrockTraceAdapter`,
+`A2AAdapter`, or `aigc workflow ...` commands, and `AIGC.open_session(...)`
+is not part of the installable runtime yet.
+
+### 7.1 Session Lifecycle
+
+Canonical lifecycle states:
+
+- `OPEN`
+- `PAUSED`
+- `FAILED`
+- `COMPLETED`
+- `CANCELED`
+- `FINALIZED`
+
+Canonical serialized workflow artifact `status` values:
+
+- `COMPLETED`
+- `FAILED`
+- `CANCELED`
+- `INCOMPLETE`
+
+| Lifecycle condition when the workflow artifact is emitted | Serialized `status` |
+| --------------------------------------------------------- | ------------------- |
+| `OPEN` or `PAUSED` finalized without terminal completion | `INCOMPLETE` |
+
+Rules:
+
+- `FINALIZED` is a lifecycle state only. It is never serialized as a workflow artifact `status`.
+
+Workflow adoption remains instance-scoped through `AIGC.open_session(...)`.
+The target design does not add a module-level `open_session(...)` convenience.
+
+### 10.1 Bedrock Adapter
+
+- when policy requires trace, Bedrock trace is mandatory and missing trace fails closed
+- alias-backed collaborator identity is required for governed participant binding; `collaboratorName` alone is descriptive evidence only
+
+### 10.2 A2A Adapter
+
+- `GRPC`
+
+- compatibility is validated from `supportedInterfaces[].protocolVersion`, not descriptive Agent Card version text
+- non-normative or shorthand task-state names are rejected at the boundary
+"""
+
+_PR02_README_CONTENT = """\
+# README
+
+The target-state `1.0.0` architecture expands this invocation-first model with
+planned workflow governance built around `AIGC.open_session(...)`,
+`GovernanceSession`, `SessionPreCallResult`, and optional Bedrock/A2A
+normalization adapters. These remain planned-only surfaces today and are not
+part of the shipped `v0.3.3` runtime or CLI.
+"""
+
+_PR02_PUBLIC_CONTRACT_CONTENT = """\
+# Public Contract
+
+Planned-only surfaces described in that target-state document — including
+`AIGC.open_session(...)`, `GovernanceSession`, `SessionPreCallResult`,
+`AgentIdentity`, `AgentCapabilityManifest`, `ValidatorHook`,
+`BedrockTraceAdapter`, `A2AAdapter`, and `aigc workflow ...` commands — are
+not part of the installable `v0.3.3` artifact today. There is no current
+module-level `open_session()` convenience in the shipped package.
+"""
+
+_PR02_PR_CONTEXT_CONTENT = """\
+# PR Context
+
+Active branch: `feat/v0.9-02-contract-freeze`
+
+PR type:
+
+- docs, CI, and sentinel tests only
+
+Contract Notes
+
+- PR-02 is docs, CI, and sentinel tests only. Workflow runtime implementation
+  starts in PR-04.
+"""
+
+_PR02_RELEASE_GATES_CONTENT = """\
+# Release Gates
+
+## PR-02 — Contract Freeze Gate
+
+- [ ] public-surface sentinel tests confirm no workflow runtime or workflow CLI
+      surface shipped early
+- [ ] protocol-boundary contract tests freeze Bedrock and A2A fail-closed
+      rules without runtime adapters
+"""
+
+_PR02_IMPLEMENTATION_STATUS_CONTENT = """\
+# Implementation Status
+
+**Active Branch:** `feat/v0.9-02-contract-freeze`
+
+- PR-02 is contract freeze only. It updates docs, CI, and sentinel tests only.
+- Workflow runtime implementation begins in PR-04.
+
+## PR-02 Deliverables
+"""
+
+
+def _seed_pr02_contract_repo(
+    root: Path,
+    *,
+    plan: str = _PR02_PLAN_CONTENT,
+    hld: str = _PR02_HLD_CONTENT,
+    readme: str = _PR02_README_CONTENT,
+    public_contract: str = _PR02_PUBLIC_CONTRACT_CONTENT,
+    pr_context: str = _PR02_PR_CONTEXT_CONTENT,
+    release_gates: str = _PR02_RELEASE_GATES_CONTENT,
+    implementation_status: str = _PR02_IMPLEMENTATION_STATUS_CONTENT,
+) -> None:
+    _write_file(root, "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md", plan)
+    _write_file(root, "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md", hld)
+    _write_file(root, "README.md", readme)
+    _write_file(root, "docs/PUBLIC_INTEGRATION_CONTRACT.md", public_contract)
+    _write_file(root, "docs/dev/pr_context.md", pr_context)
+    _write_file(root, "RELEASE_GATES.md", release_gates)
+    _write_file(root, "implementation_status.md", implementation_status)
+
+
+def test_v090_pr02_contract_accepts_frozen_contract_docs(tmp_path, monkeypatch):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    _seed_pr02_contract_repo(tmp_path)
+
+    assert module.check_v090_pr02_contract() == []
+
+
+def test_v090_pr02_contract_rejects_lifecycle_state_drift(tmp_path, monkeypatch):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_plan = _PR02_PLAN_CONTENT.replace("- `FINALIZED`\n", "")
+    _seed_pr02_contract_repo(tmp_path, plan=bad_plan)
+
+    errors = module.check_v090_pr02_contract()
+    joined = "\n".join(errors)
+
+    assert "session lifecycle states list" in joined, errors
+
+
+def test_v090_pr02_contract_rejects_missing_planned_only_boundary(tmp_path, monkeypatch):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_public_contract = _PR02_PUBLIC_CONTRACT_CONTENT.replace(
+        "There is no current\nmodule-level `open_session()` convenience in the shipped package.\n",
+        "",
+    )
+    _seed_pr02_contract_repo(tmp_path, public_contract=bad_public_contract)
+
+    errors = module.check_v090_pr02_contract()
+
+    assert any(
+        "missing planned-only public integration boundary" in error
+        for error in errors
+    ), errors
+
+
+def test_v090_pr02_contract_rejects_missing_a2a_protocol_version_rule(
+    tmp_path, monkeypatch
+):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_hld = _PR02_HLD_CONTENT.replace(
+        "- compatibility is validated from `supportedInterfaces[].protocolVersion`, not descriptive Agent Card version text\n",
+        "",
+    )
+    _seed_pr02_contract_repo(tmp_path, hld=bad_hld)
+
+    errors = module.check_v090_pr02_contract()
+
+    assert any(
+        "missing frozen HLD contract" in error and "supportedInterfaces[].protocolVersion" in error
+        for error in errors
+    ), errors
+
+
+@pytest.mark.parametrize(
+    ("override_key", "bad_content", "expected_label", "expected_needle"),
+    [
+        (
+            "plan",
+            _PR02_PLAN_CONTENT.replace(
+                "- gRPC is out of scope for `v0.9.0` normalization and must fail with a typed protocol violation.\n",
+                "",
+            ),
+            "missing frozen plan contract",
+            "gRPC is out of scope",
+        ),
+        (
+            "readme",
+            _PR02_README_CONTENT.replace("`SessionPreCallResult`, and optional Bedrock/A2A\n", ""),
+            "missing planned-only README boundary",
+            "`SessionPreCallResult`",
+        ),
+        (
+            "pr_context",
+            _PR02_PR_CONTEXT_CONTENT.replace(
+                "Active branch: `feat/v0.9-02-contract-freeze`\n\n",
+                "",
+            ),
+            "missing PR-02 branch and scope",
+            "feat/v0.9-02-contract-freeze",
+        ),
+        (
+            "release_gates",
+            _PR02_RELEASE_GATES_CONTENT.replace(
+                "## PR-02 — Contract Freeze Gate\n\n",
+                "",
+            ),
+            "missing PR-02 release gate",
+            "## PR-02 — Contract Freeze Gate",
+        ),
+        (
+            "implementation_status",
+            _PR02_IMPLEMENTATION_STATUS_CONTENT.replace("## PR-02 Deliverables\n", ""),
+            "missing PR-02 implementation status",
+            "## PR-02 Deliverables",
+        ),
+        (
+            "hld",
+            _PR02_HLD_CONTENT.replace("- `GRPC`\n\n", ""),
+            "missing frozen HLD contract",
+            "`GRPC`",
+        ),
+    ],
+)
+def test_v090_pr02_contract_rejects_missing_required_rules(
+    tmp_path, monkeypatch, override_key, bad_content, expected_label, expected_needle
+):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    _seed_pr02_contract_repo(tmp_path, **{override_key: bad_content})
+
+    errors = module.check_v090_pr02_contract()
+
+    assert any(
+        expected_label in error and expected_needle in error
+        for error in errors
+    ), errors
+
+
+@pytest.mark.parametrize(
+    ("override_key", "bad_content", "expected_rel", "expected_list_name"),
+    [
+        (
+            "hld",
+            _PR02_HLD_CONTENT.replace("- `FINALIZED`\n", ""),
+            "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md",
+            "session lifecycle states list",
+        ),
+        (
+            "plan",
+            _PR02_PLAN_CONTENT.replace("- `INCOMPLETE`\n", ""),
+            "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md",
+            "workflow artifact statuses list",
+        ),
+        (
+            "hld",
+            _PR02_HLD_CONTENT.replace("- `INCOMPLETE`\n", ""),
+            "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md",
+            "workflow artifact statuses list",
+        ),
+    ],
+)
+def test_v090_pr02_contract_rejects_other_exact_list_drifts(
+    tmp_path, monkeypatch, override_key, bad_content, expected_rel, expected_list_name
+):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    _seed_pr02_contract_repo(tmp_path, **{override_key: bad_content})
+
+    errors = module.check_v090_pr02_contract()
+
+    assert any(
+        expected_rel in error and expected_list_name in error
+        for error in errors
+    ), errors

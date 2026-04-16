@@ -13,6 +13,7 @@ Validates that documentation stays synchronized with implementation:
   I. Semantic behavioral claims
   J. v0.9.0 plan truth
   K. v0.9.0 release truth
+  L. v0.9.0 PR-02 contract freeze truth
 
 Usage:
     python scripts/check_doc_parity.py
@@ -920,6 +921,13 @@ def _read_header(rel: str, max_lines: int = 25) -> str:
     return "\n".join(path.read_text(encoding="utf-8").splitlines()[:max_lines])
 
 
+def _read_text(rel: str) -> str:
+    path = REPO_ROOT / rel
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
 def check_v090_plan_truth() -> list[str]:
     """Ensure there is exactly one active v0.9.0 implementation plan."""
     errors: list[str] = []
@@ -1142,6 +1150,242 @@ def check_v090_release_truth() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Check L: v0.9.0 PR-02 contract freeze truth
+# ---------------------------------------------------------------------------
+
+_V090_PR02_ACTIVE_BRANCH = "feat/v0.9-02-contract-freeze"
+_V090_PLAN_REL = "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md"
+_V090_HLD_REL = "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md"
+_V090_PUBLIC_CONTRACT_REL = "docs/PUBLIC_INTEGRATION_CONTRACT.md"
+_V090_PR_CONTEXT_REL = "docs/dev/pr_context.md"
+_V090_EXPECTED_SESSION_STATES = [
+    "OPEN",
+    "PAUSED",
+    "FAILED",
+    "COMPLETED",
+    "CANCELED",
+    "FINALIZED",
+]
+_V090_EXPECTED_WORKFLOW_STATUSES = [
+    "COMPLETED",
+    "FAILED",
+    "CANCELED",
+    "INCOMPLETE",
+]
+
+
+def _normalize_inline_markdown(text: str) -> str:
+    return re.sub(r"\s+", " ", text.replace("`", "")).strip()
+
+
+def _extract_bullets_after_label(text: str, label: str) -> list[str] | None:
+    idx = text.find(label)
+    if idx == -1:
+        return None
+
+    items: list[str] = []
+    started = False
+    for raw_line in text[idx + len(label):].splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            if started:
+                break
+            continue
+        if stripped.startswith("- "):
+            items.append(_normalize_inline_markdown(stripped[2:]))
+            started = True
+            continue
+        if started:
+            break
+
+    return items if items else None
+
+
+def _require_all(
+    errors: list[str], rel: str, text: str, required: list[str], label: str
+) -> None:
+    normalized_text = re.sub(r"\s+", " ", text)
+    for needle in required:
+        normalized_needle = re.sub(r"\s+", " ", needle)
+        if normalized_needle not in normalized_text:
+            errors.append(f"[v0.9.0-pr02] {rel}: missing {label}: {needle}")
+
+
+def _check_exact_list(
+    errors: list[str],
+    rel: str,
+    text: str,
+    label: str,
+    expected: list[str],
+    name: str,
+) -> None:
+    actual = _extract_bullets_after_label(text, label)
+    if actual is None:
+        errors.append(f"[v0.9.0-pr02] {rel}: could not find {name} list")
+        return
+    if actual != expected:
+        errors.append(
+            f"[v0.9.0-pr02] {rel}: {name} list {actual} does not match "
+            f"expected {expected}"
+        )
+
+
+def check_v090_pr02_contract() -> list[str]:
+    """Ensure PR-02 freezes the intended workflow contract without shipping it."""
+    errors: list[str] = []
+
+    required_files = [
+        _V090_PLAN_REL,
+        _V090_HLD_REL,
+        "README.md",
+        _V090_PUBLIC_CONTRACT_REL,
+        _V090_PR_CONTEXT_REL,
+        "RELEASE_GATES.md",
+        "implementation_status.md",
+    ]
+    texts: dict[str, str] = {}
+    for rel in required_files:
+        text = _read_text(rel)
+        if not text:
+            errors.append(f"[v0.9.0-pr02] missing required file: {rel}")
+            continue
+        texts[rel] = text
+
+    if errors:
+        return errors
+
+    _check_exact_list(
+        errors,
+        _V090_PLAN_REL,
+        texts[_V090_PLAN_REL],
+        "Canonical session lifecycle states:",
+        _V090_EXPECTED_SESSION_STATES,
+        "session lifecycle states",
+    )
+    _check_exact_list(
+        errors,
+        _V090_HLD_REL,
+        texts[_V090_HLD_REL],
+        "Canonical lifecycle states:",
+        _V090_EXPECTED_SESSION_STATES,
+        "session lifecycle states",
+    )
+    _check_exact_list(
+        errors,
+        _V090_PLAN_REL,
+        texts[_V090_PLAN_REL],
+        "Canonical workflow artifact `status` values:",
+        _V090_EXPECTED_WORKFLOW_STATUSES,
+        "workflow artifact statuses",
+    )
+    _check_exact_list(
+        errors,
+        _V090_HLD_REL,
+        texts[_V090_HLD_REL],
+        "Canonical serialized workflow artifact `status` values:",
+        _V090_EXPECTED_WORKFLOW_STATUSES,
+        "workflow artifact statuses",
+    )
+
+    _require_all(
+        errors,
+        _V090_PLAN_REL,
+        texts[_V090_PLAN_REL],
+        [
+            "- `FINALIZED` is a lifecycle state only and is never serialized as an artifact status.",
+            "- `finalize()` from `OPEN` or `PAUSED` is allowed and emits `INCOMPLETE`.",
+            "- `v0.9.0` does not introduce a new module-level `open_session(...)` public API.",
+            "PR-02 documents and tests them; it does not ship placeholder runtime stubs.",
+            "- A wrapped token cannot be completed through module-level `enforce_post_call(...)`; it must be completed through the owning `GovernanceSession`.",
+            "- Session completion validates both underlying invocation integrity and workflow-step binding before post-call enforcement proceeds.",
+            "- Governed Bedrock handoffs require alias-backed participant identity.",
+            "- Descriptive names such as `collaboratorName` are descriptive evidence only and cannot be the sole binding key for governed authorization.",
+            "- gRPC is out of scope for `v0.9.0` normalization and must fail with a typed protocol violation.",
+            "- Compatibility is validated from `supportedInterfaces[].protocolVersion`, not descriptive Agent Card version text.",
+            "- Wire task states must validate as normative ProtoJSON `TASK_STATE_*` values.",
+            "- Informal or shorthand task-state names are rejected at the boundary.",
+        ],
+        "frozen plan contract",
+    )
+    _require_all(
+        errors,
+        _V090_HLD_REL,
+        texts[_V090_HLD_REL],
+        [
+            "`SessionPreCallResult`",
+            "`AIGC.open_session(...)`\nis not part of the installable runtime yet.",
+            "The target design does not add a module-level `open_session(...)` convenience.",
+            "| `OPEN` or `PAUSED` finalized without terminal completion | `INCOMPLETE` |",
+            "- alias-backed collaborator identity is required for governed participant\n  binding; `collaboratorName` alone is descriptive evidence only",
+            "- when policy requires trace, Bedrock trace is mandatory and missing trace\n  fails closed",
+            "- `GRPC`",
+            "- compatibility is validated from `supportedInterfaces[].protocolVersion`, not\n  descriptive Agent Card version text",
+            "- non-normative or shorthand task-state names are rejected at the boundary",
+        ],
+        "frozen HLD contract",
+    )
+    _require_all(
+        errors,
+        "README.md",
+        texts["README.md"],
+        [
+            "`AIGC.open_session(...)`",
+            "`GovernanceSession`",
+            "`SessionPreCallResult`",
+            "not\npart of the shipped `v0.3.3` runtime or CLI",
+        ],
+        "planned-only README boundary",
+    )
+    _require_all(
+        errors,
+        _V090_PUBLIC_CONTRACT_REL,
+        texts[_V090_PUBLIC_CONTRACT_REL],
+        [
+            "`AIGC.open_session(...)`",
+            "`SessionPreCallResult`",
+            "There is no current\nmodule-level `open_session()` convenience in the shipped package.",
+        ],
+        "planned-only public integration boundary",
+    )
+    _require_all(
+        errors,
+        _V090_PR_CONTEXT_REL,
+        texts[_V090_PR_CONTEXT_REL],
+        [
+            f"Active branch: `{_V090_PR02_ACTIVE_BRANCH}`",
+            "- docs, CI, and sentinel tests only",
+            "- PR-02 is docs, CI, and sentinel tests only. Workflow runtime implementation\n  starts in PR-04.",
+        ],
+        "PR-02 branch and scope",
+    )
+    _require_all(
+        errors,
+        "RELEASE_GATES.md",
+        texts["RELEASE_GATES.md"],
+        [
+            "## PR-02 — Contract Freeze Gate",
+            "- [ ] public-surface sentinel tests confirm no workflow runtime or workflow CLI\n      surface shipped early",
+            "- [ ] protocol-boundary contract tests freeze Bedrock and A2A fail-closed\n      rules without runtime adapters",
+        ],
+        "PR-02 release gate",
+    )
+    _require_all(
+        errors,
+        "implementation_status.md",
+        texts["implementation_status.md"],
+        [
+            f"**Active Branch:** `{_V090_PR02_ACTIVE_BRANCH}`",
+            "- PR-02 is contract freeze only. It updates docs, CI, and sentinel tests only.",
+            "- Workflow runtime implementation begins in PR-04.",
+            "## PR-02 Deliverables",
+        ],
+        "PR-02 implementation status",
+    )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -1164,6 +1408,7 @@ def main() -> int:
         ("I. Semantic behavioral claims", check_semantic_claims),
         ("J. v0.9.0 plan truth", check_v090_plan_truth),
         ("K. v0.9.0 release truth", check_v090_release_truth),
+        ("L. v0.9.0 PR-02 contract freeze truth", check_v090_pr02_contract),
     ]
 
     for name, check_fn in checks:

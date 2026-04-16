@@ -1,8 +1,8 @@
-# PR Context — `v0.9.0` PR-01 Source of Truth
+# PR Context — `v0.9.0` PR-02 Contract Freeze
 
 Date: 2026-04-15
 Status: Draft
-Active branch: `feat/v0.9-01-source-of-truth`
+Active branch: `feat/v0.9-02-contract-freeze`
 
 ---
 
@@ -30,46 +30,49 @@ One branch per PR. All remote merges during active `v0.9.0` work target
 
 ## PR Summary
 
-This PR establishes the source of truth for the `v0.9.0` beta before runtime
-implementation starts.
+This PR freezes the workflow contract for the `v0.9.0` beta before workflow
+runtime implementation starts.
 
 Theme:
 
-- source-of-truth cleanup and canonical reset
+- contract freeze and public-surface guardrails
 
 PR type:
 
-- docs-only groundwork plus CI truth enforcement
+- docs, CI, and sentinel tests only
 
 ---
 
 ## Goal
 
-Establish one active implementation plan, one active release context, one
-active release-gate definition, and one active implementation tracker for the
-`v0.9.0` train without changing runtime behavior in this PR.
+Freeze session lifecycle, workflow artifact status mapping,
+`SessionPreCallResult`, `AIGC.open_session(...)`, invocation-vs-workflow
+evidence separation, and Bedrock/A2A fail-closed boundaries without adding
+workflow runtime behavior in this PR.
 
 ---
 
 ## In Scope
 
-- add the canonical `CLAUDE.md` collaborator contract to this branch
-- add the canonical `docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md`
-- create `docs/plans/v0.9.0_DOCS_ONLY_PR_PLAN.md`
-- replace stale `v0.3.3` planning context in `docs/dev/pr_context.md`
-- replace stale release gates in `RELEASE_GATES.md`
-- replace stale implementation tracking in `implementation_status.md`
-- mark stale `v0.9.0` plan variants as superseded or historical input only
-- add CI truth checks for plan uniqueness and release-doc agreement
+- update the release packet for the PR-02 branch, scope, and exit criteria
+- freeze workflow lifecycle and artifact-status rules in the canonical plan and
+  HLD
+- freeze `SessionPreCallResult` and `AIGC.open_session(...)` as planned-only
+  workflow contract surfaces
+- keep `README.md` and `docs/PUBLIC_INTEGRATION_CONTRACT.md` aligned to the
+  shipped `v0.3.3` invocation-only surface while naming workflow surfaces as
+  planned-only
+- extend CI truth checks for PR-02 contract drift
+- add lifecycle, public-surface, and protocol-boundary sentinel tests
 
 ---
 
 ## Out of Scope
 
-- PR-02 through PR-11 runtime implementation
+- workflow or session runtime implementation
+- public export stubs or placeholder workflow classes
+- workflow CLI behavior or new workflow CLI commands
 - workflow schemas
-- public API additions or removals
-- CLI behavior changes
 - demo-app behavior changes
 - Bedrock or A2A adapter runtime work
 - package-version bumps
@@ -81,7 +84,8 @@ active release-gate definition, and one active implementation tracker for the
 
 - `CLAUDE.md`
 - `docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md`
-- `docs/plans/v0.9.0_DOCS_ONLY_PR_PLAN.md`
+- `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`
+- `docs/decisions/ADR-0011-v090-beta-scope-sdk-boundary-and-non-goals.md`
 
 ---
 
@@ -95,27 +99,40 @@ active release-gate definition, and one active implementation tracker for the
 - `CLAUDE.md` is binding for the seven demo rules, workflow lifecycle
   semantics, adapter fail-closed constraints, the PR table, and the
   `origin/main` freeze.
-- PR-01 is source-of-truth and CI enforcement only. Runtime implementation
-  starts after this branch lands.
+- `GovernanceSession`, `SessionPreCallResult`, and `AIGC.open_session(...)`
+  remain planned-only contract surfaces in PR-02. No placeholder runtime
+  exports ship in this branch.
+- The frozen workflow entrypoint is `AIGC.open_session(...)`; there is no
+  module-level `open_session(...)` public API in `v0.9.0`.
+- PR-02 is docs, CI, and sentinel tests only. Workflow runtime implementation
+  starts in PR-04.
 
 ---
 
 ## Reviewer Focus
 
-- confirm the PR is docs-only plus CI truth enforcement
-- confirm there is exactly one active `v0.9.0` implementation plan
-- confirm stale plan variants are visibly superseded
-- confirm branch names and PR numbering match `CLAUDE.md`
-- confirm `PR-07` stop-ship and the `origin/main` freeze are repeated exactly
-- confirm there are no version bumps or runtime changes in this PR
+- confirm the PR is docs, CI, and sentinel tests only
+- confirm the canonical plan, HLD, `README.md`, and
+  `docs/PUBLIC_INTEGRATION_CONTRACT.md` agree on lifecycle states, workflow
+  artifact statuses, `SessionPreCallResult`, and `AIGC.open_session(...)`
+- confirm the current public surface remains invocation-only
+- confirm Bedrock and A2A boundary rules are frozen in tests without runtime
+  adapters
+- confirm there are no runtime, schema, CLI, demo, or package-version changes
 
 ---
 
 ## Exit Gate
 
-- `docs/plans/v0.9.0_DOCS_ONLY_PR_PLAN.md` is present
-- `RELEASE_GATES.md` is aligned to the `v0.9.0` PR train
-- `implementation_status.md` is aligned to the `v0.9.0` PR train
-- stale `v0.9.0` plan variants are marked as superseded or historical input
-- doc truth checks fail closed on future plan drift
-- no code yet
+- `docs/dev/pr_context.md`, `RELEASE_GATES.md`, and `implementation_status.md`
+  are aligned to the PR-02 branch and scope
+- the canonical plan and HLD freeze the workflow contract without adding
+  runtime placeholders
+- `README.md` and `docs/PUBLIC_INTEGRATION_CONTRACT.md` keep the shipped
+  `v0.3.3` surface honest while naming workflow surfaces as planned-only
+- doc truth checks fail closed on PR-02 contract drift
+- public-surface sentinel tests prove no workflow runtime or CLI surface
+  shipped early
+- protocol-boundary tests prove Bedrock and A2A fail-closed contract rules
+  stay frozen without adapter implementations
+- no workflow runtime, schema, CLI, demo, or package changes land in PR-02

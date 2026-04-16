@@ -50,9 +50,11 @@ call, Phase B validates output after. Pass `pre_call_enforcement=False` for the
 legacy unified mode (deprecated).
 
 The target-state `1.0.0` architecture expands this invocation-first model with
-planned workflow governance built around `GovernanceSession` and optional
-Bedrock/A2A normalization adapters. That future-state design is captured in
-`docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
+planned workflow governance built around `AIGC.open_session(...)`,
+`GovernanceSession`, `SessionPreCallResult`, and optional Bedrock/A2A
+normalization adapters. These remain planned-only surfaces today and are not
+part of the shipped `v0.3.3` runtime or CLI. That future-state design is
+captured in `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
 
 ## Release Narrative
 

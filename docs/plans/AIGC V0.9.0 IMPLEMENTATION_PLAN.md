@@ -110,6 +110,9 @@ Default-path rules:
 - Invocation-only users keep working on supported public APIs.
 - Workflow adoption remains instance-scoped through `AIGC.open_session(...)`.
 - `v0.9.0` does not introduce a new module-level `open_session(...)` public API.
+- `GovernanceSession`, `SessionPreCallResult`, and `AIGC.open_session(...)`
+  are frozen as planned-only contract surfaces before runtime work lands.
+  PR-02 documents and tests them; it does not ship placeholder runtime stubs.
 - Public examples, quickstarts, starter assets, presets, recipes, and demo code must use only public APIs and must never import from `aigc._internal`.
 - Hand-authored workflow DSL remains supported but is advanced mode.
 - Starter packs, `workflow init`, and thin presets are the default adoption path.
@@ -157,6 +160,9 @@ Rules:
 - The wrapper is single-use.
 - A wrapped token cannot be completed through module-level `enforce_post_call(...)`; it must be completed through the owning `GovernanceSession`.
 - Session completion validates both underlying invocation integrity and workflow-step binding before post-call enforcement proceeds.
+- `SessionPreCallResult` remains planned-only in PR-02. Runtime implementation
+  starts in PR-04 and does not ship as a placeholder export in the contract
+  freeze PR.
 
 ### Composition, approvals, budgets, and validators
 
@@ -300,6 +306,9 @@ Two isolated adopter validations are not enough for `1.0.0` promotion.
 
 - Branch: `feat/v0.9-02-contract-freeze`
 - Goal: lock the hard architecture before the beta surface widens.
+- Scope: docs, CI, and sentinel tests only. Do not add workflow runtime,
+  public export stubs, CLI workflow commands, schemas, demo changes, or
+  adapter implementations in this PR.
 - Implement:
   - freeze the locked decisions in this document
   - freeze session lifecycle and workflow artifact mapping
@@ -308,9 +317,11 @@ Two isolated adopter validations are not enough for `1.0.0` promotion.
   - freeze invocation-artifact and workflow-artifact separation
   - add fail-closed contract tests for Bedrock and A2A boundaries
 - Tests:
+  - contract doc lint
   - lifecycle sentinel tests
   - public-surface sentinel tests
   - protocol-boundary tests
+  - release-truth checker tests
 - Exit:
   - later adoption work builds on a frozen contract instead of renegotiating it
 

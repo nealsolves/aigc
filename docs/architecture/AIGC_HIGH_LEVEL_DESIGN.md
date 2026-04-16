@@ -22,9 +22,10 @@ and emits evidence.
 
 Availability boundary: this document describes the intended `1.0.0` public
 surface. The shipped `0.3.3` package and CLI do not yet export
-`GovernanceSession`, `AgentIdentity`, `AgentCapabilityManifest`,
-`ValidatorHook`, `BedrockTraceAdapter`, `A2AAdapter`, or `aigc workflow ...`
-commands.
+`GovernanceSession`, `SessionPreCallResult`, `AgentIdentity`,
+`AgentCapabilityManifest`, `ValidatorHook`, `BedrockTraceAdapter`,
+`A2AAdapter`, or `aigc workflow ...` commands, and `AIGC.open_session(...)`
+is not part of the installable runtime yet.
 
 Headline 1.0.0 capabilities:
 
@@ -235,6 +236,9 @@ participant handoffs, approvals, and evidence-correlation events. The host
 still drives orchestration; the session decides whether each next step is
 allowed under declared policy.
 
+Workflow adoption remains instance-scoped through `AIGC.open_session(...)`.
+The target design does not add a module-level `open_session(...)` convenience.
+
 ### 7.1 Session Lifecycle
 
 Canonical lifecycle states:
@@ -336,7 +340,7 @@ Each governed step has four distinct phases:
 ```text
 Host                GovernanceSession         Invocation Kernel          Evidence
 ----                -----------------         -----------------          --------
-open_session() ---> OPEN
+AIGC.open_session() ---> OPEN
 authorize step ---> validate transition and participant
                     -----------------------> enforce pre-call or unified checks
 Host performs action ------------------------------------------------->
@@ -485,6 +489,8 @@ Design rules:
   transport logic
 - when policy requires trace, Bedrock trace is mandatory and missing trace
   fails closed
+- alias-backed collaborator identity is required for governed participant
+  binding; `collaboratorName` alone is descriptive evidence only
 - collaborator identity is validated against workflow participants and
   manifests before normalized events are trusted
 - no required AWS dependency enters the core path; Bedrock support is optional
@@ -515,12 +521,15 @@ Explicitly unsupported in 1.0.0:
 
 Design rules:
 
+- compatibility is validated from `supportedInterfaces[].protocolVersion`, not
+  descriptive Agent Card version text
 - Agent Card security schemes and signatures are validated as evidence when
   policy requires them
 - OAuth, HTTP auth, TLS, retries, and request delivery remain host
   responsibilities
 - SSE ordering is treated as evidence order and must not be reordered by the
   adapter
+- non-normative or shorthand task-state names are rejected at the boundary
 - unsupported bindings fail with explicit protocol violations rather than being
   silently accepted
 

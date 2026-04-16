@@ -23,9 +23,27 @@ audit_schema_version: "1.4"
 parity_docs:
   - README.md
   - PROJECT.md
+  - CHANGELOG.md
   - docs/AIGC_FRAMEWORK.md
-  - docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md
+  - docs/INTEGRATION_GUIDE.md
+  - docs/PUBLIC_INTEGRATION_CONTRACT.md
+  - docs/architecture/ARCHITECTURAL_INVARIANTS.md
   - docs/architecture/ENFORCEMENT_PIPELINE.md
+
+# --- Runtime onboarding boundary docs ---
+# These current-runtime docs must explicitly fence off planned-only surfaces so
+# readers are not routed toward unsupported APIs or CLI commands.
+
+availability_boundary_docs:
+  - docs/PUBLIC_INTEGRATION_CONTRACT.md
+
+# --- Target-state docs ---
+# These intentionally describe planned or future-state contracts and are not
+# used as current-release parity truth. The parity checker enforces them
+# through a separate target-state contract check.
+
+target_state_docs:
+  - docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md
 
 # --- Canonical gate IDs (from aigc/_internal/enforcement.py) ---
 # Used by the parity checker to detect gate-ID naming drift in docs.

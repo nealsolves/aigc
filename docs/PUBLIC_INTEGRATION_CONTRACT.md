@@ -4,6 +4,18 @@ This document is the primary onboarding reference for integrating AIGC into your
 It contains a minimal hello-world example, a realistic production integration, the available
 extension points, and a troubleshooting/FAQ section.
 
+It describes the current public runtime surface for the shipped `v0.3.3`
+package and CLI. The target-state `1.0.0` architecture contract, including
+workflow governance and optional Bedrock/A2A adapters, is captured separately
+in [docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](architecture/AIGC_HIGH_LEVEL_DESIGN.md).
+
+Planned-only surfaces described in that target-state document — including
+`GovernanceSession`, `AgentIdentity`, `AgentCapabilityManifest`,
+`ValidatorHook`, `BedrockTraceAdapter`, `A2AAdapter`, and `aigc workflow ...`
+commands — are not part of the installable `v0.3.3` artifact today. Do not
+build current integrations against those names until they ship through the
+public package exports, CLI surface, and contract tests.
+
 ---
 
 ## 1. Hello AIGC — Minimal Runnable Example

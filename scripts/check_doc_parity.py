@@ -9,6 +9,10 @@ Validates that documentation stays synchronized with implementation:
   E. Archive hygiene (headers, no active->archive references)
   F. Gate-ID consistency (canonical gate IDs in gates_evaluated examples)
   G. Parity-set docs exist and are non-empty
+  H. Runtime onboarding boundary docs fence off planned-only surfaces
+  I. Target-state contract docs exist and declare their availability boundary
+  J. Implementation-truth consistency
+  K. Semantic behavioral claims
 
 Usage:
     python scripts/check_doc_parity.py
@@ -31,6 +35,47 @@ from jsonschema import Draft7Validator, ValidationError
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MANIFEST_PATH = REPO_ROOT / "doc_parity_manifest.yaml"
+
+_REQUIRED_PARITY_DOCS = [
+    "README.md",
+    "PROJECT.md",
+    "CHANGELOG.md",
+    "docs/AIGC_FRAMEWORK.md",
+    "docs/INTEGRATION_GUIDE.md",
+    "docs/PUBLIC_INTEGRATION_CONTRACT.md",
+    "docs/architecture/ARCHITECTURAL_INVARIANTS.md",
+    "docs/architecture/ENFORCEMENT_PIPELINE.md",
+]
+
+_REQUIRED_BOUNDARY_DOCS = [
+    "docs/PUBLIC_INTEGRATION_CONTRACT.md",
+]
+
+_REQUIRED_TARGET_STATE_DOCS = [
+    "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md",
+]
+
+_CURRENT_RUNTIME_SEMVER_RE = re.compile(r"\b(\d+\.\d+\.\d+)\b")
+_CURRENT_RUNTIME_CONTEXT_MARKERS = (
+    "current release",
+    "current runtime",
+    "current public runtime surface",
+    "runtime baseline",
+    "shipped",
+    "installable",
+    "since",
+    "starting in",
+    "new in",
+)
+_TARGET_STATE_CONTEXT_MARKERS = (
+    "target-state",
+    "target state",
+    "planned",
+    "planned-only",
+    "version:",
+    "status:",
+    "ga",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +124,64 @@ def collect_md_files() -> list[Path]:
     return sorted(result)
 
 
+def get_manifest_doc_list(
+    manifest: dict,
+    key: str,
+    label: str,
+    required_docs: list[str] | None = None,
+) -> tuple[list[str], list[str]]:
+    """Return a manifest-backed doc list plus validation errors."""
+    errors: list[str] = []
+    value = manifest.get(key)
+
+    if value is None:
+        errors.append(f"[{label}] manifest missing required '{key}' list")
+        return [], errors
+    if not isinstance(value, list):
+        errors.append(f"[{label}] manifest '{key}' must be a list")
+        return [], errors
+    if not value:
+        errors.append(f"[{label}] manifest '{key}' must not be empty")
+        return [], errors
+
+    docs: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            errors.append(
+                f"[{label}] manifest '{key}' must contain only non-empty strings"
+            )
+            continue
+        docs.append(item)
+
+    missing_required = [
+        rel for rel in (required_docs or []) if rel not in docs
+    ]
+    if missing_required:
+        errors.append(
+            f"[{label}] manifest '{key}' missing required doc(s): "
+            + ", ".join(missing_required)
+        )
+
+    return docs, errors
+
+
+def extract_current_runtime_version_refs(text: str) -> set[str]:
+    """Extract version references that describe the shipped runtime."""
+    refs = set(re.findall(r"\bv(\d+\.\d+\.\d+)\b", text))
+
+    for line in text.splitlines():
+        if not _CURRENT_RUNTIME_SEMVER_RE.search(line):
+            continue
+
+        lower = line.lower()
+        if any(marker in lower for marker in _TARGET_STATE_CONTEXT_MARKERS):
+            continue
+        if any(marker in lower for marker in _CURRENT_RUNTIME_CONTEXT_MARKERS):
+            refs.update(_CURRENT_RUNTIME_SEMVER_RE.findall(line))
+
+    return refs
+
+
 # ---------------------------------------------------------------------------
 # Check A: Current-state parity
 # ---------------------------------------------------------------------------
@@ -90,7 +193,7 @@ def check_current_state_parity(manifest: dict) -> list[str]:
     test_count = str(manifest["test_count"])
     audit_ver = manifest["audit_schema_version"]
 
-    parity_docs = manifest["parity_docs"]
+    parity_docs = manifest.get("parity_docs", [])
 
     for rel in parity_docs:
         path = REPO_ROOT / rel
@@ -99,14 +202,14 @@ def check_current_state_parity(manifest: dict) -> list[str]:
             continue
         text = path.read_text(encoding="utf-8")
 
-        # Version check — only flag if the doc mentions an SDK version
-        # that differs from manifest. We look for "v0.x.y" patterns
-        # (the project convention for SDK version references).
-        # This excludes document-metadata versions like "Version: 1.0.0".
-        sdk_version_refs = re.findall(r"\bv(\d+\.\d+\.\d+)\b", text)
+        # Version check — only flag if the doc mentions a shipped-runtime
+        # version that differs from the manifest. This accepts either `v0.x.y`
+        # or bare `0.x.y` when the surrounding line clearly describes the
+        # current runtime rather than a target-state contract.
+        sdk_version_refs = extract_current_runtime_version_refs(text)
         if sdk_version_refs and version not in sdk_version_refs:
             errors.append(
-                f"[current-state] {rel}: mentions version(s) "
+                f"[current-state] {rel}: mentions current-runtime version(s) "
                 f"{set('v' + v for v in sdk_version_refs)} but manifest "
                 f"expects 'v{version}'"
             )
@@ -391,7 +494,7 @@ def check_gate_id_consistency(manifest: dict) -> list[str]:
         "tool_validation": "tool_constraint_validation",
     }
 
-    for rel in manifest["parity_docs"]:
+    for rel in manifest.get("parity_docs", []):
         path = REPO_ROOT / rel
         if not path.exists():
             continue
@@ -420,9 +523,14 @@ def check_gate_id_consistency(manifest: dict) -> list[str]:
 
 def check_parity_docs_exist(manifest: dict) -> list[str]:
     """Ensure all parity-set docs exist and are non-empty."""
-    errors: list[str] = []
+    parity_docs, errors = get_manifest_doc_list(
+        manifest,
+        "parity_docs",
+        "parity-set",
+        required_docs=_REQUIRED_PARITY_DOCS,
+    )
 
-    for rel in manifest["parity_docs"]:
+    for rel in parity_docs:
         path = REPO_ROOT / rel
         if not path.exists():
             errors.append(f"[parity-set] {rel}: file does not exist")
@@ -433,7 +541,148 @@ def check_parity_docs_exist(manifest: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Check H: Implementation-truth consistency
+# Check H: Runtime onboarding boundary docs
+# ---------------------------------------------------------------------------
+
+_BOUNDARY_DOC_WARNING_RE = re.compile(
+    r"(planned-only|planned only).*(not part of the installable|do not yet "
+    r"export|not part of the shipped)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_BOUNDARY_DOC_DO_NOT_USE_RE = re.compile(
+    r"do\s+not\s+build\s+current\s+integrations|"
+    r"not safe for current integrations|"
+    r"do\s+not\s+use .* current integrations",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def check_availability_boundary_docs(manifest: dict) -> list[str]:
+    """Ensure onboarding docs warn against planned-only surfaces."""
+    boundary_docs, errors = get_manifest_doc_list(
+        manifest,
+        "availability_boundary_docs",
+        "boundary-doc",
+        required_docs=_REQUIRED_BOUNDARY_DOCS,
+    )
+
+    for rel in boundary_docs:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            errors.append(f"[boundary-doc] {rel}: file does not exist")
+            continue
+        if path.stat().st_size == 0:
+            errors.append(f"[boundary-doc] {rel}: file is empty")
+            continue
+
+        text = path.read_text(encoding="utf-8")
+
+        if "GovernanceSession" not in text or "aigc workflow" not in text:
+            errors.append(
+                f"[boundary-doc] {rel}: must name planned-only workflow "
+                "surfaces such as GovernanceSession and aigc workflow commands"
+            )
+
+        if not _BOUNDARY_DOC_WARNING_RE.search(text):
+            errors.append(
+                f"[boundary-doc] {rel}: missing explicit planned-only / not "
+                "shipped availability warning"
+            )
+
+        if not _BOUNDARY_DOC_DO_NOT_USE_RE.search(text):
+            errors.append(
+                f"[boundary-doc] {rel}: missing explicit 'do not build current "
+                "integrations against these names' warning"
+            )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check I: Target-state contract coverage
+# ---------------------------------------------------------------------------
+
+_TARGET_STATE_STATUS_RE = re.compile(
+    r"Status:\s*Target-State Design",
+    re.IGNORECASE,
+)
+
+_TARGET_STATE_BOUNDARY_RE = re.compile(
+    r"Availability boundary:.*?(?:do not yet export|planned-only|not part of "
+    r"the installable)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_TARGET_STATE_PLANNED_SURFACE_RE = re.compile(
+    r"Planned-only additions.*?not exported by `0\.3\.3`.*?not available\s+"
+    r"in the `0\.3\.3` CLI",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_TARGET_STATE_STABILITY_GUARD_RE = re.compile(
+    r"`?1\.x`?\s+stability promise.*?does not apply to the shipped\s+"
+    r"`0\.3\.3`\s+artifact.*?activates only after `1\.0\.0` formally ships",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def check_target_state_docs(manifest: dict) -> list[str]:
+    """Ensure target-state docs are explicit future-contract docs."""
+    target_docs, errors = get_manifest_doc_list(
+        manifest,
+        "target_state_docs",
+        "target-state",
+        required_docs=_REQUIRED_TARGET_STATE_DOCS,
+    )
+    parity_docs = set(manifest.get("parity_docs", []))
+
+    for rel in target_docs:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            errors.append(f"[target-state] {rel}: file does not exist")
+            continue
+        if path.stat().st_size == 0:
+            errors.append(f"[target-state] {rel}: file is empty")
+            continue
+        if rel in parity_docs:
+            errors.append(
+                f"[target-state] {rel}: appears in both target_state_docs and "
+                "parity_docs"
+            )
+
+        text = path.read_text(encoding="utf-8")
+        header = "\n".join(text.splitlines()[:25])
+
+        if not _TARGET_STATE_STATUS_RE.search(header):
+            errors.append(
+                f"[target-state] {rel}: missing 'Status: Target-State Design' "
+                "marker near the top of the document"
+            )
+
+        if not _TARGET_STATE_BOUNDARY_RE.search(text):
+            errors.append(
+                f"[target-state] {rel}: missing an explicit availability "
+                "boundary for planned-only surfaces"
+            )
+
+        if not _TARGET_STATE_PLANNED_SURFACE_RE.search(text):
+            errors.append(
+                f"[target-state] {rel}: missing an explicit planned-only "
+                "workflow API fence for the `0.3.3` public surface"
+            )
+
+        if not _TARGET_STATE_STABILITY_GUARD_RE.search(text):
+            errors.append(
+                f"[target-state] {rel}: missing a guard that delays the `1.x` "
+                "stability promise until `1.0.0` GA"
+            )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check J: Implementation-truth consistency
 # ---------------------------------------------------------------------------
 
 def check_implementation_truth(manifest: dict) -> list[str]:
@@ -557,7 +806,7 @@ def check_implementation_truth(manifest: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Check I: Semantic behavioral claims
+# Check K: Semantic behavioral claims
 # ---------------------------------------------------------------------------
 
 _RISK_SCORED_BLOCKING_RE = re.compile(
@@ -662,8 +911,10 @@ def main() -> int:
         ("E. Archive hygiene", check_archive_hygiene),
         ("F. Gate-ID consistency", lambda: check_gate_id_consistency(manifest)),
         ("G. Parity-set docs exist", lambda: check_parity_docs_exist(manifest)),
-        ("H. Implementation-truth consistency", lambda: check_implementation_truth(manifest)),
-        ("I. Semantic behavioral claims", check_semantic_claims),
+        ("H. Runtime onboarding boundary docs", lambda: check_availability_boundary_docs(manifest)),
+        ("I. Target-state contract coverage", lambda: check_target_state_docs(manifest)),
+        ("J. Implementation-truth consistency", lambda: check_implementation_truth(manifest)),
+        ("K. Semantic behavioral claims", check_semantic_claims),
     ]
 
     for name, check_fn in checks:

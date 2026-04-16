@@ -84,19 +84,37 @@ Workflow-aware SDK outcome:
 - [x] graduated trust over time is available
 - [x] pre-call governance is the default execution model
 
-Documentation parity targets:
+Current-runtime documentation parity targets (manifest-enforced parity set):
 
 - [x] `README.md`
 - [x] `PROJECT.md`
 - [x] `CHANGELOG.md`
+- [x] `docs/AIGC_FRAMEWORK.md`
 - [x] `docs/INTEGRATION_GUIDE.md`
 - [x] `docs/PUBLIC_INTEGRATION_CONTRACT.md`
-- [x] `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`
 - [x] `docs/architecture/ENFORCEMENT_PIPELINE.md`
 - [x] `docs/architecture/ARCHITECTURAL_INVARIANTS.md`
+
+Current-runtime schema and module contract targets:
+
 - [x] `schemas/audit_artifact.schema.json`
 - [x] public lineage module docs are updated
 - [x] public risk-history module docs are updated
+
+Target-state contract coverage (dedicated checks H and I):
+
+- [x] `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md` is explicitly marked as a
+      `1.0.0` target-state design, not current-runtime truth
+- [x] `docs/PUBLIC_INTEGRATION_CONTRACT.md` is enforced as a runtime onboarding
+      boundary doc and must warn that planned-only surfaces are not part of the
+      shipped `0.3.3` contract
+- [x] the high-level design documents a hard availability boundary for
+      planned-only APIs and CLI commands
+- [x] the high-level design fences planned-only workflow APIs from the shipped
+      `0.3.3` public surface and delays the `1.x` stability promise until
+      `1.0.0` GA
+- [x] target-state contract docs are enforced by dedicated parity checks, not
+      by the current-runtime parity set
 
 Release readiness:
 

@@ -4,6 +4,8 @@ This document defines the non-negotiable engineering invariants of the AIGC Gove
 
 These invariants exist to prevent architectural drift.
 
+Current runtime baseline: `v0.3.3`, with audit schema `v1.4`.
+
 Any change that violates these invariants must not be merged.
 
 If an invariant must change, the change requires:

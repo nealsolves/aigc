@@ -14,9 +14,9 @@ Governance in AIGC is runtime enforcement, not documentation and not prompting.
 - Package: `pip install aigc-sdk`
 - Import: `import aigc`
 - Current release: `v0.3.3` on `2026-04-10`
-- Current release scope: workflow-aware governance, audit schema `v1.4`,
-  `AuditLineage`, `ProvenanceGate`, `RiskHistory`, `@governed` defaults to
-  split enforcement
+- Current release scope: invocation governance plus workflow-aware provenance
+  and lineage groundwork, audit schema `v1.4`, `AuditLineage`,
+  `ProvenanceGate`, `RiskHistory`, `@governed` defaults to split enforcement
 - Verification baseline: `966 tests`, coverage above the `90%` CI gate
 
 ## Why This Repo Exists
@@ -49,6 +49,11 @@ Since v0.3.3, split enforcement is the default — Phase A runs before the model
 call, Phase B validates output after. Pass `pre_call_enforcement=False` for the
 legacy unified mode (deprecated).
 
+The target-state `1.0.0` architecture expands this invocation-first model with
+planned workflow governance built around `GovernanceSession` and optional
+Bedrock/A2A normalization adapters. That future-state design is captured in
+`docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
+
 ## Release Narrative
 
 This is the versioned story of the repo's current state and how it evolved
@@ -62,7 +67,7 @@ release by release.
 | `0.3.0` | 2026-03-15 | Governance hardening: risk scoring, artifact signing, audit chain utility, pluggable `PolicyLoader`, policy dates, telemetry, policy testing, compliance export, custom gate isolation and metadata preservation |
 | `0.3.1` | 2026-04-04 | Demo parity release: React demo and FastAPI backend became the maintained hands-on surface for all 7 labs |
 | `0.3.2` | 2026-04-05 | Split enforcement release: `enforce_pre_call()` / `enforce_post_call()`, `PreCallResult`, split decorator mode, audit schema `v1.3`, and post-release security hardening from the 2026-04-05 audit |
-| `0.3.3` | `2026-04-10` | Workflow-aware governance: audit schema `v1.4` provenance metadata, `AuditLineage` DAG reconstruction, `ProvenanceGate` built-in enforcement gate, `RiskHistory` risk trend tracking, `@governed` defaults to `pre_call_enforcement=True` (split enforcement is the standard execution model) |
+| `0.3.3` | `2026-04-10` | Workflow-aware provenance and lineage groundwork: audit schema `v1.4` provenance metadata, `AuditLineage` DAG reconstruction, `ProvenanceGate` built-in enforcement gate, `RiskHistory` risk trend tracking, `@governed` defaults to `pre_call_enforcement=True` (split enforcement is the standard execution model) |
 
 For the full change log, use [CHANGELOG.md](CHANGELOG.md).
 
@@ -182,7 +187,7 @@ If you are new to the repo, start here:
 | Document | Why it matters |
 | -------- | -------------- |
 | [PROJECT.md](PROJECT.md) | Best repo-level orientation: architecture diagram, repo map, and release-by-release narrative |
-| [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | Authoritative runtime design and invariants |
+| [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | Target-state `1.0.0` architecture contract and invariants |
 | [Integration Guide](docs/INTEGRATION_GUIDE.md) | Host integration patterns, split-mode guidance, and compliance checklist |
 | [Policy DSL Spec](policies/policy_dsl_spec.md) | Full policy format reference |
 | [Cookbook](docs/USAGE.md) | Task-oriented recipes for common integration patterns |

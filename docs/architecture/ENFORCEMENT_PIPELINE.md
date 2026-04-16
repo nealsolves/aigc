@@ -288,9 +288,11 @@ Failure codes:
 
 ---
 
-## Workflow Governance (Planned)
+## Workflow Governance (Planned `1.0.0` Target State)
 
-Future releases will introduce workflow governance.
+The shipped `0.3.3` runtime remains invocation-scoped. Its provenance, lineage,
+and risk-history additions are groundwork for this future session model, not a
+shipped `GovernanceSession` workflow runtime.
 
 A `GovernanceSession` will manage:
 

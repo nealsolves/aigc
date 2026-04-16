@@ -43,7 +43,13 @@ MANIFEST_PATH = REPO_ROOT / "doc_parity_manifest.yaml"
 
 def load_manifest() -> dict:
     with open(MANIFEST_PATH, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"doc_parity_manifest.yaml is empty or invalid "
+            f"(expected a mapping, got {type(data).__name__})"
+        )
+    return data
 
 
 def is_internal_doc(path: str, internal_patterns: list[str]) -> bool:

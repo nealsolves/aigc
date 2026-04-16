@@ -125,6 +125,69 @@ def test_v090_release_truth_rejects_row_level_pr_branch_mismatch(tmp_path, monke
     assert "docs/dev/pr_context.md: PR-01 row maps to" in joined, errors
 
 
+_CANONICAL_PLAN_REL = "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md"
+_HISTORICAL_PLAN_RELS = [
+    "docs/plans/0.9.0 plan backup.md",
+    "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN_DRAFT.md",
+    "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN_DRAFT_ORIG.md",
+    "docs/plans/AIGC_v0.9.0_IMPLEMENTATION_PLAN_UPDATED.md",
+]
+
+_CANONICAL_PLAN_CONTENT = """\
+# AIGC v0.9.0 Implementation Plan
+
+This document is the canonical implementation plan for the v0.9.0 beta.
+"""
+
+_HISTORICAL_PLAN_CONTENT = (
+    "> Superseded on 2026-04-15.\n"
+    f"> Active file: `{_CANONICAL_PLAN_REL}`.\n"
+    "> Status: historical input only for PR-01 source-of-truth review.\n"
+)
+
+
+def _seed_plan_truth_repo(
+    root: Path, *, canonical_content: str, stale_content: str
+) -> None:
+    _write_file(root, _CANONICAL_PLAN_REL, canonical_content)
+    for rel in _HISTORICAL_PLAN_RELS:
+        _write_file(root, rel, stale_content)
+
+
+def test_v090_plan_truth_accepts_one_canonical_and_marked_stale_variants(
+    tmp_path, monkeypatch
+):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    _seed_plan_truth_repo(
+        tmp_path,
+        canonical_content=_CANONICAL_PLAN_CONTENT,
+        stale_content=_HISTORICAL_PLAN_CONTENT,
+    )
+
+    assert module.check_v090_plan_truth() == []
+
+
+def test_v090_plan_truth_rejects_stale_plan_missing_supersession_banner(
+    tmp_path, monkeypatch
+):
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    no_banner = "# AIGC v0.9.0 Draft\n\nNo supersession notice.\n"
+
+    _seed_plan_truth_repo(
+        tmp_path,
+        canonical_content=_CANONICAL_PLAN_CONTENT,
+        stale_content=no_banner,
+    )
+
+    errors = module.check_v090_plan_truth()
+    joined = "\n".join(errors)
+    assert "stale plan is not marked superseded" in joined, errors
+
+
 def test_v090_release_truth_rejects_uncoupled_freeze_and_go_statements(tmp_path, monkeypatch):
     module = _load_doc_parity_module()
     monkeypatch.setattr(module, "REPO_ROOT", tmp_path)

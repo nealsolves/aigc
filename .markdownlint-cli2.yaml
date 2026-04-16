@@ -16,8 +16,6 @@ ignores:
   - "docs/audits/**"
   - "docs/superpowers/**"
   - "docs/_archive/**"
-  - "docs/dev/**"
-  - "docs/plans/**"
   - "docs/prs/**"
   - "build/**"
   - "UNKNOWN-0.0.0/**"

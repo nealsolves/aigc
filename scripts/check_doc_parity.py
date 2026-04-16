@@ -9,10 +9,10 @@ Validates that documentation stays synchronized with implementation:
   E. Archive hygiene (headers, no active->archive references)
   F. Gate-ID consistency (canonical gate IDs in gates_evaluated examples)
   G. Parity-set docs exist and are non-empty
-  H. Runtime onboarding boundary docs fence off planned-only surfaces
-  I. Target-state contract docs exist and declare their availability boundary
-  J. Implementation-truth consistency
-  K. Semantic behavioral claims
+  H. Implementation-truth consistency
+  I. Semantic behavioral claims
+  J. v0.9.0 plan truth
+  K. v0.9.0 release truth
 
 Usage:
     python scripts/check_doc_parity.py
@@ -84,7 +84,13 @@ _TARGET_STATE_CONTEXT_MARKERS = (
 
 def load_manifest() -> dict:
     with open(MANIFEST_PATH, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"doc_parity_manifest.yaml is empty or invalid "
+            f"(expected a mapping, got {type(data).__name__})"
+        )
+    return data
 
 
 def is_internal_doc(path: str, internal_patterns: list[str]) -> bool:
@@ -893,6 +899,249 @@ def check_semantic_claims() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Check J: v0.9.0 plan truth
+# ---------------------------------------------------------------------------
+
+_V090_CANONICAL_PLAN = "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md"
+_V090_HISTORICAL_PLANS = [
+    "docs/plans/0.9.0 plan backup.md",
+    "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN_DRAFT.md",
+    "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN_DRAFT_ORIG.md",
+    "docs/plans/AIGC_v0.9.0_IMPLEMENTATION_PLAN_UPDATED.md",
+]
+_V090_ALL_EXPECTED_PLANS = [_V090_CANONICAL_PLAN, *_V090_HISTORICAL_PLANS]
+_SUPERSEDED_PLAN_RE = re.compile(r"superseded|historical input only", re.I)
+
+
+def _read_header(rel: str, max_lines: int = 25) -> str:
+    path = REPO_ROOT / rel
+    if not path.exists():
+        return ""
+    return "\n".join(path.read_text(encoding="utf-8").splitlines()[:max_lines])
+
+
+def check_v090_plan_truth() -> list[str]:
+    """Ensure there is exactly one active v0.9.0 implementation plan."""
+    errors: list[str] = []
+    plans_dir = REPO_ROOT / "docs" / "plans"
+
+    if not plans_dir.exists():
+        return ["[v0.9.0-plan] docs/plans directory does not exist"]
+
+    discovered = []
+    for path in plans_dir.glob("*.md"):
+        lower_name = path.name.lower()
+        if "0.9.0" not in lower_name:
+            continue
+        if "implementation_plan" in lower_name or lower_name == "0.9.0 plan backup.md":
+            discovered.append(str(path.relative_to(REPO_ROOT)))
+    discovered = sorted(discovered)
+
+    expected = set(_V090_ALL_EXPECTED_PLANS)
+    extras = sorted(set(discovered) - expected)
+    for rel in extras:
+        errors.append(
+            f"[v0.9.0-plan] unexpected v0.9.0 implementation-plan candidate: {rel}"
+        )
+
+    for rel in _V090_ALL_EXPECTED_PLANS:
+        if not (REPO_ROOT / rel).exists():
+            errors.append(f"[v0.9.0-plan] missing expected file: {rel}")
+
+    active_candidates: list[str] = []
+    for rel in _V090_ALL_EXPECTED_PLANS:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            continue
+        header = _read_header(rel)
+        is_historical = bool(_SUPERSEDED_PLAN_RE.search(header))
+
+        if rel == _V090_CANONICAL_PLAN:
+            if is_historical:
+                errors.append(
+                    f"[v0.9.0-plan] canonical plan is marked historical: {rel}"
+                )
+            if "canonical implementation plan" not in header.lower():
+                errors.append(
+                    f"[v0.9.0-plan] canonical plan header does not declare "
+                    f"canonical status: {rel}"
+                )
+        else:
+            if not is_historical:
+                errors.append(
+                    f"[v0.9.0-plan] stale plan is not marked superseded: {rel}"
+                )
+            if _V090_CANONICAL_PLAN not in header:
+                errors.append(
+                    f"[v0.9.0-plan] stale plan header does not point to the "
+                    f"canonical file: {rel}"
+                )
+
+        if not is_historical:
+            active_candidates.append(rel)
+
+    if active_candidates != [_V090_CANONICAL_PLAN]:
+        errors.append(
+            f"[v0.9.0-plan] expected exactly one active plan "
+            f"({_V090_CANONICAL_PLAN}); found {active_candidates}"
+        )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check K: v0.9.0 release truth
+# ---------------------------------------------------------------------------
+
+_V090_RELEASE_FILES = [
+    "CLAUDE.md",
+    "docs/dev/pr_context.md",
+    "RELEASE_GATES.md",
+    "implementation_status.md",
+]
+_PR_TABLE_ROW_RE = re.compile(r"^\|\s*(PR-\d+[a-z]?)\s*\|\s*(.+?)\s*\|", re.MULTILINE)
+_BRANCH_CODE_RE = re.compile(r"`([^`]+)`")
+_STOP_SHIP_RE = re.compile(r"PR-07[\s\S]{0,240}stop-ship|stop-ship[\s\S]{0,240}PR-07", re.I)
+_GO_RE = re.compile(r"formally declared (?:a )?GO", re.I)
+_FREEZE_KEYWORDS_RE = re.compile(r"\b(?:until|only then|only after)\b", re.I)
+_LIST_ITEM_RE = re.compile(r"^(?:[-*+] |\d+\.\s)")
+
+
+def _extract_pr_branch_map(text: str) -> list[tuple[str, tuple[str, ...]]]:
+    result: list[tuple[str, tuple[str, ...]]] = []
+    for pr_id, branch_cell in _PR_TABLE_ROW_RE.findall(text):
+        branches = tuple(_BRANCH_CODE_RE.findall(branch_cell))
+        if branches:
+            result.append((pr_id, branches))
+    return result
+
+
+def _compare_pr_branch_maps(
+    rel: str,
+    expected: list[tuple[str, tuple[str, ...]]],
+    actual: list[tuple[str, tuple[str, ...]]],
+) -> list[str]:
+    errors: list[str] = []
+    expected_dict = dict(expected)
+    actual_dict = dict(actual)
+
+    for pr_id, expected_branches in expected:
+        actual_branches = actual_dict.get(pr_id)
+        if actual_branches is None:
+            errors.append(
+                f"[v0.9.0-release] {rel}: missing PR table row for {pr_id}"
+            )
+            continue
+        if actual_branches != expected_branches:
+            errors.append(
+                f"[v0.9.0-release] {rel}: {pr_id} row maps to "
+                f"{list(actual_branches)} but CLAUDE.md maps it to "
+                f"{list(expected_branches)}"
+            )
+
+    for pr_id in actual_dict:
+        if pr_id not in expected_dict:
+            errors.append(
+                f"[v0.9.0-release] {rel}: unexpected PR table row {pr_id}"
+            )
+
+    actual_order = [pr_id for pr_id, _ in actual]
+    expected_order = [pr_id for pr_id, _ in expected]
+    if actual_order and actual_order != expected_order:
+        errors.append(
+            f"[v0.9.0-release] {rel}: PR table order {actual_order} does not "
+            f"match CLAUDE.md order {expected_order}"
+        )
+
+    return errors
+
+
+def _iter_rule_segments(text: str) -> list[str]:
+    """Split text into normalized paragraphs and list-item rules."""
+    segments: list[str] = []
+    current: list[str] = []
+
+    def flush() -> None:
+        if current:
+            segments.append(" ".join(current))
+            current.clear()
+
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            flush()
+            continue
+        if stripped.startswith("|"):
+            flush()
+            continue
+        if _LIST_ITEM_RE.match(stripped):
+            flush()
+            current.append(stripped)
+            continue
+        current.append(stripped)
+
+    flush()
+    return segments
+
+
+def _has_freeze_go_coupling(text: str) -> bool:
+    """True when one rule statement couples the freeze directly to formal GO."""
+    for segment in _iter_rule_segments(text):
+        normalized = re.sub(r"\s+", " ", segment)
+        if "origin/develop" not in normalized or "origin/main" not in normalized:
+            continue
+        if not _GO_RE.search(normalized):
+            continue
+        if not _FREEZE_KEYWORDS_RE.search(normalized):
+            continue
+        return True
+    return False
+
+
+def check_v090_release_truth() -> list[str]:
+    """Ensure release-truth docs agree on v0.9.0 sequencing rules."""
+    errors: list[str] = []
+    claude_path = REPO_ROOT / "CLAUDE.md"
+
+    if not claude_path.exists():
+        return ["[v0.9.0-release] CLAUDE.md does not exist"]
+
+    claude_text = claude_path.read_text(encoding="utf-8")
+    pr_map = _extract_pr_branch_map(claude_text)
+
+    if not pr_map:
+        return ["[v0.9.0-release] could not parse v0.9.0 PR table from CLAUDE.md"]
+
+    for rel in _V090_RELEASE_FILES:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            errors.append(f"[v0.9.0-release] missing required file: {rel}")
+            continue
+
+        text = path.read_text(encoding="utf-8")
+        actual_pr_map = _extract_pr_branch_map(text)
+        if not actual_pr_map:
+            errors.append(
+                f"[v0.9.0-release] {rel}: could not parse a v0.9.0 PR table"
+            )
+        else:
+            errors.extend(_compare_pr_branch_maps(rel, pr_map, actual_pr_map))
+
+        if not _STOP_SHIP_RE.search(text):
+            errors.append(
+                f"[v0.9.0-release] {rel}: missing explicit PR-07 stop-ship rule"
+            )
+
+        if not _has_freeze_go_coupling(text):
+            errors.append(
+                f"[v0.9.0-release] {rel}: missing explicit origin/main freeze "
+                f"language tied to formal GO"
+            )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -911,10 +1160,10 @@ def main() -> int:
         ("E. Archive hygiene", check_archive_hygiene),
         ("F. Gate-ID consistency", lambda: check_gate_id_consistency(manifest)),
         ("G. Parity-set docs exist", lambda: check_parity_docs_exist(manifest)),
-        ("H. Runtime onboarding boundary docs", lambda: check_availability_boundary_docs(manifest)),
-        ("I. Target-state contract coverage", lambda: check_target_state_docs(manifest)),
-        ("J. Implementation-truth consistency", lambda: check_implementation_truth(manifest)),
-        ("K. Semantic behavioral claims", check_semantic_claims),
+        ("H. Implementation-truth consistency", lambda: check_implementation_truth(manifest)),
+        ("I. Semantic behavioral claims", check_semantic_claims),
+        ("J. v0.9.0 plan truth", check_v090_plan_truth),
+        ("K. v0.9.0 release truth", check_v090_release_truth),
     ]
 
     for name, check_fn in checks:

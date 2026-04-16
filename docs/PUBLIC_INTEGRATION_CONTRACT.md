@@ -10,11 +10,13 @@ workflow governance and optional Bedrock/A2A adapters, is captured separately
 in [docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](architecture/AIGC_HIGH_LEVEL_DESIGN.md).
 
 Planned-only surfaces described in that target-state document — including
-`GovernanceSession`, `AgentIdentity`, `AgentCapabilityManifest`,
-`ValidatorHook`, `BedrockTraceAdapter`, `A2AAdapter`, and `aigc workflow ...`
-commands — are not part of the installable `v0.3.3` artifact today. Do not
-build current integrations against those names until they ship through the
-public package exports, CLI surface, and contract tests.
+`AIGC.open_session(...)`, `GovernanceSession`, `SessionPreCallResult`,
+`AgentIdentity`, `AgentCapabilityManifest`, `ValidatorHook`,
+`BedrockTraceAdapter`, `A2AAdapter`, and `aigc workflow ...` commands — are
+not part of the installable `v0.3.3` artifact today. There is no current
+module-level `open_session()` convenience in the shipped package. Do not build
+current integrations against those names until they ship through the public
+package exports, instance API, CLI surface, and contract tests.
 
 ---
 

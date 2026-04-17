@@ -10,6 +10,7 @@ import json
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter
@@ -22,6 +23,9 @@ router = APIRouter(prefix="/api/workflow/v090", tags=["workflow-v090"])
 
 # Module-level state
 _last_failed_artifact: dict | None = None
+# Directory written by the failure scenario so that /diagnose can run
+# `aigc workflow doctor <dir>` and detect WORKFLOW_SOURCE_REQUIRED.
+_last_failure_starter_dir: str | None = None
 _policy_cache: dict[str, str] = {}
 
 
@@ -49,7 +53,7 @@ def _sim(prompt: str) -> dict:
 
 
 class WorkflowRunRequest(BaseModel):
-    scenario: Literal["minimal", "standard", "failure"]
+    scenario: Literal["minimal", "standard", "failure", "regulated"]
 
 
 @router.post("/run")
@@ -104,6 +108,30 @@ def run_workflow(req: WorkflowRunRequest):
             session.complete()
         return {"artifact": session.workflow_artifact, "error": None}
 
+    elif req.scenario == "regulated":
+        # The "fixed" regulated scenario: provenance.source_ids are present.
+        # Proves the failure-and-fix path end to end — same ProvenanceGate policy,
+        # but with the required source_ids supplied (the fix applied).
+        policy_file = _get_policy_path("regulated")
+        gate = ProvenanceGate(require_source_ids=True)
+        governance = AIGC(custom_gates=[gate])
+        with governance.open_session(policy_file=policy_file) as session:
+            pre = session.enforce_step_pre_call({
+                "policy_file": policy_file,
+                "input": {"prompt": "Analyze document with provenance."},
+                "output": {},
+                "context": {
+                    "caller_id": "demo",
+                    "provenance": {"source_ids": ["doc-001", "policy-v3"]},
+                },
+                "model_provider": "anthropic",
+                "model_identifier": "claude-sonnet-4-6",
+                "role": "ai-assistant",
+            })
+            session.enforce_step_post_call(pre, _sim("Analyze document with provenance."))
+            session.complete()
+        return {"artifact": session.workflow_artifact, "error": None}
+
     else:  # failure
         policy_file = _get_policy_path("regulated")
         gate = ProvenanceGate(require_source_ids=True)
@@ -128,6 +156,25 @@ def run_workflow(req: WorkflowRunRequest):
             caught_error = str(exc)
 
         artifact = session_ref.workflow_artifact if session_ref else {}
+
+        # Build a minimal starter directory so `aigc workflow doctor` can detect
+        # WORKFLOW_SOURCE_REQUIRED.  The doctor recognizes a valid starter directory
+        # by the presence of policy.yaml + workflow_example.py + README.md, then
+        # scans workflow_example.py for ProvenanceGate(require_source_ids=True).
+        global _last_failure_starter_dir
+        starter_dir = tempfile.mkdtemp(prefix="aigc_demo_starter_")
+        Path(starter_dir, "policy.yaml").write_text(
+            Path(policy_file).read_text()
+        )
+        Path(starter_dir, "workflow_example.py").write_text(
+            "from aigc import AIGC, ProvenanceGate\n\n"
+            "gate = ProvenanceGate(require_source_ids=True)\n"
+            "governance = AIGC(custom_gates=[gate])\n"
+        )
+        Path(starter_dir, "README.md").write_text(
+            "# Regulated workflow demo starter\n"
+        )
+        _last_failure_starter_dir = starter_dir
         _last_failed_artifact = artifact
         return {"artifact": artifact, "error": caught_error}
 
@@ -169,24 +216,22 @@ def compare_workflows():
 
 @router.get("/diagnose")
 def diagnose_last_failure():
-    """Run aigc workflow doctor on the most recent FAILED artifact."""
-    if _last_failed_artifact is None:
+    """Run aigc workflow doctor on the starter dir from the most recent failure."""
+    if _last_failure_starter_dir is None:
         return {"findings": [], "source": "no_prior_failure"}
 
-    tmp = tempfile.NamedTemporaryFile(
-        suffix=".json", prefix="aigc_demo_failed_", delete=False
-    )
-    tmp.write(json.dumps(_last_failed_artifact).encode())
-    tmp.close()
-
+    # The doctor detects WORKFLOW_SOURCE_REQUIRED by scanning workflow_example.py
+    # for ProvenanceGate(require_source_ids=True) — it needs a directory, not an
+    # artifact file.  We created that directory when the failure scenario ran.
     result = subprocess.run(
         [sys.executable, "-m", "aigc", "workflow", "doctor",
-         tmp.name, "--json"],
+         _last_failure_starter_dir, "--json"],
         capture_output=True, text=True,
     )
-    findings = (
-        json.loads(result.stdout)
-        if result.returncode == 0 and result.stdout.strip()
-        else []
-    )
-    return {"findings": findings, "source": "last_failure_artifact"}
+    # Parse findings regardless of exit code: doctor exits 1 for ERROR-severity
+    # findings, which are exactly the ones we want to surface to the user.
+    try:
+        findings = json.loads(result.stdout) if result.stdout.strip() else []
+    except json.JSONDecodeError:
+        findings = []
+    return {"findings": findings, "source": "failure_starter_dir"}

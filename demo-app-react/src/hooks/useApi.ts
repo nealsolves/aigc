@@ -21,7 +21,10 @@ export function useApi<T = unknown>() {
       const data = await res.json() as T
       if (data && typeof data === 'object' && 'artifact' in (data as object)) {
         const artifact = (data as unknown as { artifact: Artifact | null }).artifact
-        if (artifact) addAudit(artifact)
+        // Only add invocation audit artifacts (those with enforcement_result).
+        // Workflow artifacts from /api/workflow/v090/run have a different shape
+        // (status/steps) and must not be mixed into the invocation audit history.
+        if (artifact && 'enforcement_result' in artifact) addAudit(artifact)
       }
       return data
     } catch (err) {

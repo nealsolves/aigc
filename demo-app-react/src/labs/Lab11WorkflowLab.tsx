@@ -43,6 +43,13 @@ const TABS: { id: Tab; label: string }[] = [
 
 // ── severity color ────────────────────────────────────────────────────────────
 
+/** Extract the workflow artifact `status` field as a string, or null. */
+function workflowStatus(artifact: Artifact | null): string | null {
+  if (!artifact) return null
+  const s = (artifact as Record<string, unknown>)['status']
+  return s != null ? String(s) : null
+}
+
 function severityColor(severity: string): string {
   switch (severity.toUpperCase()) {
     case 'ERROR':   return IBM_COLORS.red40
@@ -108,7 +115,9 @@ export default function Lab11WorkflowLab() {
   }
 
   const applyFixAndRerun = async () => {
-    const res = await callApi('/api/workflow/v090/run', { scenario: 'minimal' })
+    // Re-run the regulated scenario WITH provenance.source_ids present (the fix),
+    // proving the original failure path is repaired — not switching to a different workflow.
+    const res = await callApi('/api/workflow/v090/run', { scenario: 'regulated' })
     if (res) {
       setFixResult(res)
       if (res.artifact) setLastArtifact(res.artifact)
@@ -252,8 +261,14 @@ export default function Lab11WorkflowLab() {
                 <span className="text-xs font-semibold uppercase" style={{ color: IBM_COLORS.red40 }}>
                   Failure result
                 </span>
-                {failureResult.artifact && (
-                  <StatusBadge status={failureResult.artifact.enforcement_result ?? 'ERROR'} />
+                {/* Workflow artifacts have `status`, not `enforcement_result` */}
+                {workflowStatus(failureResult.artifact) && (
+                  <span
+                    className="font-mono text-xs px-1.5 py-0.5 rounded"
+                    style={{ background: 'rgba(255,126,182,0.12)', color: 'var(--ibm-magenta-40)' }}
+                  >
+                    {workflowStatus(failureResult.artifact)}
+                  </span>
                 )}
               </div>
               {failureResult.error && (
@@ -303,8 +318,13 @@ export default function Lab11WorkflowLab() {
                 <span className="text-xs font-semibold uppercase" style={{ color: IBM_COLORS.green40 }}>
                   Post-fix result
                 </span>
-                {fixResult.artifact && (
-                  <StatusBadge status={fixResult.artifact.enforcement_result ?? 'PASS'} />
+                {workflowStatus(fixResult.artifact) && (
+                  <span
+                    className="font-mono text-xs px-1.5 py-0.5 rounded"
+                    style={{ background: 'rgba(61,219,217,0.12)', color: 'var(--ibm-teal-30)' }}
+                  >
+                    {workflowStatus(fixResult.artifact)}
+                  </span>
                 )}
               </div>
               {fixResult.artifact && (

@@ -63,11 +63,22 @@ def test_workflow_diagnose_no_prior_failure():
 
 
 def test_workflow_diagnose_after_failure():
-    # Trigger a failure first
+    # Trigger a failure to populate _last_failed_artifact
     client.post("/api/workflow/v090/run", json={"scenario": "failure"})
     r = client.get("/api/workflow/v090/diagnose")
     assert r.status_code == 200
     data = r.json()
     assert isinstance(data["findings"], list)
-    # findings may be empty or have entries depending on artifact shape
-    # The key assertion is that the endpoint returns 200 and a findings list
+    codes = [f["code"] for f in data["findings"]]
+    assert "WORKFLOW_SOURCE_REQUIRED" in codes, (
+        f"Expected WORKFLOW_SOURCE_REQUIRED in findings. Got: {codes}"
+    )
+
+
+def test_workflow_run_regulated():
+    # The "fix applied" regulated scenario — includes provenance.source_ids
+    r = client.post("/api/workflow/v090/run", json={"scenario": "regulated"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["artifact"]["status"] == "COMPLETED"
+    assert data["error"] is None

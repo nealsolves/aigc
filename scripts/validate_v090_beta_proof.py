@@ -13,7 +13,6 @@ Usage:
 """
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import subprocess
@@ -55,6 +54,32 @@ def _run(cmd: list[str], env: dict | None = None, cwd: Path | None = None,
         env=env or os.environ.copy(),
         cwd=str(cwd or REPO_ROOT),
     )
+
+
+def _run_workflow_in_venv(
+    python: str, env: dict, workflow_py: Path, func_name: str, tmp_dir: Path
+) -> dict:
+    """Run a workflow function inside the venv Python; return the artifact dict.
+
+    Writes a thin runner script that imports the generated workflow_example.py,
+    calls ``func_name()``, and prints the artifact as JSON.  Executing the runner
+    via a subprocess ensures imports are resolved against the venv installation,
+    not the parent interpreter — which is the point of the clean-env proof.
+    """
+    runner = tmp_dir / f"_runner_{func_name}.py"
+    runner.write_text(
+        "import sys, json, importlib.util\n"
+        f"spec = importlib.util.spec_from_file_location('wf', {str(workflow_py)!r})\n"
+        "mod = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(mod)\n"
+        f"artifact = mod.{func_name}()\n"
+        "print(json.dumps(artifact))\n"
+    )
+    r = _run([python, str(runner)], env=env)
+    assert r.returncode == 0, (
+        f"Workflow runner for {func_name!r} exited {r.returncode}:\n{r.stderr}"
+    )
+    return json.loads(r.stdout.strip())
 
 
 def run_gate(name: str, fn) -> dict:
@@ -122,10 +147,9 @@ def main() -> int:
                   "--profile", "minimal", "--output-dir", str(d)], env=env)
         assert r.returncode == 0, f"aigc workflow init failed:\n{r.stderr}"
 
-        spec = importlib.util.spec_from_file_location("wf_min", d / "workflow_example.py")
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        artifact = mod.run_minimal_workflow()
+        artifact = _run_workflow_in_venv(
+            python, env, d / "workflow_example.py", "run_minimal_workflow", tmp_dir
+        )
 
         assert artifact["status"] == "COMPLETED", (
             f"Expected COMPLETED, got {artifact['status']}"
@@ -150,10 +174,9 @@ def main() -> int:
                   "--profile", "standard", "--output-dir", str(d)], env=env)
         assert r.returncode == 0, f"aigc workflow init failed:\n{r.stderr}"
 
-        spec = importlib.util.spec_from_file_location("wf_std", d / "workflow_example.py")
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        artifact = mod.run_standard_workflow()
+        artifact = _run_workflow_in_venv(
+            python, env, d / "workflow_example.py", "run_standard_workflow", tmp_dir
+        )
 
         assert artifact["status"] == "COMPLETED", (
             f"Expected COMPLETED, got {artifact['status']}"
@@ -239,10 +262,9 @@ with governance.open_session(policy_file=policy_file) as session:
         d = tmp_dir / "regulated"
         t0 = time.time()
 
-        spec = importlib.util.spec_from_file_location("wf_reg", d / "workflow_example.py")
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        artifact = mod.run_regulated_workflow()
+        artifact = _run_workflow_in_venv(
+            python, env, d / "workflow_example.py", "run_regulated_workflow", tmp_dir
+        )
 
         assert artifact["status"] == "COMPLETED", (
             f"Expected COMPLETED after fix, got {artifact['status']}"

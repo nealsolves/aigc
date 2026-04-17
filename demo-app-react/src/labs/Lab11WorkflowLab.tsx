@@ -4,18 +4,36 @@ import StatusBadge from '@/components/shared/StatusBadge'
 import CodeBlock from '@/components/shared/CodeBlock'
 import { useApi } from '@/hooks/useApi'
 import { IBM_COLORS } from '@/theme/tokens'
-import type { Artifact } from '@/types/artifact'
 
 // ── types ────────────────────────────────────────────────────────────────────
 
+/** Shape returned by session.workflow_artifact from the AIGC engine. */
+interface WorkflowArtifact {
+  workflow_schema_version: string
+  artifact_type: string
+  session_id: string
+  policy_file: string
+  status: string
+  started_at: number
+  finalized_at: number
+  steps: Array<{
+    step_id: string
+    participant_id: string | null
+    invocation_artifact_checksum: string
+  }>
+  invocation_audit_checksums: string[]
+  failure_summary: string | null
+  metadata: Record<string, unknown>
+}
+
 interface WorkflowRunResponse {
-  artifact: Artifact | null
+  artifact: WorkflowArtifact | null
   error: string | null
 }
 
 interface CompareResponse {
-  governed: { artifact: Artifact | null }
-  ungoverned: { artifact: Artifact | null }
+  governed: { artifact: WorkflowArtifact | null }
+  ungoverned: { artifact: Record<string, unknown> | null }
 }
 
 interface DiagnosisFinding {
@@ -43,11 +61,9 @@ const TABS: { id: Tab; label: string }[] = [
 
 // ── severity color ────────────────────────────────────────────────────────────
 
-/** Extract the workflow artifact `status` field as a string, or null. */
-function workflowStatus(artifact: Artifact | null): string | null {
-  if (!artifact) return null
-  const s = (artifact as Record<string, unknown>)['status']
-  return s != null ? String(s) : null
+/** Return the workflow artifact status as a string, or null. */
+function workflowStatus(artifact: WorkflowArtifact | null): string | null {
+  return artifact?.status ?? null
 }
 
 function severityColor(severity: string): string {
@@ -69,7 +85,7 @@ export default function Lab11WorkflowLab() {
 
   // Start Here tab
   const [runResult, setRunResult]           = useState<WorkflowRunResponse | null>(null)
-  const [lastArtifact, setLastArtifact]     = useState<Artifact | null>(null)
+  const [lastArtifact, setLastArtifact]     = useState<WorkflowArtifact | null>(null)
 
   // Failure & Fix tab
   const [failureResult, setFailureResult]   = useState<WorkflowRunResponse | null>(null)
@@ -188,15 +204,15 @@ export default function Lab11WorkflowLab() {
             <>
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <MetricCard
-                  value={runResult.error ? 'ERROR' : (runResult.artifact?.enforcement_result ?? '—')}
-                  label="enforcement result"
+                  value={runResult.error ? 'ERROR' : (runResult.artifact?.status ?? '—')}
+                  label="workflow status"
                   color={runResult.error ? IBM_COLORS.red40 : IBM_COLORS.blue60}
                 />
                 <MetricCard
-                  value={runResult.artifact?.metadata?.risk_scoring?.score != null
-                    ? String(runResult.artifact.metadata.risk_scoring.score)
+                  value={runResult.artifact?.steps != null
+                    ? String(runResult.artifact.steps.length)
                     : '—'}
-                  label="risk score"
+                  label="governed steps"
                   color={IBM_COLORS.blue40}
                 />
               </div>
@@ -365,13 +381,13 @@ export default function Lab11WorkflowLab() {
                   <span className="text-xs font-semibold uppercase" style={{ color: IBM_COLORS.blue60 }}>
                     Governed
                   </span>
-                  {compareResult.governed.artifact?.enforcement_result && (
-                    <StatusBadge status={compareResult.governed.artifact.enforcement_result} />
+                  {compareResult.governed.artifact?.status && (
+                    <StatusBadge status={compareResult.governed.artifact.status} />
                   )}
                 </div>
                 <CodeBlock
-                  code={JSON.stringify(compareResult.governed.artifact?.metadata ?? {}, null, 2)}
-                  label="governance metadata"
+                  code={JSON.stringify(compareResult.governed.artifact ?? {}, null, 2)}
+                  label="governed workflow artifact"
                 />
               </div>
 
@@ -385,12 +401,12 @@ export default function Lab11WorkflowLab() {
                     className="text-xs font-mono px-1 rounded"
                     style={{ background: 'var(--bg-surface)', color: 'var(--text-secondary)' }}
                   >
-                    no checks
+                    no governance
                   </span>
                 </div>
                 <CodeBlock
-                  code={JSON.stringify(compareResult.ungoverned.artifact?.metadata ?? {}, null, 2)}
-                  label="raw output metadata"
+                  code={JSON.stringify(compareResult.ungoverned.artifact ?? {}, null, 2)}
+                  label="raw output (no governance)"
                 />
               </div>
             </div>
@@ -409,20 +425,20 @@ export default function Lab11WorkflowLab() {
             <>
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <MetricCard
-                  value={lastArtifact.enforcement_result ?? '—'}
-                  label="enforcement result"
-                  color={lastArtifact.enforcement_result === 'PASS' ? IBM_COLORS.green40 : IBM_COLORS.red40}
+                  value={lastArtifact.status ?? '—'}
+                  label="workflow status"
+                  color={lastArtifact.status === 'COMPLETED' ? IBM_COLORS.green40 : IBM_COLORS.red40}
                 />
                 <MetricCard
-                  value={lastArtifact.policy_version ?? '—'}
-                  label="policy version"
+                  value={lastArtifact.workflow_schema_version ?? '—'}
+                  label="schema version"
                   color={IBM_COLORS.blue40}
                 />
                 <MetricCard
-                  value={lastArtifact.metadata?.risk_scoring?.score != null
-                    ? String(lastArtifact.metadata.risk_scoring.score)
+                  value={lastArtifact.invocation_audit_checksums != null
+                    ? String(lastArtifact.invocation_audit_checksums.length)
                     : '—'}
-                  label="risk score"
+                  label="correlated steps"
                   color={IBM_COLORS.orange40}
                 />
               </div>

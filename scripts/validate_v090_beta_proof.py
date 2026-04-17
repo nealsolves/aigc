@@ -125,7 +125,8 @@ def main() -> int:
         print("  Installing package in editable mode...", end="", flush=True)
         python = _venv_python(venv_dir)
         env = _venv_env(venv_dir)
-        r = _run([python, "-m", "pip", "install", "-e", str(REPO_ROOT), "-q"], env=env)
+        r = _run([python, "-m", "pip", "install", "--no-build-isolation",
+                  "-e", str(REPO_ROOT), "-q"], env=env)
         assert r.returncode == 0, f"pip install failed:\n{r.stderr}"
         print(" done", flush=True)
 

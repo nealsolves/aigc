@@ -11,7 +11,7 @@
 git clone https://github.com/nealsolves/aigc
 cd aigc
 git checkout feat/v0.9-07-beta-proof
-pip install -e ".[dev]"
+pip install --no-build-isolation -e ".[dev]"
 ```
 
 No external API keys, Bedrock credentials, or A2A setup are required. The

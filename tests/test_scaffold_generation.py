@@ -150,3 +150,58 @@ def test_starter_role_customization():
     from aigc._internal.starter_templates import render_minimal_starter
     files = render_minimal_starter(role="summarizer")
     assert "summarizer" in files["policy.yaml"]
+
+
+# ---------------------------------------------------------------------------
+# Task 4: aigc policy init CLI command
+# ---------------------------------------------------------------------------
+
+def test_policy_init_minimal_creates_valid_yaml(tmp_path):
+    import yaml
+    from aigc._internal.cli import main
+    out = tmp_path / "policy.yaml"
+    rc = main(["policy", "init", "--profile", "minimal", "--output", str(out)])
+    assert rc == 0
+    assert out.exists()
+    parsed = yaml.safe_load(out.read_text())
+    assert parsed["policy_version"] == "1.0"
+    assert "ai-assistant" in parsed["roles"]
+
+
+def test_policy_init_standard_creates_yaml(tmp_path):
+    import yaml
+    from aigc._internal.cli import main
+    out = tmp_path / "policy.yaml"
+    rc = main(["policy", "init", "--profile", "standard", "--output", str(out)])
+    assert rc == 0
+    parsed = yaml.safe_load(out.read_text())
+    assert "ai-assistant" in parsed["roles"]
+
+
+def test_policy_init_regulated_creates_yaml_with_tools(tmp_path):
+    import yaml
+    from aigc._internal.cli import main
+    out = tmp_path / "policy.yaml"
+    rc = main(["policy", "init", "--profile", "regulated-high-assurance", "--output", str(out)])
+    assert rc == 0
+    parsed = yaml.safe_load(out.read_text())
+    assert "tools" in parsed
+
+
+def test_policy_init_fails_if_output_exists(tmp_path):
+    from aigc._internal.cli import main
+    out = tmp_path / "policy.yaml"
+    out.write_text("existing content")
+    rc = main(["policy", "init", "--profile", "minimal", "--output", str(out)])
+    assert rc == 1
+    assert out.read_text() == "existing content"
+
+
+def test_policy_init_custom_role(tmp_path):
+    import yaml
+    from aigc._internal.cli import main
+    out = tmp_path / "policy.yaml"
+    rc = main(["policy", "init", "--profile", "minimal", "--role", "summarizer", "--output", str(out)])
+    assert rc == 0
+    parsed = yaml.safe_load(out.read_text())
+    assert "summarizer" in parsed["roles"]

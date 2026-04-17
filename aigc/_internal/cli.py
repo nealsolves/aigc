@@ -24,6 +24,7 @@ from aigc._internal.policy_loader import (
 )
 from aigc._internal.errors import PolicyLoadError, PolicyValidationError
 from aigc._internal.lineage import AuditLineage
+from aigc._internal.policy_init import _cmd_policy_init
 
 
 def _load_schema() -> dict:
@@ -334,6 +335,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="Policy YAML files to validate",
     )
     validate_parser.set_defaults(func=_cmd_validate)
+
+    # aigc policy init --profile <profile> [--output <path>] [--role <role>]
+    policy_init_parser = policy_sub.add_parser(
+        "init",
+        help="Generate a governance policy file from a starter profile",
+    )
+    policy_init_parser.add_argument(
+        "--profile",
+        choices=["minimal", "standard", "regulated-high-assurance"],
+        required=True,
+        help="Starter profile to use",
+    )
+    policy_init_parser.add_argument(
+        "--output",
+        default="policy.yaml",
+        help="Output file path (default: policy.yaml)",
+    )
+    policy_init_parser.add_argument(
+        "--role",
+        default="ai-assistant",
+        help="Default role to embed in the policy (default: ai-assistant)",
+    )
+    policy_init_parser.set_defaults(func=_cmd_policy_init)
 
     # aigc compliance ...
     compliance_parser = subparsers.add_parser(

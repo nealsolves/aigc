@@ -14,6 +14,7 @@ import Lab7Compliance from '@/labs/Lab7Compliance'
 import Lab8GovernedKnowledgeBase from '@/labs/Lab8GovernedKnowledgeBase'
 import Lab9GovernedVsUngoverned from '@/labs/Lab9GovernedVsUngoverned'
 import Lab10SplitEnforcementExplorer from '@/labs/Lab10SplitEnforcementExplorer'
+import Lab11WorkflowLab from '@/labs/Lab11WorkflowLab'
 import HelpButton from '@/components/HelpButton'
 import HelpDrawer from '@/components/HelpDrawer'
 
@@ -28,6 +29,7 @@ const LABS = [
   { num: 8,  title: 'Knowledge Base',          short: 'KB'      },
   { num: 9,  title: 'Governed vs Ungoverned',  short: 'Compare' },
   { num: 10, title: 'Split Enforcement',       short: 'Split'   },
+  { num: 11, title: 'Workflow Lab (v0.9.0 Beta)', short: 'Workflow' },
 ]
 
 function AppContent() {
@@ -57,6 +59,7 @@ function AppContent() {
         <Route path="/lab/8"  element={<><LabHero labNum={8}  title="Governed Knowledge Base"   /><Lab8GovernedKnowledgeBase /></>} />
         <Route path="/lab/9"  element={<><LabHero labNum={9}  title="Governed vs. Ungoverned"   /><Lab9GovernedVsUngoverned /></>} />
         <Route path="/lab/10" element={<><LabHero labNum={10} title="Split Enforcement Explorer"/><Lab10SplitEnforcementExplorer /></>} />
+        <Route path="/lab/11" element={<><LabHero labNum={11} title="Workflow Governance (v0.9.0 Beta)" /><Lab11WorkflowLab /></>} />
       </Routes>
       <HelpButton isOpen={isHelpOpen} onOpen={handleOpen} />
       <HelpDrawer

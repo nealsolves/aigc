@@ -256,3 +256,86 @@ def test_v090_pr05_workflow_starter_integrity_error_importable():
     from aigc import WorkflowStarterIntegrityError
 
     assert WorkflowStarterIntegrityError is not None
+
+
+# ---------------------------------------------------------------------------
+# PR-06 contract tests
+# ---------------------------------------------------------------------------
+
+def test_v090_pr06_workflow_help_lists_lint_and_doctor():
+    """aigc workflow --help must list init, lint, and doctor subcommands."""
+    result = subprocess.run(
+        [sys.executable, "-m", "aigc", "workflow", "--help"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode in (0, 1), result.stderr
+    assert "lint" in result.stdout, "workflow --help does not list 'lint'"
+    assert "doctor" in result.stdout, "workflow --help does not list 'doctor'"
+    assert "init" in result.stdout, "workflow --help does not list 'init'"
+
+
+def test_v090_pr06_all_seven_reason_codes_importable():
+    """All 7 frozen reason-code error classes must be importable from aigc."""
+    from aigc import (
+        WorkflowStarterIntegrityError,      # PR-05
+        WorkflowApprovalRequiredError,       # PR-06
+        WorkflowSourceRequiredError,         # PR-06
+        WorkflowToolBudgetExceededError,     # PR-06
+        WorkflowUnsupportedBindingError,     # PR-06
+        WorkflowSessionTokenInvalidError,    # PR-06
+    )
+    from aigc import SessionStateError  # WORKFLOW_INVALID_TRANSITION (PR-04)
+
+    assert WorkflowStarterIntegrityError("x").code == "WORKFLOW_STARTER_INTEGRITY_ERROR"
+    assert WorkflowApprovalRequiredError("x").code == "WORKFLOW_APPROVAL_REQUIRED"
+    assert WorkflowSourceRequiredError("x").code == "WORKFLOW_SOURCE_REQUIRED"
+    assert WorkflowToolBudgetExceededError("x").code == "WORKFLOW_TOOL_BUDGET_EXCEEDED"
+    assert WorkflowUnsupportedBindingError("x").code == "WORKFLOW_UNSUPPORTED_BINDING"
+    assert WorkflowSessionTokenInvalidError("x").code == "WORKFLOW_SESSION_TOKEN_INVALID"
+    assert SessionStateError("x").code == "WORKFLOW_INVALID_TRANSITION"
+
+
+def test_v090_pr06_workflow_lint_cli_exits_cleanly_on_valid_policy(tmp_path):
+    """aigc workflow lint on a valid policy exits 0."""
+    policy = tmp_path / "policy.yaml"
+    policy.write_text('policy_version: "1.0"\nroles:\n  - ai-assistant\n', encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, "-m", "aigc", "workflow", "lint", str(policy)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, f"workflow lint failed: {result.stderr}\n{result.stdout}"
+    assert "OK" in result.stdout
+
+
+def test_v090_pr06_workflow_lint_cli_exits_1_on_invalid_policy(tmp_path):
+    """aigc workflow lint on an invalid policy exits 1."""
+    policy = tmp_path / "bad.yaml"
+    policy.write_text("roles: [unclosed", encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, "-m", "aigc", "workflow", "lint", str(policy)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+
+
+def test_v090_pr06_workflow_doctor_cli_exits_cleanly_on_valid_policy(tmp_path):
+    """aigc workflow doctor on a valid policy exits 0."""
+    policy = tmp_path / "policy.yaml"
+    policy.write_text('policy_version: "1.0"\nroles:\n  - ai-assistant\n', encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, "-m", "aigc", "workflow", "doctor", str(policy)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, f"workflow doctor failed: {result.stderr}\n{result.stdout}"

@@ -187,3 +187,58 @@ class WorkflowStarterIntegrityError(GovernanceViolationError):
             code="WORKFLOW_STARTER_INTEGRITY_ERROR",
             details=details,
         )
+
+
+class WorkflowApprovalRequiredError(GovernanceViolationError):
+    """Raised or reported when a workflow step requires human approval."""
+
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(
+            message,
+            code="WORKFLOW_APPROVAL_REQUIRED",
+            details=details,
+        )
+
+
+class WorkflowSourceRequiredError(GovernanceViolationError):
+    """Raised or reported when source IDs are required but not provided."""
+
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(
+            message,
+            code="WORKFLOW_SOURCE_REQUIRED",
+            details=details,
+        )
+
+
+class WorkflowToolBudgetExceededError(GovernanceViolationError):
+    """Raised or reported when tool call budget is exceeded."""
+
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(
+            message,
+            code="WORKFLOW_TOOL_BUDGET_EXCEEDED",
+            details=details,
+        )
+
+
+class WorkflowUnsupportedBindingError(GovernanceViolationError):
+    """Raised or reported when an unsupported protocol binding is detected."""
+
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(
+            message,
+            code="WORKFLOW_UNSUPPORTED_BINDING",
+            details=details,
+        )
+
+
+class WorkflowSessionTokenInvalidError(AIGCError):
+    """Raised or reported when a session token is malformed, stale, or replayed."""
+
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(
+            message,
+            code="WORKFLOW_SESSION_TOKEN_INVALID",
+            details=details,
+        )

@@ -14,6 +14,7 @@ from aigc._internal.errors import (
     SchemaValidationError,
     SessionStateError,
     ToolConstraintViolationError,
+    WorkflowStarterIntegrityError,
 )
 
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     "SchemaValidationError",
     "SessionStateError",
     "ToolConstraintViolationError",
+    "WorkflowStarterIntegrityError",
 ]

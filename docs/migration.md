@@ -1,3 +1,5 @@
+> See [WORKFLOW_QUICKSTART.md](reference/WORKFLOW_QUICKSTART.md) for the fastest path to a working workflow.
+
 # Migrating from Invocation-Only to Workflow Governance
 
 This guide shows the smallest safe diff to add workflow governance to existing
@@ -74,6 +76,21 @@ assert len(artifact["steps"]) == <your step count>
 `GovernanceSession.__exit__` never suppresses exceptions. If your model call raises,
 the session transitions to `FAILED`, emits a workflow artifact with `status: FAILED`,
 and re-raises the original exception. No special handling needed.
+
+## Common mistakes
+
+### Forgetting `session.complete()`
+
+If you exit the `with` block without calling `session.complete()`, the session
+transitions to `INCOMPLETE`. The workflow artifact is emitted with
+`status: INCOMPLETE`. Call `complete()` before the block exits, or `cancel()`
+if the workflow was intentionally abandoned.
+
+### Calling `enforce_step_pre_call` while PAUSED
+
+If you call `session.enforce_step_pre_call()` while the session is in the `PAUSED`
+state, it raises `SessionStateError` with code `WORKFLOW_INVALID_TRANSITION`. Call
+`session.resume()` first to return the session to `OPEN`.
 
 ## Getting a starter scaffold
 

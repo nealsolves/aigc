@@ -14,6 +14,8 @@ Validates that documentation stays synchronized with implementation:
   J. v0.9.0 plan truth
   K. v0.9.0 release truth
   L. v0.9.0 PR-02 contract freeze truth
+  M. v0.9.0 PR-07 first-adopter docs and beta proof
+  N. Demo backend public-import boundary
 
 Usage:
     python scripts/check_doc_parity.py
@@ -557,8 +559,13 @@ _BOUNDARY_DOC_WARNING_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+_BETA_RELEASED_RE = re.compile(
+    r"(v0\.9\.0-beta|v0\.9\.0 beta).*(available|shipped|released)",
+    re.IGNORECASE | re.DOTALL,
+)
+
 _BOUNDARY_DOC_DO_NOT_USE_RE = re.compile(
-    r"do\s+not\s+build\s+current\s+integrations|"
+    r"do\s+not\s+build\s+(?:current\s+)?integrations|"
     r"not safe for current integrations|"
     r"do\s+not\s+use .* current integrations",
     re.IGNORECASE | re.DOTALL,
@@ -591,10 +598,10 @@ def check_availability_boundary_docs(manifest: dict) -> list[str]:
                 "surfaces such as GovernanceSession and aigc workflow commands"
             )
 
-        if not _BOUNDARY_DOC_WARNING_RE.search(text):
+        if not _BOUNDARY_DOC_WARNING_RE.search(text) and not _BETA_RELEASED_RE.search(text):
             errors.append(
                 f"[boundary-doc] {rel}: missing explicit planned-only / not "
-                "shipped availability warning"
+                "shipped availability warning, or beta-available statement"
             )
 
         if not _BOUNDARY_DOC_DO_NOT_USE_RE.search(text):
@@ -1884,6 +1891,117 @@ def check_v090_pr05_contract() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Check M: v0.9.0 PR-07 first-adopter docs and beta proof
+# ---------------------------------------------------------------------------
+
+_PR07_ACTIVE_BRANCH = "feat/v0.9-07-beta-proof"
+
+_PR07_FIRST_ADOPTER_DOCS = [
+    "docs/reference/WORKFLOW_QUICKSTART.md",
+    "docs/migration.md",
+    "docs/reference/TROUBLESHOOTING.md",
+    "docs/reference/STARTER_INDEX.md",
+    "docs/reference/STARTER_RECIPES.md",
+    "docs/reference/WORKFLOW_CLI.md",
+    "docs/PUBLIC_INTEGRATION_CONTRACT.md",
+    "docs/reference/SUPPORTED_ENVIRONMENTS.md",
+    "docs/reference/OPERATIONS_RUNBOOK.md",
+]
+
+_PR07_QUICKSTART_ANCHORS = [
+    "aigc workflow init --profile minimal",
+    "python workflow_example.py",
+    "Status:  COMPLETED",
+    "AIGC.open_session",
+    "enforce_step_pre_call",
+]
+
+_PR07_CLI_FORBIDDEN_RE = re.compile(
+    r"^#{1,3}\s+`aigc workflow (trace|export)`",
+    re.MULTILINE,
+)
+
+
+def check_v090_pr07_contract(manifest: dict) -> list[str]:
+    """Ensure PR-07 first-adopter docs exist and meet content anchors."""
+    errors: list[str] = []
+    pfx = "[v0.9.0-pr07]"
+
+    # Active branch in release-truth docs
+    for rel in ("docs/dev/pr_context.md", "implementation_status.md"):
+        content = _read_text(rel)
+        if not content:
+            errors.append(f"{pfx} {rel}: file missing or empty")
+            continue
+        if _PR07_ACTIVE_BRANCH not in content:
+            errors.append(
+                f"{pfx} {rel}: missing active branch string '{_PR07_ACTIVE_BRANCH}'"
+            )
+
+    # RELEASE_GATES.md has PR-07 gate section
+    gates_content = _read_text("RELEASE_GATES.md")
+    if "PR-07" not in gates_content:
+        errors.append(f"{pfx} RELEASE_GATES.md: missing PR-07 gate section")
+
+    # All first-adopter docs exist and are non-empty
+    for rel in _PR07_FIRST_ADOPTER_DOCS:
+        p = REPO_ROOT / rel
+        if not p.exists():
+            errors.append(f"{pfx} Missing required first-adopter doc: {rel}")
+        elif p.stat().st_size == 0:
+            errors.append(f"{pfx} Empty first-adopter doc: {rel}")
+
+    # Quickstart content anchors
+    qs = REPO_ROOT / "docs/reference/WORKFLOW_QUICKSTART.md"
+    if qs.exists():
+        qs_text = qs.read_text(encoding="utf-8")
+        for anchor in _PR07_QUICKSTART_ANCHORS:
+            if anchor not in qs_text:
+                errors.append(
+                    f"{pfx} WORKFLOW_QUICKSTART.md: missing required anchor '{anchor}'"
+                )
+
+    # WORKFLOW_CLI.md must not document trace or export as section headers
+    cli_doc = REPO_ROOT / "docs/reference/WORKFLOW_CLI.md"
+    if cli_doc.exists():
+        cli_text = cli_doc.read_text(encoding="utf-8")
+        if _PR07_CLI_FORBIDDEN_RE.search(cli_text):
+            errors.append(
+                f"{pfx} WORKFLOW_CLI.md: must not document 'aigc workflow trace' or "
+                "'aigc workflow export' as commands in PR-07"
+            )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check N: Demo backend public-import boundary
+# ---------------------------------------------------------------------------
+
+
+def check_demo_backend_import_boundary(_manifest: dict) -> list[str]:
+    """Ensure demo-app-api/workflow_routes.py uses only public aigc imports."""
+    errors: list[str] = []
+    pfx = "[demo-boundary]"
+    target = REPO_ROOT / "demo-app-api" / "workflow_routes.py"
+    if not target.exists():
+        errors.append(f"{pfx} demo-app-api/workflow_routes.py does not exist")
+        return errors
+    source = target.read_text(encoding="utf-8")
+    for i, line in enumerate(source.splitlines(), 1):
+        # Skip comment lines
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        if _INTERNAL_IMPORT_RE.search(line):
+            errors.append(
+                f"{pfx} demo-app-api/workflow_routes.py:{i}: "
+                f"contains aigc._internal import"
+            )
+    return errors
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -1907,6 +2025,8 @@ def main() -> int:
         ("J. v0.9.0 plan truth", check_v090_plan_truth),
         ("K. v0.9.0 release truth", check_v090_release_truth),
         ("L. v0.9.0 PR-05 starters-and-migration contract truth", check_v090_pr05_contract),
+        ("M. v0.9.0 PR-07 first-adopter docs and beta proof", lambda: check_v090_pr07_contract(manifest)),
+        ("N. Demo backend public-import boundary", lambda: check_demo_backend_import_boundary(manifest)),
     ]
 
     for name, check_fn in checks:

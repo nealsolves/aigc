@@ -12,7 +12,7 @@
 # --- Current-state values ---
 
 version: "0.3.3"
-test_count: 966
+test_count: 1233
 coverage_threshold: 90
 audit_schema_version: "1.4"
 

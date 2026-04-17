@@ -50,12 +50,12 @@ call, Phase B validates output after. Pass `pre_call_enforcement=False` for the
 legacy unified mode (deprecated).
 
 The upcoming unreleased v0.9.0-beta line will add workflow governance built
-around `AIGC.open_session(...)`, `GovernanceSession`, and `SessionPreCallResult`.
-The currently shipped package remains `v0.3.3`. Optional Bedrock/A2A normalization
-adapters, the full workflow CLI commands (`aigc policy init`, `aigc workflow init`,
-`aigc workflow lint`, `aigc workflow doctor`, `aigc workflow trace`,
-`aigc workflow export`), and PR-05+ surfaces remain planned-only and are not part
-of the `v0.3.3` runtime or CLI. That architecture is captured in
+around `AIGC.open_session(...)`, `GovernanceSession`, `SessionPreCallResult`,
+`aigc workflow init`, and `aigc policy init`. The currently shipped package
+remains `v0.3.3`. Optional Bedrock/A2A normalization adapters and the remaining
+workflow CLI commands (`aigc workflow lint`, `aigc workflow doctor`,
+`aigc workflow trace`, `aigc workflow export`) remain planned-only and are not
+part of the `v0.3.3` runtime or CLI. That architecture is captured in
 `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
 
 ## Release Narrative
@@ -184,8 +184,9 @@ The `aigc` console script exposes three practical commands:
   include DAG-level lineage analysis (node counts, duplicate detection,
   root/leaf/orphan lists, cycle detection)
 
-Planned `v0.9.0` starter and workflow commands may be named in target-state
-docs, but `aigc policy init` and all `aigc workflow ...` commands remain
+Planned `v0.9.0` commands may be named in target-state docs. `aigc workflow init`
+and `aigc policy init` are shipped in v0.9.0-beta. `aigc workflow lint`,
+`aigc workflow doctor`, `aigc workflow trace`, and `aigc workflow export` remain
 unshipped in the current `v0.3.3` CLI.
 
 ## Repo Guide

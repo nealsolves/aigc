@@ -2,7 +2,7 @@
 
 **Target Version:** `0.9.0` Beta
 **Baseline Version:** `0.3.3`
-**Active Branch:** `feat/v0.9-04-minimal-session-flow`
+**Active Branch:** `feat/v0.9-05-starters-and-migration`
 **Last Updated:** 2026-04-16
 
 ---
@@ -14,15 +14,16 @@ Current state:
 - PR-01 is complete
 - PR-02 is complete
 - PR-03 is complete
-- PR-04 is in progress
+- PR-04 is complete
+- PR-05 is in progress
 
 | Track | Status | Notes |
 |-------|--------|-------|
 | Source of truth | complete | Canonical docs and CI truth checks are the baseline for later PRs |
 | Contract freeze | complete | PR-02 froze lifecycle, planned-only workflow surfaces, and protocol-boundary rules |
 | Golden-path contract | complete | PR-03 froze command names, starter profiles, docs order, and public-import rules |
-| Minimal session flow | in progress | PR-04: GovernanceSession, AIGC.open_session, SessionPreCallResult |
-| Starters and migration | not started | Starts in PR-05 |
+| Minimal session flow | complete | PR-04: GovernanceSession, AIGC.open_session, SessionPreCallResult |
+| Starters and migration | in progress | PR-05: aigc workflow init, aigc policy init, starter scaffolds, migration guide |
 | Diagnostics | not started | Starts in PR-06 |
 | Beta proof | not started | Starts in PR-07 |
 | Engine hardening | not started | Starts in PR-08 |

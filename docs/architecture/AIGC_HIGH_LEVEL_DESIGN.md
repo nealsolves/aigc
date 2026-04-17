@@ -24,9 +24,11 @@ Availability boundary: this document describes the intended `1.0.0` public
 surface. The currently shipped package remains `v0.3.3`. The upcoming unreleased
 v0.9.0-beta line will add `GovernanceSession`, `SessionPreCallResult`, and
 `AIGC.open_session(...)`. `AgentIdentity`, `AgentCapabilityManifest`,
-`ValidatorHook`, `BedrockTraceAdapter`, `A2AAdapter`, `aigc policy init`, and
-`aigc workflow ...` commands remain planned-only and are not part of any
-currently released artifact.
+The upcoming unreleased v0.9.0-beta adds `aigc workflow init` and
+`aigc policy init`. `ValidatorHook`, `BedrockTraceAdapter`, `A2AAdapter`,
+`aigc workflow lint`, `aigc workflow doctor`, `aigc workflow trace`, and
+`aigc workflow export` remain planned-only and are not part of any currently
+released artifact.
 
 Headline 1.0.0 capabilities:
 

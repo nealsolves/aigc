@@ -15,11 +15,16 @@ and are not part of the installable `v0.3.3` artifact: `AIGC.open_session(...)`,
 `open_session()` convenience — workflow adoption is always instance-scoped through
 `AIGC.open_session(...)`.
 
+Also planned for the upcoming unreleased v0.9.0-beta: `aigc workflow init`,
+`aigc policy init`, `aigc.presets.MinimalPreset`, `aigc.presets.StandardPreset`,
+`aigc.presets.RegulatedHighAssurancePreset`, `WorkflowStarterIntegrityError`,
+and `docs/migration.md` (migration guide from invocation-only to workflow governance).
+
 The following surfaces remain planned-only beyond v0.9.0-beta and are not part of
 the `v0.3.3` artifact: `AgentIdentity`, `AgentCapabilityManifest`, `ValidatorHook`,
-`BedrockTraceAdapter`, `A2AAdapter`, `aigc policy init`, and `aigc workflow ...`
-commands. Do not build integrations against those names until they ship through the
-public package exports, instance API, CLI surface, and contract tests.
+`BedrockTraceAdapter`, `A2AAdapter`. Do not build integrations against those names
+until they ship through the public package exports, instance API, CLI surface, and
+contract tests.
 
 All public examples, starter packs, presets, demo code, and docs snippets
 must use public `aigc` imports only and must not depend on `aigc._internal`.

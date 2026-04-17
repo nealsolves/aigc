@@ -1443,6 +1443,8 @@ def check_v090_pr02_contract() -> list[str]:
 
 _V090_PR03_ACTIVE_BRANCH = "feat/v0.9-03-golden-path-contract"
 _V090_PR04_ACTIVE_BRANCH = "feat/v0.9-04-minimal-session-flow"
+_V090_PR05_ACTIVE_BRANCH = "feat/v0.9-05-starters-and-migration"
+_V090_PR05_PUBLIC_CONTRACT_REL = "docs/PUBLIC_INTEGRATION_CONTRACT.md"
 _V090_PROJECT_MD_REL = "PROJECT.md"
 _V090_ENFORCEMENT_PIPELINE_REL = "docs/architecture/ENFORCEMENT_PIPELINE.md"
 _V090_PR03_EXPECTED_CLI_COMMANDS = [
@@ -1790,6 +1792,116 @@ def check_v090_pr04_contract() -> list[str]:
     return errors
 
 
+def check_v090_pr05_contract() -> list[str]:
+    """Verify PR-05 doc state: starters-and-migration surfaces documented as upcoming v0.9.0-beta."""
+    errors: list[str] = []
+
+    required_files = [
+        _V090_PR_CONTEXT_REL,
+        "implementation_status.md",
+        _V090_PR05_PUBLIC_CONTRACT_REL,
+        "README.md",
+        _V090_HLD_REL,
+    ]
+    texts: dict[str, str] = {}
+    for rel in required_files:
+        text = _read_text(rel)
+        if not text:
+            errors.append(f"[v0.9.0-pr05] missing required file: {rel}")
+            continue
+        texts[rel] = text
+
+    if errors:
+        return errors
+
+    pfx = "[v0.9.0-pr05]"
+
+    # -- Active branch --
+    _require_all(
+        errors,
+        _V090_PR_CONTEXT_REL,
+        texts[_V090_PR_CONTEXT_REL],
+        [f"Active branch: `{_V090_PR05_ACTIVE_BRANCH}`"],
+        "PR-05 active branch",
+        error_prefix=pfx,
+    )
+    _require_all(
+        errors,
+        "implementation_status.md",
+        texts["implementation_status.md"],
+        [f"**Active Branch:** `{_V090_PR05_ACTIVE_BRANCH}`"],
+        "PR-05 active branch",
+        error_prefix=pfx,
+    )
+
+    # -- PUBLIC_INTEGRATION_CONTRACT: PR-05 surfaces present, CLI entries removed from beyond-beta --
+    _require_all(
+        errors,
+        _V090_PR05_PUBLIC_CONTRACT_REL,
+        texts[_V090_PR05_PUBLIC_CONTRACT_REL],
+        ["aigc workflow init", "aigc policy init", "MinimalPreset"],
+        "PR-05 surfaces in PUBLIC_INTEGRATION_CONTRACT",
+        error_prefix=pfx,
+    )
+    # CLI commands must no longer appear in the "beyond v0.9.0-beta" beyond-listing
+    for forbidden in ["aigc policy init`, and `aigc workflow ...", "aigc workflow ...`\ncommands"]:
+        normalized = re.sub(r"\s+", " ", texts[_V090_PR05_PUBLIC_CONTRACT_REL])
+        if re.sub(r"\s+", " ", forbidden) in normalized:
+            errors.append(
+                f"{pfx} {_V090_PR05_PUBLIC_CONTRACT_REL}: "
+                f"must not retain CLI commands in beyond-beta listing: {forbidden!r}"
+            )
+
+    # -- README.md: both shipped CLI commands present; planned-only listing updated --
+    _require_all(
+        errors,
+        "README.md",
+        texts["README.md"],
+        ["aigc workflow init", "aigc policy init"],
+        "PR-05 shipped CLI commands in README (positive assertion required)",
+        error_prefix=pfx,
+    )
+    for forbidden in [
+        "aigc policy init`, `aigc workflow init`",
+    ]:
+        normalized_readme = re.sub(r"\s+", " ", texts["README.md"])
+        if re.sub(r"\s+", " ", forbidden) in normalized_readme:
+            errors.append(
+                f"{pfx} README.md: planned-only sentence not updated: {forbidden!r}"
+            )
+
+    # -- AIGC_HIGH_LEVEL_DESIGN.md: both shipped commands present; planned-only sentence updated --
+    _require_all(
+        errors,
+        _V090_HLD_REL,
+        texts[_V090_HLD_REL],
+        ["aigc workflow init", "aigc policy init"],
+        "PR-05 shipped CLI commands in HLD (positive assertion required)",
+        error_prefix=pfx,
+    )
+    # The old planned-only sentence (whitespace-normalized): check it is gone
+    normalized_hld = re.sub(r"\s+", " ", texts[_V090_HLD_REL])
+    for forbidden in [
+        "`aigc policy init`, and `aigc workflow ...` commands remain planned-only",
+    ]:
+        if re.sub(r"\s+", " ", forbidden) in normalized_hld:
+            errors.append(
+                f"{pfx} {_V090_HLD_REL}: planned-only sentence not updated: {forbidden!r}"
+            )
+
+    # -- implementation_status.md: PR-04 complete, PR-05 in progress --
+    _require_all(
+        errors,
+        "implementation_status.md",
+        texts["implementation_status.md"],
+        ["PR-04 is complete", "Starters and migration"],
+        "PR-04 complete + starters row",
+        error_prefix=pfx,
+    )
+
+    return errors
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -1813,7 +1925,7 @@ def main() -> int:
         ("I. Semantic behavioral claims", check_semantic_claims),
         ("J. v0.9.0 plan truth", check_v090_plan_truth),
         ("K. v0.9.0 release truth", check_v090_release_truth),
-        ("L. v0.9.0 PR-04 golden-path contract truth", check_v090_pr04_contract),
+        ("L. v0.9.0 PR-05 starters-and-migration contract truth", check_v090_pr05_contract),
     ]
 
     for name, check_fn in checks:

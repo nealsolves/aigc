@@ -119,20 +119,20 @@ Branch:
 
 Checklist:
 
-- [ ] `docs/dev/pr_context.md` and `implementation_status.md` are aligned to PR-07
-- [ ] `docs/reference/WORKFLOW_QUICKSTART.md` exists and covers minimal starter to COMPLETED
-- [ ] `docs/reference/TROUBLESHOOTING.md` exists and covers doctor/lint guidance
-- [ ] `docs/reference/STARTER_INDEX.md` and `docs/reference/STARTER_RECIPES.md` exist
-- [ ] `docs/reference/WORKFLOW_CLI.md` exists and covers policy init, workflow init, workflow lint, workflow doctor only (not trace/export)
-- [ ] `docs/PUBLIC_INTEGRATION_CONTRACT.md` v0.9.0 section updated from planned-only to beta
-- [ ] `docs/reference/SUPPORTED_ENVIRONMENTS.md` exists
-- [ ] `docs/reference/OPERATIONS_RUNBOOK.md` exists
-- [ ] `tests/test_pr07_beta_proof.py` passes: minimal → COMPLETED, standard → COMPLETED, regulated failure path
-- [ ] `scripts/validate_v090_beta_proof.py` runs end-to-end in a clean venv within 15 minutes
-- [ ] `demo-app-api/workflow_routes.py` router imported in `demo-app-api/main.py`
-- [ ] `demo-app-react/src/WorkflowLab/WorkflowLab.tsx` exists with 4 tabs
-- [ ] no `aigc._internal` imports in any doc, example, demo, or starter
-- [ ] Full test suite passes: `python -m pytest -v`, `flake8 aigc`, `python scripts/check_doc_parity.py`, `pytest demo-app-api/tests -q`, `npm --prefix demo-app-react test`, `npm --prefix demo-app-react run build`
+- [x] `docs/dev/pr_context.md` and `implementation_status.md` are aligned to PR-07
+- [x] `docs/reference/WORKFLOW_QUICKSTART.md` exists and covers minimal starter to COMPLETED
+- [x] `docs/reference/TROUBLESHOOTING.md` exists and covers doctor/lint guidance
+- [x] `docs/reference/STARTER_INDEX.md` and `docs/reference/STARTER_RECIPES.md` exist
+- [x] `docs/reference/WORKFLOW_CLI.md` exists and covers policy init, workflow init, workflow lint, workflow doctor only (not trace/export)
+- [x] `docs/PUBLIC_INTEGRATION_CONTRACT.md` v0.9.0 section updated from planned-only to beta
+- [x] `docs/reference/SUPPORTED_ENVIRONMENTS.md` exists
+- [x] `docs/reference/OPERATIONS_RUNBOOK.md` exists
+- [x] `tests/test_pr07_beta_proof.py` passes: minimal → COMPLETED, standard → COMPLETED, regulated failure path
+- [x] `scripts/validate_v090_beta_proof.py` runs end-to-end in a clean venv within 15 minutes
+- [x] `demo-app-api/workflow_routes.py` router imported in `demo-app-api/main.py`
+- [x] `demo-app-react/src/labs/Lab11WorkflowLab.tsx` exists with 4 tabs (at `labs/` path, not `WorkflowLab/`)
+- [x] no `aigc._internal` imports in any doc, example, demo, or starter
+- [x] Full test suite passes: `python -m pytest -v`, `flake8 aigc`, `python scripts/check_doc_parity.py`, `pytest demo-app-api/tests -q`, `npm --prefix demo-app-react test`, `npm --prefix demo-app-react run build`
 
 ---
 
@@ -178,12 +178,12 @@ Checklist:
 
 ### PR-07 — Quickstart, Demo, and Beta Proof
 
-- [ ] PR-07 is the mandatory stop-ship checkpoint
-- [ ] clean-environment quickstart succeeds within the `15` minute target
-- [ ] at least one intentional failure-and-fix flow passes end to end
-- [ ] the default adopter path succeeds without Bedrock or A2A
-- [ ] no internal-code reading is required on the default path
-- [ ] no fake backend behavior exists in the demo
+- [x] PR-07 is the mandatory stop-ship checkpoint
+- [x] clean-environment quickstart succeeds within the `15` minute target
+- [x] at least one intentional failure-and-fix flow passes end to end
+- [x] the default adopter path succeeds without Bedrock or A2A
+- [x] no internal-code reading is required on the default path
+- [x] no fake backend behavior exists in the demo
 
 ### PR-08 — Workflow Engine Hardening
 

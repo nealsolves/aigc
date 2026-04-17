@@ -1,0 +1,73 @@
+"""Smoke tests for the v0.9.0 workflow governance demo routes."""
+import sys
+import os
+
+import pytest
+from fastapi.testclient import TestClient
+
+# Tests rely on conftest.py in demo-app-api/ to add API dir to sys.path.
+# Import app from main (same pattern as existing demo tests).
+from main import app
+
+client = TestClient(app)
+
+
+def test_workflow_run_minimal():
+    r = client.post("/api/workflow/v090/run", json={"scenario": "minimal"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["artifact"]["status"] == "COMPLETED"
+    assert len(data["artifact"]["steps"]) == 2
+    assert "workflow_schema_version" in data["artifact"]
+    assert data["error"] is None
+
+
+def test_workflow_run_standard():
+    r = client.post("/api/workflow/v090/run", json={"scenario": "standard"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["artifact"]["status"] == "COMPLETED"
+    assert len(data["artifact"]["steps"]) == 3
+    assert data["error"] is None
+
+
+def test_workflow_run_failure():
+    r = client.post("/api/workflow/v090/run", json={"scenario": "failure"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["artifact"]["status"] == "FAILED"
+    assert data["artifact"]["failure_summary"] is not None
+    assert data["error"] is not None
+
+
+def test_workflow_compare():
+    r = client.post("/api/workflow/v090/compare")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["governed"]["artifact"]["status"] == "COMPLETED"
+    assert "ungoverned" in data
+    assert data["ungoverned"]["artifact"]["audit_available"] is False
+
+
+def test_workflow_diagnose_no_prior_failure():
+    # Use a fresh client to avoid state from other tests
+    fresh_client = TestClient(app)
+    # Reset module-level state in workflow_routes
+    import workflow_routes
+    workflow_routes._last_failed_artifact = None
+    r = fresh_client.get("/api/workflow/v090/diagnose")
+    assert r.status_code == 200
+    data = r.json()
+    assert "findings" in data
+    assert isinstance(data["findings"], list)
+
+
+def test_workflow_diagnose_after_failure():
+    # Trigger a failure first
+    client.post("/api/workflow/v090/run", json={"scenario": "failure"})
+    r = client.get("/api/workflow/v090/diagnose")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data["findings"], list)
+    # findings may be empty or have entries depending on artifact shape
+    # The key assertion is that the endpoint returns 200 and a findings list

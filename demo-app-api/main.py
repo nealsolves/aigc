@@ -24,6 +24,7 @@ from aigc.policy_loader import (
 from gates import GATES, get_gate_info
 from loaders import InMemoryPolicyLoader
 import yaml as yaml_lib
+from workflow_routes import router as workflow_router
 
 app = FastAPI(title="AIGC Demo API", version="0.3.3")
 
@@ -37,6 +38,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(workflow_router)
 
 SAMPLE_POLICIES_DIR = Path(__file__).resolve().parent / "sample_policies"
 

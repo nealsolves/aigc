@@ -25,6 +25,7 @@ from aigc._internal.policy_loader import (
 from aigc._internal.errors import PolicyLoadError, PolicyValidationError
 from aigc._internal.lineage import AuditLineage
 from aigc._internal.policy_init import _cmd_policy_init
+from aigc._internal.workflow_init import _cmd_workflow_init
 
 
 def _load_schema() -> dict:
@@ -395,6 +396,37 @@ def build_parser() -> argparse.ArgumentParser:
     )
     export_parser.set_defaults(func=_cmd_compliance_export)
 
+    # aigc workflow ...
+    workflow_parser = subparsers.add_parser(
+        "workflow",
+        help="Workflow governance commands",
+    )
+    workflow_sub = workflow_parser.add_subparsers(dest="subcommand")
+
+    # aigc workflow init --profile <profile> [--output-dir <dir>] [--role <role>]
+    workflow_init_parser = workflow_sub.add_parser(
+        "init",
+        help="Generate a workflow starter from a profile",
+    )
+    workflow_init_parser.add_argument(
+        "--profile",
+        choices=["minimal", "standard", "regulated-high-assurance"],
+        required=True,
+        help="Starter profile to scaffold",
+    )
+    workflow_init_parser.add_argument(
+        "--output-dir",
+        default="governance",
+        dest="output_dir",
+        help="Output directory (default: ./governance/)",
+    )
+    workflow_init_parser.add_argument(
+        "--role",
+        default="ai-assistant",
+        help="Default role in generated policy (default: ai-assistant)",
+    )
+    workflow_init_parser.set_defaults(func=_cmd_workflow_init)
+
     return parser
 
 
@@ -404,6 +436,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if not hasattr(args, "func"):
+        # Top-level command with no subcommand — show help without sys.exit
+        if hasattr(args, "command") and args.command in ("policy", "workflow", "compliance"):
+            for action in parser._subparsers._actions:  # type: ignore[attr-defined]
+                if hasattr(action, "_name_parser_map"):
+                    sub = action._name_parser_map.get(args.command)
+                    if sub:
+                        sub.print_help()
+                        return 1
         parser.print_help()
         return 1
 

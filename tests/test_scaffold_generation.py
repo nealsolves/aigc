@@ -205,3 +205,90 @@ def test_policy_init_custom_role(tmp_path):
     assert rc == 0
     parsed = yaml.safe_load(out.read_text())
     assert "summarizer" in parsed["roles"]
+
+
+# ---------------------------------------------------------------------------
+# Task 5: aigc workflow init CLI command
+# ---------------------------------------------------------------------------
+
+def test_workflow_init_minimal_creates_expected_files(tmp_path):
+    from aigc._internal.cli import main
+    out_dir = tmp_path / "governance"
+    rc = main(["workflow", "init", "--profile", "minimal", "--output-dir", str(out_dir)])
+    assert rc == 0
+    assert (out_dir / "policy.yaml").exists()
+    assert (out_dir / "workflow_example.py").exists()
+    assert (out_dir / "README.md").exists()
+
+
+def test_workflow_init_standard_creates_expected_files(tmp_path):
+    from aigc._internal.cli import main
+    out_dir = tmp_path / "governance"
+    rc = main(["workflow", "init", "--profile", "standard", "--output-dir", str(out_dir)])
+    assert rc == 0
+    assert (out_dir / "policy.yaml").exists()
+    assert (out_dir / "workflow_example.py").exists()
+
+
+def test_workflow_init_regulated_creates_expected_files(tmp_path):
+    from aigc._internal.cli import main
+    out_dir = tmp_path / "governance"
+    rc = main(["workflow", "init", "--profile", "regulated-high-assurance", "--output-dir", str(out_dir)])
+    assert rc == 0
+    assert (out_dir / "policy.yaml").exists()
+    assert (out_dir / "workflow_example.py").exists()
+
+
+def test_workflow_init_fails_if_any_file_exists(tmp_path):
+    from aigc._internal.cli import main
+    out_dir = tmp_path / "governance"
+    out_dir.mkdir()
+    (out_dir / "policy.yaml").write_text("existing")
+    rc = main(["workflow", "init", "--profile", "minimal", "--output-dir", str(out_dir)])
+    assert rc == 1
+    # Existing file was not overwritten
+    assert (out_dir / "policy.yaml").read_text() == "existing"
+
+
+def test_workflow_init_default_output_dir(tmp_path, monkeypatch):
+    from aigc._internal.cli import main
+    monkeypatch.chdir(tmp_path)
+    rc = main(["workflow", "init", "--profile", "minimal"])
+    assert rc == 0
+    assert (tmp_path / "governance" / "policy.yaml").exists()
+
+
+def test_workflow_init_custom_role(tmp_path):
+    import yaml
+    from aigc._internal.cli import main
+    out_dir = tmp_path / "governance"
+    rc = main(["workflow", "init", "--profile", "minimal", "--role", "reviewer",
+               "--output-dir", str(out_dir)])
+    assert rc == 0
+    parsed = yaml.safe_load((out_dir / "policy.yaml").read_text())
+    assert "reviewer" in parsed["roles"]
+
+
+def test_workflow_init_generated_py_no_internal_imports(tmp_path):
+    import ast
+    from aigc._internal.cli import main
+    out_dir = tmp_path / "governance"
+    rc = main(["workflow", "init", "--profile", "regulated-high-assurance",
+               "--output-dir", str(out_dir)])
+    assert rc == 0
+    source = (out_dir / "workflow_example.py").read_text()
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                assert "_internal" not in alias.name
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            assert "_internal" not in module
+
+
+def test_workflow_no_subcommand_returns_nonzero():
+    """aigc workflow with no subcommand must return 1 (not raise SystemExit)."""
+    from aigc._internal.cli import main
+    rc = main(["workflow"])
+    assert rc == 1

@@ -79,3 +79,74 @@ def test_minimal_preset_special_character_role():
     preset = MinimalPreset(role="ai:assistant")
     parsed = yaml.safe_load(preset.policy_yaml)
     assert "ai:assistant" in parsed["roles"]
+
+
+# ---------------------------------------------------------------------------
+# Task 3: Starter Templates
+# ---------------------------------------------------------------------------
+
+def test_render_minimal_starter_returns_expected_files():
+    from aigc._internal.starter_templates import render_minimal_starter
+    files = render_minimal_starter()
+    assert set(files.keys()) == {"policy.yaml", "workflow_example.py", "README.md"}
+
+
+def test_render_standard_starter_returns_expected_files():
+    from aigc._internal.starter_templates import render_standard_starter
+    files = render_standard_starter()
+    assert set(files.keys()) == {"policy.yaml", "workflow_example.py", "README.md"}
+
+
+def test_render_regulated_starter_returns_expected_files():
+    from aigc._internal.starter_templates import render_regulated_starter
+    files = render_regulated_starter()
+    assert set(files.keys()) == {"policy.yaml", "workflow_example.py", "README.md"}
+
+
+def test_minimal_starter_policy_is_valid_yaml():
+    import yaml
+    from aigc._internal.starter_templates import render_minimal_starter
+    files = render_minimal_starter()
+    parsed = yaml.safe_load(files["policy.yaml"])
+    assert parsed["policy_version"] == "1.0"
+    assert "ai-assistant" in parsed["roles"]
+
+
+def test_regulated_starter_policy_has_tool_budget():
+    import yaml
+    from aigc._internal.starter_templates import render_regulated_starter
+    files = render_regulated_starter()
+    parsed = yaml.safe_load(files["policy.yaml"])
+    assert "tools" in parsed
+    assert "allowed_tools" in parsed["tools"]
+
+
+def test_starter_workflow_py_no_internal_imports():
+    """Generated workflow_example.py files must not import from aigc._internal."""
+    import ast
+    from aigc._internal.starter_templates import (
+        render_minimal_starter,
+        render_standard_starter,
+        render_regulated_starter,
+    )
+    for render_fn in [render_minimal_starter, render_standard_starter, render_regulated_starter]:
+        files = render_fn()
+        source = files["workflow_example.py"]
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    assert "_internal" not in alias.name, (
+                        f"Internal import in starter: {alias.name}"
+                    )
+            elif isinstance(node, ast.ImportFrom):
+                module = node.module or ""
+                assert "_internal" not in module, (
+                    f"Internal import from in starter: {module}"
+                )
+
+
+def test_starter_role_customization():
+    from aigc._internal.starter_templates import render_minimal_starter
+    files = render_minimal_starter(role="summarizer")
+    assert "summarizer" in files["policy.yaml"]

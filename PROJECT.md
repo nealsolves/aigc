@@ -240,7 +240,8 @@ Released `2026-04-10`.
 
 `0.3.3` extends AIGC's invocation-governance runtime with provenance,
 lineage, and risk-trend primitives that future workflow governance will build
-on. It does not yet ship the planned `GovernanceSession` workflow runtime.
+on. The currently shipped package remains `v0.3.3`. The upcoming unreleased v0.9.0-beta
+line will add `GovernanceSession`, `SessionPreCallResult`, and `AIGC.open_session(...)`.
 
 What shipped:
 

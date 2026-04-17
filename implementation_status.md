@@ -2,7 +2,7 @@
 
 **Target Version:** `0.9.0` Beta
 **Baseline Version:** `0.3.3`
-**Active Branch:** `feat/v0.9-03-golden-path-contract`
+**Active Branch:** `feat/v0.9-04-minimal-session-flow`
 **Last Updated:** 2026-04-16
 
 ---
@@ -13,15 +13,15 @@ Current state:
 
 - PR-01 is complete
 - PR-02 is complete
-- PR-03 is in progress
-- workflow runtime implementation still starts in PR-04
+- PR-03 is complete
+- PR-04 is in progress
 
 | Track | Status | Notes |
 |-------|--------|-------|
 | Source of truth | complete | Canonical docs and CI truth checks are the baseline for later PRs |
 | Contract freeze | complete | PR-02 froze lifecycle, planned-only workflow surfaces, and protocol-boundary rules |
-| Golden-path contract | in progress | PR-03 is freezing command names, starter profiles, docs order, and public-import rules |
-| Minimal session flow | not started | Starts in PR-04 |
+| Golden-path contract | complete | PR-03 froze command names, starter profiles, docs order, and public-import rules |
+| Minimal session flow | in progress | PR-04: GovernanceSession, AIGC.open_session, SessionPreCallResult |
 | Starters and migration | not started | Starts in PR-05 |
 | Diagnostics | not started | Starts in PR-06 |
 | Beta proof | not started | Starts in PR-07 |

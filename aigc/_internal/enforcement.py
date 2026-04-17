@@ -25,7 +25,10 @@ import re
 import time as _time
 import types
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
+
+if TYPE_CHECKING:
+    from aigc._internal.session import GovernanceSession
 
 import warnings
 
@@ -1581,6 +1584,29 @@ def enforce_post_call(
     :raises: AIGCError subclasses on governance violation
              (FAIL artifact emitted)
     """
+    # 0. Session token guard — SessionPreCallResult must not bypass GovernanceSession
+    if getattr(pre_call_result, "_IS_SESSION_TOKEN", False):
+        exc = InvocationValidationError(
+            "SessionPreCallResult cannot be completed via enforce_post_call(); "
+            "use GovernanceSession.enforce_step_post_call() instead",
+            details={"received_type": type(pre_call_result).__name__},
+        )
+        safe_inv = {
+            "policy_file": "unknown", "model_provider": "unknown",
+            "model_identifier": "unknown", "role": "unknown",
+            "input": {}, "output": {}, "context": {},
+        }
+        artifact = _generate_pre_pipeline_fail_artifact(safe_inv, exc)
+        artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+        exc.audit_artifact = artifact
+        try:
+            emit_to_sink(artifact)
+        except AuditSinkError as sink_exc:
+            logger.error(
+                "Sink emission failed on pre-pipeline FAIL path: %s", sink_exc,
+            )
+        raise exc
+
     # 1. Type check
     if not isinstance(pre_call_result, PreCallResult):
         exc = InvocationValidationError(
@@ -2356,6 +2382,26 @@ class AIGC:
         """Per-instance policy cache."""
         return self._policy_cache
 
+    def open_session(
+        self,
+        *,
+        session_id: str | None = None,
+        policy_file: str | None = None,
+        metadata: dict | None = None,
+    ) -> "GovernanceSession":
+        """Open a governed workflow session (instance-scoped).
+
+        :param session_id: Caller-supplied identifier; UUID4 generated if omitted
+        :param policy_file: Session-level policy override; if set, all steps use
+            this policy regardless of per-invocation policy_file
+        :param metadata: Host metadata attached to the workflow artifact
+        :return: GovernanceSession context manager
+        """
+        import uuid as _uuid
+        from aigc._internal.session import GovernanceSession
+        sid = session_id or str(_uuid.uuid4())
+        return GovernanceSession(self, sid, policy_file, metadata)
+
     def enforce(self, invocation: Mapping[str, Any]) -> dict[str, Any]:
         """Enforce governance rules (synchronous).
 
@@ -2704,6 +2750,41 @@ class AIGC:
         :return: PASS audit artifact
         :raises: AIGCError subclasses on governance violation
         """
+        # 0. Session token guard — SessionPreCallResult must not bypass GovernanceSession
+        if getattr(pre_call_result, "_IS_SESSION_TOKEN", False):
+            exc = InvocationValidationError(
+                "SessionPreCallResult cannot be completed via enforce_post_call(); "
+                "use GovernanceSession.enforce_step_post_call() instead",
+                details={
+                    "received_type": type(pre_call_result).__name__,
+                },
+            )
+            safe_inv = {
+                "policy_file": "unknown",
+                "model_provider": "unknown",
+                "model_identifier": "unknown",
+                "role": "unknown",
+                "input": {}, "output": {}, "context": {},
+            }
+            artifact = _generate_pre_pipeline_fail_artifact(
+                safe_inv, exc,
+                redaction_patterns=self._redaction_patterns,
+            )
+            artifact.setdefault("metadata", {})["enforcement_mode"] = "split"
+            exc.audit_artifact = artifact
+            try:
+                emit_to_sink(
+                    artifact,
+                    sink=self._sink,
+                    failure_mode=self._on_sink_failure,
+                )
+            except AuditSinkError as sink_exc:
+                logger.error(
+                    "Sink emission failed on pre-pipeline FAIL path: %s",
+                    sink_exc,
+                )
+            raise exc
+
         # 1. Type check
         if not isinstance(pre_call_result, PreCallResult):
             exc = InvocationValidationError(

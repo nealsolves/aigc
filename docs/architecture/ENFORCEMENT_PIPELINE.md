@@ -291,8 +291,9 @@ Failure codes:
 ## Workflow Governance (Planned `1.0.0` Target State)
 
 The shipped `0.3.3` runtime remains invocation-scoped. Its provenance, lineage,
-and risk-history additions are groundwork for this future session model, not a
-shipped `GovernanceSession` workflow runtime.
+and risk-history additions are groundwork for the upcoming unreleased v0.9.0-beta
+line, which will ship the initial `GovernanceSession` primitive. The currently
+shipped package remains `v0.3.3`.
 
 A `GovernanceSession` will manage:
 

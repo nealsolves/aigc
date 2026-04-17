@@ -1,8 +1,8 @@
-# PR Context — `v0.9.0` PR-03 Golden-Path Contract Freeze
+# PR Context — `v0.9.0` PR-04 Minimal Session Flow
 
 Date: 2026-04-16
-Status: Draft
-Active branch: `feat/v0.9-03-golden-path-contract`
+Status: In Progress
+Active branch: `feat/v0.9-04-minimal-session-flow`
 
 ---
 

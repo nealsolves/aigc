@@ -837,3 +837,211 @@ def test_v090_pr03_contract_rejects_missing_release_gate(tmp_path, monkeypatch):
         and "## PR-03 — Golden-Path Contract Freeze Gate" in error
         for error in errors
     ), errors
+
+
+# ---------------------------------------------------------------------------
+# PR-04 Seeded Contract Tests
+# ---------------------------------------------------------------------------
+
+_PR04_PLAN_CONTENT = """\
+# AIGC v0.9.0 Implementation Plan
+
+PR-04 implements GovernanceSession, AIGC.open_session(...), and SessionPreCallResult.
+"""
+
+_PR04_HLD_CONTENT = """\
+# AIGC High Level Design
+
+Availability boundary: The currently shipped package remains v0.3.3.
+The upcoming unreleased v0.9.0-beta line will add GovernanceSession, SessionPreCallResult,
+and AIGC.open_session(...).
+
+## Planned for v0.9.0-beta (not yet released)
+
+| Surface | Intended role |
+| ------- | ------------- |
+| `GovernanceSession` | workflow governance primitive |
+| `SessionPreCallResult` | workflow-scoped split handoff |
+| `AIGC.open_session(...)` | instance-scoped workflow entrypoint |
+
+## Planned for 1.0.0 (not in v0.9.0-beta)
+
+| Planned surface | Intended role in `1.0.0` |
+| --------------- | ------------------------ |
+| `AgentIdentity` | participant identity contract |
+"""
+
+_PR04_README_CONTENT = """\
+# AIGC README
+
+The upcoming unreleased v0.9.0-beta line will add workflow governance built
+around `AIGC.open_session(...)`, `GovernanceSession`, and `SessionPreCallResult`.
+The currently shipped package remains `v0.3.3`.
+"""
+
+_PR04_PUBLIC_CONTRACT_CONTENT = """\
+# AIGC Public Integration Contract
+
+The following surfaces are planned for the upcoming unreleased v0.9.0-beta line
+and are not part of the installable `v0.3.3` artifact: `AIGC.open_session(...)`,
+`GovernanceSession`, `SessionPreCallResult`.
+
+The following surfaces remain planned-only: `AgentIdentity`, `AgentCapabilityManifest`,
+`aigc policy init`, and `aigc workflow ...` commands.
+"""
+
+_PR04_PR_CONTEXT_CONTENT = """\
+# PR Context - v0.9.0 PR-04 Minimal Session Flow
+
+Active branch: `feat/v0.9-04-minimal-session-flow`
+
+PR-04 lands GovernanceSession, AIGC.open_session, and SessionPreCallResult.
+"""
+
+_PR04_RELEASE_GATES_CONTENT = """\
+# Release Gates
+
+## PR-03 — Golden-Path Contract Freeze Gate
+
+- [ ] staged CLI sentinel tests pass
+"""
+
+_PR04_IMPLEMENTATION_STATUS_CONTENT = """\
+# Implementation Status
+
+**Active Branch:** `feat/v0.9-04-minimal-session-flow`
+
+- PR-04 is in progress
+"""
+
+_PR04_PROJECT_MD_CONTENT = """\
+# PROJECT.md
+
+The currently shipped package remains `v0.3.3`. The upcoming unreleased v0.9.0-beta
+line will add `GovernanceSession`, `SessionPreCallResult`, and `AIGC.open_session(...)`.
+"""
+
+_PR04_ENFORCEMENT_PIPELINE_CONTENT = """\
+# Enforcement Pipeline
+
+The shipped `0.3.3` runtime remains invocation-scoped. Its provenance, lineage,
+and risk-history additions are groundwork for the upcoming unreleased v0.9.0-beta
+line, which will ship the initial `GovernanceSession` primitive. The currently
+shipped package remains `v0.3.3`.
+"""
+
+
+def _seed_pr04_contract_repo(
+    root: Path,
+    *,
+    plan: str = _PR04_PLAN_CONTENT,
+    hld: str = _PR04_HLD_CONTENT,
+    readme: str = _PR04_README_CONTENT,
+    public_contract: str = _PR04_PUBLIC_CONTRACT_CONTENT,
+    pr_context: str = _PR04_PR_CONTEXT_CONTENT,
+    release_gates: str = _PR04_RELEASE_GATES_CONTENT,
+    implementation_status: str = _PR04_IMPLEMENTATION_STATUS_CONTENT,
+    project_md: str = _PR04_PROJECT_MD_CONTENT,
+    enforcement_pipeline: str = _PR04_ENFORCEMENT_PIPELINE_CONTENT,
+) -> None:
+    _write_file(root, "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md", plan)
+    _write_file(root, "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md", hld)
+    _write_file(root, "README.md", readme)
+    _write_file(root, "docs/PUBLIC_INTEGRATION_CONTRACT.md", public_contract)
+    _write_file(root, "docs/dev/pr_context.md", pr_context)
+    _write_file(root, "RELEASE_GATES.md", release_gates)
+    _write_file(root, "implementation_status.md", implementation_status)
+    _write_file(root, "PROJECT.md", project_md)
+    _write_file(root, "docs/architecture/ENFORCEMENT_PIPELINE.md", enforcement_pipeline)
+
+
+def test_v090_pr04_contract_accepts_valid_pr04_docs(tmp_path, monkeypatch):
+    """Seeded valid PR-04 docs pass check_v090_pr04_contract()."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    _seed_pr04_contract_repo(tmp_path)
+
+    errors = module.check_v090_pr04_contract()
+    assert errors == [], f"Unexpected errors: {errors}"
+
+
+def test_v090_pr04_contract_rejects_surface_availability_drift(tmp_path, monkeypatch):
+    """README/public contract still have old planned-only language → errors returned."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_readme = """\
+# AIGC README
+
+The target-state 1.0.0 architecture expands this invocation-first model with
+planned workflow governance. None of those workflow surfaces are part of the
+shipped `v0.3.3` runtime or CLI.
+"""
+    _seed_pr04_contract_repo(tmp_path, readme=bad_readme)
+
+    errors = module.check_v090_pr04_contract()
+
+    assert any("README.md" in e for e in errors), (
+        f"Expected README error for missing v0.9.0-beta wording, got: {errors}"
+    )
+
+
+def test_v090_pr04_contract_rejects_hld_project_enforcement_old_wording(tmp_path, monkeypatch):
+    """HLD/PROJECT/ENFORCEMENT docs with old unqualified language → errors returned."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_enforcement = """\
+# Enforcement Pipeline
+
+The shipped 0.3.3 runtime remains invocation-scoped. Its additions are groundwork
+for this future session model, not a shipped `GovernanceSession` workflow runtime.
+"""
+    _seed_pr04_contract_repo(tmp_path, enforcement_pipeline=bad_enforcement)
+
+    errors = module.check_v090_pr04_contract()
+
+    assert any("ENFORCEMENT_PIPELINE" in e for e in errors), (
+        f"Expected ENFORCEMENT_PIPELINE error for old unqualified language, got: {errors}"
+    )
+
+
+def test_v090_pr04_contract_rejects_missing_positive_beta_wording(tmp_path, monkeypatch):
+    """Old wording removed but no positive v0.9.0-beta replacement added → errors returned."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    # PROJECT.md with old wording removed but no positive replacement
+    bad_project_md = """\
+# PROJECT.md
+
+0.3.3 extends AIGC's invocation-governance runtime with provenance, lineage,
+and risk-trend primitives that future workflow governance will build on.
+"""
+    _seed_pr04_contract_repo(tmp_path, project_md=bad_project_md)
+
+    errors = module.check_v090_pr04_contract()
+
+    assert any("PROJECT.md" in e for e in errors), (
+        f"Expected PROJECT.md error for missing positive v0.9.0-beta wording, got: {errors}"
+    )
+
+
+def test_v090_pr04_contract_rejects_active_branch_drift(tmp_path, monkeypatch):
+    """Wrong branch in pr_context/implementation_status → errors returned."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_pr_context = _PR04_PR_CONTEXT_CONTENT.replace(
+        "Active branch: `feat/v0.9-04-minimal-session-flow`",
+        "Active branch: `feat/v0.9-03-golden-path-contract`",
+    )
+    _seed_pr04_contract_repo(tmp_path, pr_context=bad_pr_context)
+
+    errors = module.check_v090_pr04_contract()
+
+    assert any(
+        "PR-04 active branch" in e and "pr_context.md" in e
+        for e in errors
+    ), f"Expected active branch drift error, got: {errors}"

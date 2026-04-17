@@ -179,6 +179,12 @@ def _cmd_compliance_export(args: argparse.Namespace) -> int:
                     invalid_count += 1
                     continue
 
+                # Workflow artifacts are emitted to the shared sink but are not
+                # invocation audit records. Skip them silently — aigc workflow
+                # export handles them.
+                if artifact.get("artifact_type") == "workflow":
+                    continue
+
                 # Schema validation of each artifact
                 try:
                     validate(instance=artifact, schema=audit_schema)

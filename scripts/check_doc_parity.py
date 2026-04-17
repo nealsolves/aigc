@@ -1442,6 +1442,9 @@ def check_v090_pr02_contract() -> list[str]:
 # ---------------------------------------------------------------------------
 
 _V090_PR03_ACTIVE_BRANCH = "feat/v0.9-03-golden-path-contract"
+_V090_PR04_ACTIVE_BRANCH = "feat/v0.9-04-minimal-session-flow"
+_V090_PROJECT_MD_REL = "PROJECT.md"
+_V090_ENFORCEMENT_PIPELINE_REL = "docs/architecture/ENFORCEMENT_PIPELINE.md"
 _V090_PR03_EXPECTED_CLI_COMMANDS = [
     "aigc policy init",
     "aigc workflow init",
@@ -1646,6 +1649,147 @@ def check_v090_pr03_contract() -> list[str]:
     return errors
 
 
+def check_v090_pr04_contract() -> list[str]:
+    """Verify PR-04 doc state: session surfaces described as upcoming v0.9.0-beta, not shipped."""
+    errors: list[str] = []
+
+    required_files = [
+        _V090_PLAN_REL,
+        _V090_HLD_REL,
+        "README.md",
+        _V090_PUBLIC_CONTRACT_REL,
+        _V090_PR_CONTEXT_REL,
+        "RELEASE_GATES.md",
+        "implementation_status.md",
+        _V090_PROJECT_MD_REL,
+        _V090_ENFORCEMENT_PIPELINE_REL,
+    ]
+    texts: dict[str, str] = {}
+    for rel in required_files:
+        text = _read_text(rel)
+        if not text:
+            errors.append(f"[v0.9.0-pr04] missing required file: {rel}")
+            continue
+        texts[rel] = text
+
+    if errors:
+        return errors
+
+    pfx = "[v0.9.0-pr04]"
+
+    # -- Active branch --
+    _require_all(
+        errors,
+        _V090_PR_CONTEXT_REL,
+        texts[_V090_PR_CONTEXT_REL],
+        [f"Active branch: `{_V090_PR04_ACTIVE_BRANCH}`"],
+        "PR-04 active branch",
+        error_prefix=pfx,
+    )
+    _require_all(
+        errors,
+        "implementation_status.md",
+        texts["implementation_status.md"],
+        [f"**Active Branch:** `{_V090_PR04_ACTIVE_BRANCH}`"],
+        "PR-04 active branch",
+        error_prefix=pfx,
+    )
+
+    # -- README: positive assertion that surfaces are described as upcoming v0.9.0-beta --
+    _require_all(
+        errors,
+        "README.md",
+        texts["README.md"],
+        ["upcoming unreleased v0.9.0-beta"],
+        "upcoming v0.9.0-beta wording (positive assertion required — absence of old wording is not sufficient)",
+        error_prefix=pfx,
+    )
+    # README: old planned-only language must be gone
+    for forbidden in [
+        "none of those workflow surfaces are part of the shipped `v0.3.3` runtime or CLI",
+    ]:
+        normalized = re.sub(r"\s+", " ", texts["README.md"])
+        if re.sub(r"\s+", " ", forbidden) in normalized:
+            errors.append(
+                f"{pfx} README.md: must not contain old planned-only language: {forbidden!r}"
+            )
+
+    # -- PUBLIC_INTEGRATION_CONTRACT: v0.9.0-beta paragraph present, old listing gone --
+    _require_all(
+        errors,
+        _V090_PUBLIC_CONTRACT_REL,
+        texts[_V090_PUBLIC_CONTRACT_REL],
+        ["planned for the upcoming unreleased v0.9.0-beta line"],
+        "v0.9.0-beta planned paragraph (positive assertion required)",
+        error_prefix=pfx,
+    )
+    for forbidden in [
+        "not part of the installable `v0.3.3` artifact today",
+    ]:
+        normalized = re.sub(r"\s+", " ", texts[_V090_PUBLIC_CONTRACT_REL])
+        if re.sub(r"\s+", " ", forbidden) in normalized:
+            errors.append(
+                f"{pfx} {_V090_PUBLIC_CONTRACT_REL}: must not retain old planned-only listing: {forbidden!r}"
+            )
+
+    # -- HLD: "Planned for v0.9.0-beta (not yet released)" row set present, old unqualified table gone --
+    _require_all(
+        errors,
+        _V090_HLD_REL,
+        texts[_V090_HLD_REL],
+        ["Planned for v0.9.0-beta (not yet released)"],
+        "HLD v0.9.0-beta planned row set (positive assertion required)",
+        error_prefix=pfx,
+    )
+    for forbidden in [
+        "Planned-only additions for `1.0.0` — not exported by `0.3.3`",
+    ]:
+        normalized = re.sub(r"\s+", " ", texts[_V090_HLD_REL])
+        if re.sub(r"\s+", " ", forbidden) in normalized:
+            errors.append(
+                f"{pfx} {_V090_HLD_REL}: must not retain old unqualified planned-only table header: {forbidden!r}"
+            )
+
+    # -- PROJECT.md: upcoming v0.9.0-beta wording present, old stale phrase gone --
+    _require_all(
+        errors,
+        _V090_PROJECT_MD_REL,
+        texts[_V090_PROJECT_MD_REL],
+        ["upcoming unreleased v0.9.0-beta"],
+        "PROJECT.md upcoming v0.9.0-beta wording (positive assertion required)",
+        error_prefix=pfx,
+    )
+    for forbidden in [
+        "does not yet ship the planned `GovernanceSession` workflow runtime",
+    ]:
+        normalized = re.sub(r"\s+", " ", texts[_V090_PROJECT_MD_REL])
+        if re.sub(r"\s+", " ", forbidden) in normalized:
+            errors.append(
+                f"{pfx} {_V090_PROJECT_MD_REL}: must not contain stale phrase: {forbidden!r}"
+            )
+
+    # -- ENFORCEMENT_PIPELINE.md: upcoming v0.9.0-beta wording present, old phrases gone --
+    _require_all(
+        errors,
+        _V090_ENFORCEMENT_PIPELINE_REL,
+        texts[_V090_ENFORCEMENT_PIPELINE_REL],
+        ["upcoming unreleased v0.9.0-beta"],
+        "ENFORCEMENT_PIPELINE.md upcoming v0.9.0-beta wording (positive assertion required)",
+        error_prefix=pfx,
+    )
+    for forbidden in [
+        "future session model",
+        "not a shipped `GovernanceSession` workflow runtime",
+    ]:
+        normalized = re.sub(r"\s+", " ", texts[_V090_ENFORCEMENT_PIPELINE_REL])
+        if re.sub(r"\s+", " ", forbidden) in normalized:
+            errors.append(
+                f"{pfx} {_V090_ENFORCEMENT_PIPELINE_REL}: must not contain old unqualified phrase: {forbidden!r}"
+            )
+
+    return errors
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -1669,7 +1813,7 @@ def main() -> int:
         ("I. Semantic behavioral claims", check_semantic_claims),
         ("J. v0.9.0 plan truth", check_v090_plan_truth),
         ("K. v0.9.0 release truth", check_v090_release_truth),
-        ("L. v0.9.0 PR-03 golden-path contract truth", check_v090_pr03_contract),
+        ("L. v0.9.0 PR-04 golden-path contract truth", check_v090_pr04_contract),
     ]
 
     for name, check_fn in checks:

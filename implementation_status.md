@@ -69,9 +69,9 @@ Current state:
 |----|--------|--------|-------|
 | PR-01 | `feat/v0.9-01-source-of-truth` | complete | Canonical plan, release packet, supersession banners, and CI truth checks |
 | PR-02 | `feat/v0.9-02-contract-freeze` | complete | Freeze lifecycle, `SessionPreCallResult`, `AIGC.open_session(...)`, and evidence separation |
-| PR-03 | `feat/v0.9-03-golden-path-contract` | in progress | Freeze CLI shape, starter profiles, public-import rules, docs order, and first-user reason codes |
-| PR-04 | `feat/v0.9-04-minimal-session-flow` | not started | Smallest real governed local workflow path |
-| PR-05 | `feat/v0.9-05-starters-and-migration` | not started | Starters, thin presets, and migration helpers |
+| PR-03 | `feat/v0.9-03-golden-path-contract` | complete | Freeze CLI shape, starter profiles, public-import rules, docs order, and first-user reason codes |
+| PR-04 | `feat/v0.9-04-minimal-session-flow` | complete | Smallest real governed local workflow path |
+| PR-05 | `feat/v0.9-05-starters-and-migration` | in progress | Starters, thin presets, and migration helpers |
 | PR-06 | `feat/v0.9-06-doctor-and-lint` | not started | Diagnostics, stable reason codes, and fix guidance |
 | PR-07 | `feat/v0.9-07-beta-proof` | not started | Mandatory stop-ship checkpoint for quickstart, demo, and failure-and-fix proof |
 | PR-08 | `feat/v0.9-08-engine-hardening` | not started | Sequencing, approvals, budgets, and validator-hook hardening |

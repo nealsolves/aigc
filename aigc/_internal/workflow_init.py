@@ -20,9 +20,12 @@ _PROFILE_RENDERERS = {
 }
 
 
-def generate_starter(profile: str, output_dir: Path, role: str = "ai-assistant") -> None:
+def generate_starter(
+    profile: str, output_dir: Path, role: str = "ai-assistant"
+) -> dict[str, str]:
     """Generate starter files for `profile` into `output_dir`.
 
+    Returns the {filename: content} dict that was written.
     Raises WorkflowStarterIntegrityError if any target file already exists.
     Raises OSError if the directory cannot be created or files cannot be written.
     """
@@ -41,6 +44,8 @@ def generate_starter(profile: str, output_dir: Path, role: str = "ai-assistant")
     for name, content in files.items():
         (output_dir / name).write_text(content, encoding="utf-8")
 
+    return files
+
 
 def _cmd_workflow_init(args: argparse.Namespace) -> int:
     """Run the `aigc workflow init` subcommand."""
@@ -48,7 +53,7 @@ def _cmd_workflow_init(args: argparse.Namespace) -> int:
     profile = args.profile
 
     try:
-        generate_starter(profile, output_dir, role=args.role)
+        files = generate_starter(profile, output_dir, role=args.role)
     except WorkflowStarterIntegrityError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
@@ -57,6 +62,6 @@ def _cmd_workflow_init(args: argparse.Namespace) -> int:
         return 1
 
     print(f"Generated {profile} starter in {output_dir}/")
-    for name in _PROFILE_RENDERERS[profile](role=args.role):
+    for name in files:
         print(f"  {name}")
     return 0

@@ -30,7 +30,10 @@ Run:
 Demonstrates a 2-step governed workflow using public AIGC APIs.
 No external model API required -- uses a simulated model call.
 """
+import os
 import aigc
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def _simulate_model_call(prompt: str) -> dict:
@@ -38,8 +41,10 @@ def _simulate_model_call(prompt: str) -> dict:
     return {"result": f"Response to: {prompt[:60]}"}
 
 
-def run_minimal_workflow(policy_file: str = "policy.yaml") -> dict:
+def run_minimal_workflow(policy_file: str | None = None) -> dict:
     """Run a 2-step governed workflow. Returns the workflow artifact."""
+    if policy_file is None:
+        policy_file = os.path.join(_SCRIPT_DIR, "policy.yaml")
     governance = aigc.AIGC()
 
     with governance.open_session(policy_file=policy_file) as session:
@@ -48,7 +53,7 @@ def run_minimal_workflow(policy_file: str = "policy.yaml") -> dict:
             "policy_file": policy_file,
             "input": {"prompt": "Analyze the document."},
             "output": {},
-            "context": {},
+            "context": {"caller_id": "workflow-starter"},
             "model_provider": "anthropic",
             "model_identifier": "claude-sonnet-4-6",
             "role": "__AIGC_ROLE__",
@@ -61,7 +66,7 @@ def run_minimal_workflow(policy_file: str = "policy.yaml") -> dict:
             "policy_file": policy_file,
             "input": {"prompt": "Summarize the findings."},
             "output": {},
-            "context": {},
+            "context": {"caller_id": "workflow-starter"},
             "model_provider": "anthropic",
             "model_identifier": "claude-sonnet-4-6",
             "role": "__AIGC_ROLE__",
@@ -120,7 +125,7 @@ def render_minimal_starter(role: str = "ai-assistant") -> dict[str, str]:
     preset = MinimalPreset(role=role)
     return {
         "policy.yaml": preset.policy_yaml,
-        "workflow_example.py": _MINIMAL_WORKFLOW_PY.replace("__AIGC_ROLE__", role),
+        "workflow_example.py": _MINIMAL_WORKFLOW_PY.replace('"__AIGC_ROLE__"', repr(role)),
         "README.md": _MINIMAL_README_MD,
     }
 
@@ -141,7 +146,10 @@ Run:
 Demonstrates a 3-step governed workflow with a human approval checkpoint
 (PAUSED state). No external model API required.
 """
+import os
 import aigc
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def _simulate_model_call(prompt: str) -> dict:
@@ -156,8 +164,10 @@ def _request_human_approval(summary: str) -> bool:
     return True
 
 
-def run_standard_workflow(policy_file: str = "policy.yaml") -> dict:
+def run_standard_workflow(policy_file: str | None = None) -> dict:
     """Run a 3-step workflow with approval checkpoint. Returns workflow artifact."""
+    if policy_file is None:
+        policy_file = os.path.join(_SCRIPT_DIR, "policy.yaml")
     governance = aigc.AIGC()
 
     with governance.open_session(policy_file=policy_file) as session:
@@ -166,7 +176,7 @@ def run_standard_workflow(policy_file: str = "policy.yaml") -> dict:
             "policy_file": policy_file,
             "input": {"prompt": "Draft a proposal for review."},
             "output": {},
-            "context": {"phase": "pre-approval"},
+            "context": {"phase": "pre-approval", "caller_id": "workflow-starter"},
             "model_provider": "anthropic",
             "model_identifier": "claude-sonnet-4-6",
             "role": "__AIGC_ROLE__",
@@ -187,7 +197,7 @@ def run_standard_workflow(policy_file: str = "policy.yaml") -> dict:
             "policy_file": policy_file,
             "input": {"prompt": "Finalize the approved proposal."},
             "output": {},
-            "context": {"phase": "post-approval"},
+            "context": {"phase": "post-approval", "caller_id": "workflow-starter"},
             "model_provider": "anthropic",
             "model_identifier": "claude-sonnet-4-6",
             "role": "__AIGC_ROLE__",
@@ -200,7 +210,7 @@ def run_standard_workflow(policy_file: str = "policy.yaml") -> dict:
             "policy_file": policy_file,
             "input": {"prompt": "Generate final summary."},
             "output": {},
-            "context": {"phase": "summary"},
+            "context": {"phase": "summary", "caller_id": "workflow-starter"},
             "model_provider": "anthropic",
             "model_identifier": "claude-sonnet-4-6",
             "role": "__AIGC_ROLE__",
@@ -258,7 +268,7 @@ def render_standard_starter(role: str = "ai-assistant") -> dict[str, str]:
     preset = StandardPreset(role=role)
     return {
         "policy.yaml": preset.policy_yaml,
-        "workflow_example.py": _STANDARD_WORKFLOW_PY.replace("__AIGC_ROLE__", role),
+        "workflow_example.py": _STANDARD_WORKFLOW_PY.replace('"__AIGC_ROLE__"', repr(role)),
         "README.md": _STANDARD_README_MD,
     }
 
@@ -281,8 +291,11 @@ Demonstrates:
 - Tool budget: policy limits document_reader to 3 calls per invocation
 No external model API required.
 """
+import os
 import aigc
 from aigc import ProvenanceGate
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def _simulate_model_call(prompt: str) -> dict:
@@ -290,8 +303,10 @@ def _simulate_model_call(prompt: str) -> dict:
     return {"result": f"Response to: {prompt[:60]}"}
 
 
-def run_regulated_workflow(policy_file: str = "policy.yaml") -> dict:
+def run_regulated_workflow(policy_file: str | None = None) -> dict:
     """Run a 2-step source-required workflow. Returns the workflow artifact."""
+    if policy_file is None:
+        policy_file = os.path.join(_SCRIPT_DIR, "policy.yaml")
     # ProvenanceGate requires context.provenance.source_ids in every invocation.
     gate = ProvenanceGate(require_source_ids=True)
     governance = aigc.AIGC(custom_gates=[gate])
@@ -303,6 +318,7 @@ def run_regulated_workflow(policy_file: str = "policy.yaml") -> dict:
             "input": {"prompt": "Analyze these source documents."},
             "output": {},
             "context": {
+                "caller_id": "workflow-starter",
                 "provenance": {
                     "source_ids": ["doc-001", "doc-002"],
                 },
@@ -323,6 +339,7 @@ def run_regulated_workflow(policy_file: str = "policy.yaml") -> dict:
             "input": {"prompt": "Summarize the analysis."},
             "output": {},
             "context": {
+                "caller_id": "workflow-starter",
                 "provenance": {
                     "source_ids": ["analysis-step-1"],
                 },
@@ -382,6 +399,6 @@ def render_regulated_starter(role: str = "ai-assistant") -> dict[str, str]:
     preset = RegulatedHighAssurancePreset(role=role)
     return {
         "policy.yaml": preset.policy_yaml,
-        "workflow_example.py": _REGULATED_WORKFLOW_PY.replace("__AIGC_ROLE__", role),
+        "workflow_example.py": _REGULATED_WORKFLOW_PY.replace('"__AIGC_ROLE__"', repr(role)),
         "README.md": _REGULATED_README_MD,
     }

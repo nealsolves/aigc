@@ -30,6 +30,7 @@ from aigc.errors import (
     SchemaValidationError,
     SessionStateError,
     ToolConstraintViolationError,
+    WorkflowStarterIntegrityError,
 )
 from aigc.session import GovernanceSession, SessionPreCallResult
 from aigc.retry import with_retry, RetryExhaustedError
@@ -142,6 +143,7 @@ __all__ = [
     "RiskThresholdError",
     "SchemaValidationError",
     "ToolConstraintViolationError",
+    "WorkflowStarterIntegrityError",
     "TRAJECTORY_DEGRADING",
     "TRAJECTORY_IMPROVING",
     "TRAJECTORY_STABLE",

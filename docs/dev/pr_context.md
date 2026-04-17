@@ -1,8 +1,8 @@
-# PR Context — `v0.9.0` PR-04 Minimal Session Flow
+# PR Context — `v0.9.0` PR-05 Starters and Migration
 
 Date: 2026-04-16
 Status: In Progress
-Active branch: `feat/v0.9-04-minimal-session-flow`
+Active branch: `feat/v0.9-05-starters-and-migration`
 
 ---
 
@@ -30,53 +30,48 @@ One branch per PR. All remote merges during active `v0.9.0` work target
 
 ## PR Summary
 
-This PR freezes the default first-adopter contract for the `v0.9.0` beta
-before workflow runtime implementation starts.
+This PR ships the first-adopter entry point: workflow and policy scaffold
+commands, starter content for all three profiles, thin preset builders, and
+migration helpers from invocation-only governance.
 
 Theme:
 
-- golden-path contract and public-import guardrails
+- starters, presets, and invocation-only → workflow migration
 
 PR type:
 
-- docs, CI, sentinel tests, and public-import hygiene only
+- new CLI commands, new Python modules, new tests, new docs
 
 ---
 
 ## Goal
 
-Freeze the CLI command inventory, scaffold profiles, starter coverage,
-public-import-only rules, first-adopter docs order, and minimum diagnostic
-reason-code coverage without adding workflow runtime or workflow CLI behavior
-in this PR.
+Make the first-adopter journey copy-pasteable before engine work dominates
+the release. Ship `aigc workflow init`, `aigc policy init`, starter scaffolds
+for all three profiles, thin preset builders, and migration examples and guide.
 
 ---
 
 ## In Scope
 
-- update the release packet for the PR-03 branch, scope, and exit criteria
-- freeze the golden-path command inventory, starter profiles, starter coverage,
-  docs order, and reason-code minimums in the canonical plan and HLD
-- keep `README.md` and `docs/PUBLIC_INTEGRATION_CONTRACT.md` aligned to the
-  shipped `v0.3.3` surface while naming `aigc policy init` and
-  `aigc workflow ...` commands as planned-only
-- extend CI truth checks for PR-03 contract drift
-- add staged CLI-shape, docs-order, and public-import boundary sentinel tests
-- remove `_internal` imports from maintained onboarding examples or demo code
-  where the public API already covers the same behavior
+- `WorkflowStarterIntegrityError` error class
+- `aigc._internal.presets` with `MinimalPreset`, `StandardPreset`, `RegulatedHighAssurancePreset`
+- `aigc.presets` public re-export module
+- `aigc._internal.starter_templates` with `render_minimal_starter`, `render_standard_starter`, `render_regulated_starter`
+- `aigc policy init` CLI command
+- `aigc workflow init` CLI command
+- `examples/migration/invocation_only.py` and `workflow_adoption.py`
+- `docs/migration.md`
+- doc-parity updates: active branch, implementation status, contract, README, HLD
 
 ---
 
 ## Out of Scope
 
-- workflow or session runtime implementation
-- public export stubs or placeholder workflow classes
-- executable workflow CLI behavior or newly shipped workflow CLI commands
-- executable `aigc policy init` behavior
-- starter asset generation
-- workflow schemas
+- `aigc workflow lint`, `aigc workflow doctor`, `aigc workflow trace`, `aigc workflow export` (PR-06+)
+- `ValidatorHook`, `BedrockTraceAdapter`, `A2AAdapter` (PR-08+, PR-10a/b)
+- workflow runtime engine hardening (PR-08)
 - demo-app behavior changes
-- Bedrock or A2A adapter runtime work
 - package-version bumps
 - `origin/develop` -> `origin/main` release promotion
 
@@ -87,7 +82,6 @@ in this PR.
 - `CLAUDE.md`
 - `docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md`
 - `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`
-- `docs/decisions/ADR-0011-v090-beta-scope-sdk-boundary-and-non-goals.md`
 
 ---
 
@@ -95,58 +89,23 @@ in this PR.
 
 - Do NOT open or merge a PR from `origin/develop` -> `origin/main` until
   `v0.9.0` is formally declared a GO.
-- PR-07 is the mandatory stop-ship checkpoint. If the golden path fails there,
-  no further public-surface work proceeds until the default path is repaired.
+- PR-07 is the mandatory stop-ship checkpoint.
 - The default adopter path must succeed without Bedrock or A2A.
-- `CLAUDE.md` is binding for the seven demo rules, workflow lifecycle
-  semantics, adapter fail-closed constraints, the PR table, and the
-  `origin/main` freeze.
-- `GovernanceSession`, `SessionPreCallResult`, and `AIGC.open_session(...)`
-  remain planned-only contract surfaces in PR-03. No placeholder runtime
-  exports ship in this branch.
-- The frozen golden-path CLI inventory is `aigc policy init`,
-  `aigc workflow init`, `aigc workflow lint`, `aigc workflow doctor`,
-  `aigc workflow trace`, and `aigc workflow export`, but those commands are
-  still absent from the shipped `v0.3.3` CLI in PR-03.
-- The frozen scaffold profiles are `minimal`, `standard`, and
-  `regulated-high-assurance`.
-- Hand-authored workflow DSL remains advanced mode and is not required for the
-  default path.
-- Public quickstarts, starter packs, presets, demo code, and docs snippets
-  must use public `aigc` imports only and must not depend on `aigc._internal`.
-- PR-03 is docs, CI, sentinel tests, and public-import hygiene only. Workflow
-  runtime implementation still starts in PR-04.
-
----
-
-## Reviewer Focus
-
-- confirm the PR is docs, CI, sentinel tests, and import-hygiene only
-- confirm the canonical plan, HLD, `README.md`, and
-  `docs/PUBLIC_INTEGRATION_CONTRACT.md` agree on the planned command names,
-  scaffold profiles, starter coverage, docs order, and reason-code minimums
-- confirm the current public surface remains invocation-only and the shipped
-  CLI still exposes no `workflow` or `policy init` commands
-- confirm maintained onboarding examples and demo code use only public `aigc`
-  imports
-- confirm there are no runtime, schema, starter-generation, shipped CLI,
-  adapter, or package-version changes
+- All generated content and examples must use public `aigc` imports only.
+- `aigc workflow lint`, `aigc workflow doctor`, `aigc workflow trace`, and
+  `aigc workflow export` remain unshipped until PR-06 and PR-09.
 
 ---
 
 ## Exit Gate
 
-- `docs/dev/pr_context.md`, `RELEASE_GATES.md`, and `implementation_status.md`
-  are aligned to the PR-03 branch and scope
-- the canonical plan and HLD freeze the golden-path command inventory,
-  scaffold profiles, starter coverage, docs order, and reason-code minimums
-- `README.md` and `docs/PUBLIC_INTEGRATION_CONTRACT.md` keep the shipped
-  `v0.3.3` surface honest while naming `aigc policy init` and
-  `aigc workflow ...` commands as planned-only
-- doc truth checks fail closed on PR-03 contract drift
-- staged CLI-shape sentinel tests freeze future command names while proving the
-  current shipped CLI still has no `workflow` or `policy init` commands
-- public-import boundary tests prove maintained onboarding examples and demo
-  code do not depend on `aigc._internal`
-- no workflow runtime, schema, starter-generation, shipped CLI, demo behavior,
-  or package changes land in PR-03
+- `docs/dev/pr_context.md`, and `implementation_status.md` are aligned to PR-05
+- `WorkflowStarterIntegrityError` importable from `aigc`
+- `aigc.presets.MinimalPreset`, `StandardPreset`, `RegulatedHighAssurancePreset` importable
+- `aigc workflow init --profile minimal` writes three files and runs successfully
+- `aigc policy init --profile regulated-high-assurance` writes valid policy YAML
+- Migration examples run end-to-end with a local policy file
+- `docs/migration.md` exists and covers `open_session` and `enforce_step_pre_call`
+- Full test suite passes: `python -m pytest -v`
+- `flake8 aigc` passes
+- `python scripts/check_doc_parity.py` passes

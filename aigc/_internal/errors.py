@@ -176,3 +176,14 @@ class SessionStateError(AIGCError):
             code="WORKFLOW_INVALID_TRANSITION",
             details=details,
         )
+
+
+class WorkflowStarterIntegrityError(GovernanceViolationError):
+    """Raised when a generated workflow starter fails integrity validation."""
+
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(
+            message,
+            code="WORKFLOW_STARTER_INTEGRITY_ERROR",
+            details=details,
+        )

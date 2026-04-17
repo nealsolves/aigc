@@ -2,7 +2,7 @@
 
 **Target Version:** `0.9.0` Beta
 **Baseline Version:** `0.3.3`
-**Active Branch:** `feat/v0.9-04-minimal-session-flow`
+**Active Branch:** `feat/v0.9-05-starters-and-migration`
 **Last Updated:** 2026-04-16
 
 ---
@@ -14,15 +14,16 @@ Current state:
 - PR-01 is complete
 - PR-02 is complete
 - PR-03 is complete
-- PR-04 is in progress
+- PR-04 is complete
+- PR-05 is in progress
 
 | Track | Status | Notes |
 |-------|--------|-------|
 | Source of truth | complete | Canonical docs and CI truth checks are the baseline for later PRs |
 | Contract freeze | complete | PR-02 froze lifecycle, planned-only workflow surfaces, and protocol-boundary rules |
 | Golden-path contract | complete | PR-03 froze command names, starter profiles, docs order, and public-import rules |
-| Minimal session flow | in progress | PR-04: GovernanceSession, AIGC.open_session, SessionPreCallResult |
-| Starters and migration | not started | Starts in PR-05 |
+| Minimal session flow | complete | PR-04: GovernanceSession, AIGC.open_session, SessionPreCallResult |
+| Starters and migration | in progress | PR-05: aigc workflow init, aigc policy init, starter scaffolds, migration guide |
 | Diagnostics | not started | Starts in PR-06 |
 | Beta proof | not started | Starts in PR-07 |
 | Engine hardening | not started | Starts in PR-08 |
@@ -68,9 +69,9 @@ Current state:
 |----|--------|--------|-------|
 | PR-01 | `feat/v0.9-01-source-of-truth` | complete | Canonical plan, release packet, supersession banners, and CI truth checks |
 | PR-02 | `feat/v0.9-02-contract-freeze` | complete | Freeze lifecycle, `SessionPreCallResult`, `AIGC.open_session(...)`, and evidence separation |
-| PR-03 | `feat/v0.9-03-golden-path-contract` | in progress | Freeze CLI shape, starter profiles, public-import rules, docs order, and first-user reason codes |
-| PR-04 | `feat/v0.9-04-minimal-session-flow` | not started | Smallest real governed local workflow path |
-| PR-05 | `feat/v0.9-05-starters-and-migration` | not started | Starters, thin presets, and migration helpers |
+| PR-03 | `feat/v0.9-03-golden-path-contract` | complete | Freeze CLI shape, starter profiles, public-import rules, docs order, and first-user reason codes |
+| PR-04 | `feat/v0.9-04-minimal-session-flow` | complete | Smallest real governed local workflow path |
+| PR-05 | `feat/v0.9-05-starters-and-migration` | in progress | Starters, thin presets, and migration helpers |
 | PR-06 | `feat/v0.9-06-doctor-and-lint` | not started | Diagnostics, stable reason codes, and fix guidance |
 | PR-07 | `feat/v0.9-07-beta-proof` | not started | Mandatory stop-ship checkpoint for quickstart, demo, and failure-and-fix proof |
 | PR-08 | `feat/v0.9-08-engine-hardening` | not started | Sequencing, approvals, budgets, and validator-hook hardening |

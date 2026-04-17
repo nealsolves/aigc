@@ -109,8 +109,9 @@ Session: <uuid>
 
 1. Replace `_simulate_model_call()` with your real model API call
 2. Edit `policy.yaml` to add roles, pre-conditions, or output schema constraints
-3. See the [AIGC migration guide](https://github.com/nealsolves/aigc/blob/develop/docs/migration.md)\
- to migrate existing invocation-only governance
+3. See the AIGC migration guide at
+   https://github.com/nealsolves/aigc/blob/develop/docs/migration.md
+   to migrate existing invocation-only governance
 """
 
 

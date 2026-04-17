@@ -1045,3 +1045,109 @@ def test_v090_pr04_contract_rejects_active_branch_drift(tmp_path, monkeypatch):
         "PR-04 active branch" in e and "pr_context.md" in e
         for e in errors
     ), f"Expected active branch drift error, got: {errors}"
+
+
+# ---------------------------------------------------------------------------
+# PR-05 contract seeded tests
+# ---------------------------------------------------------------------------
+
+_PR05_PR_CONTEXT_CONTENT = """\
+# PR Context
+
+Active branch: `feat/v0.9-05-starters-and-migration`
+
+PR-05 ships `aigc workflow init`, `aigc policy init`, starter scaffolds, and migration helpers.
+"""
+
+_PR05_IMPLEMENTATION_STATUS_CONTENT = """\
+# Implementation Status
+
+**Target Version:** `0.9.0` Beta
+**Active Branch:** `feat/v0.9-05-starters-and-migration`
+
+PR-04 is complete.
+Starters and migration: in progress.
+"""
+
+_PR05_PUBLIC_CONTRACT_CONTENT = """\
+# Public Integration Contract
+
+Also planned for the upcoming unreleased v0.9.0-beta: `aigc workflow init`,
+`aigc policy init`, `aigc.presets.MinimalPreset`, starter scaffolds.
+"""
+
+_PR05_README_CONTENT = """\
+## Shipped in v0.9.0-beta
+
+`aigc workflow init` and `aigc policy init` are now available.
+Use `aigc workflow lint`, `aigc workflow doctor`, `aigc workflow trace`,
+and `aigc workflow export` (planned for future releases).
+"""
+
+_PR05_HLD_CONTENT = """\
+v0.9.0-beta adds `GovernanceSession`, `SessionPreCallResult`,
+`aigc workflow init`, and `aigc policy init`.
+`ValidatorHook`, `BedrockTraceAdapter`, `A2AAdapter`, `aigc workflow lint`,
+`aigc workflow doctor`, `aigc workflow trace`, and `aigc workflow export`
+remain planned-only and are not part of any currently released artifact.
+"""
+
+
+def _seed_pr05_contract_repo(
+    root: Path,
+    *,
+    pr_context: str = _PR05_PR_CONTEXT_CONTENT,
+    implementation_status: str = _PR05_IMPLEMENTATION_STATUS_CONTENT,
+    public_contract: str = _PR05_PUBLIC_CONTRACT_CONTENT,
+    readme: str = _PR05_README_CONTENT,
+    hld: str = _PR05_HLD_CONTENT,
+) -> None:
+    _write_file(root, "docs/dev/pr_context.md", pr_context)
+    _write_file(root, "implementation_status.md", implementation_status)
+    _write_file(root, "docs/PUBLIC_INTEGRATION_CONTRACT.md", public_contract)
+    _write_file(root, "README.md", readme)
+    _write_file(root, "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md", hld)
+
+
+def test_pr05_contract_accepts_valid_docs(tmp_path, monkeypatch):
+    """Seeded valid PR-05 docs pass check_v090_pr05_contract()."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    _seed_pr05_contract_repo(tmp_path)
+
+    errors = module.check_v090_pr05_contract()
+    assert errors == [], f"Unexpected errors: {errors}"
+
+
+def test_pr05_contract_rejects_wrong_active_branch(tmp_path, monkeypatch):
+    """pr_context.md with wrong branch name → error returned."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_pr_context = _PR05_PR_CONTEXT_CONTENT.replace(
+        "Active branch: `feat/v0.9-05-starters-and-migration`",
+        "Active branch: `feat/v0.9-04-minimal-session-flow`",
+    )
+    _seed_pr05_contract_repo(tmp_path, pr_context=bad_pr_context)
+
+    errors = module.check_v090_pr05_contract()
+
+    assert any("PR-05 active branch" in e for e in errors), (
+        f"Expected active branch error, got: {errors}"
+    )
+
+
+def test_pr05_contract_rejects_missing_pr05_surfaces(tmp_path, monkeypatch):
+    """README missing aigc policy init → error returned."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_readme = "# README\n\nOnly `aigc workflow init` is mentioned here.\n"
+    _seed_pr05_contract_repo(tmp_path, readme=bad_readme)
+
+    errors = module.check_v090_pr05_contract()
+
+    assert any("aigc policy init" in e and "README.md" in e for e in errors), (
+        f"Expected README error for missing aigc policy init, got: {errors}"
+    )

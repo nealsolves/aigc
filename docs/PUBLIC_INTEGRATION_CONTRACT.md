@@ -9,15 +9,17 @@ package and CLI. The target-state `1.0.0` architecture contract, including
 workflow governance and optional Bedrock/A2A adapters, is captured separately
 in [docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](architecture/AIGC_HIGH_LEVEL_DESIGN.md).
 
-Planned-only surfaces described in that target-state document — including
-`AIGC.open_session(...)`, `GovernanceSession`, `SessionPreCallResult`,
-`AgentIdentity`, `AgentCapabilityManifest`, `ValidatorHook`,
-`BedrockTraceAdapter`, `A2AAdapter`, `aigc policy init`, and
-`aigc workflow ...` commands — are not part of the installable `v0.3.3`
-artifact today. There is no current module-level `open_session()` convenience
-in the shipped package. Do not build current integrations against those names
-until they ship through the public package exports, instance API, CLI surface,
-and contract tests.
+The following surfaces are planned for the upcoming unreleased v0.9.0-beta line
+and are not part of the installable `v0.3.3` artifact: `AIGC.open_session(...)`,
+`GovernanceSession`, `SessionPreCallResult`. There is no module-level
+`open_session()` convenience — workflow adoption is always instance-scoped through
+`AIGC.open_session(...)`.
+
+The following surfaces remain planned-only beyond v0.9.0-beta and are not part of
+the `v0.3.3` artifact: `AgentIdentity`, `AgentCapabilityManifest`, `ValidatorHook`,
+`BedrockTraceAdapter`, `A2AAdapter`, `aigc policy init`, and `aigc workflow ...`
+commands. Do not build integrations against those names until they ship through the
+public package exports, instance API, CLI surface, and contract tests.
 
 All public examples, starter packs, presets, demo code, and docs snippets
 must use public `aigc` imports only and must not depend on `aigc._internal`.

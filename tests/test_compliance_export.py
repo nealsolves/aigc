@@ -281,3 +281,57 @@ def test_compliance_export_wrapped_function_error_artifact_is_valid(tmp_path):
     assert report["invalid_artifacts"] == 0
     assert report["fail_count"] == 1
     assert "wrapped_function_error" in report["failure_gates_summary"]
+
+
+def test_compliance_export_skips_workflow_artifacts(tmp_path):
+    """Workflow artifacts are silently skipped — not counted as invalid."""
+    workflow_artifact = {
+        "artifact_type": "workflow",
+        "workflow_schema_version": "0.9.0",
+        "session_id": "s-123",
+        "status": "COMPLETED",
+        "started_at": 1000,
+        "finalized_at": 2000,
+        "steps": [],
+        "invocation_audit_checksums": [],
+        "failure_summary": None,
+        "metadata": {},
+    }
+    input_file = tmp_path / "workflow.jsonl"
+    input_file.write_text(json.dumps(workflow_artifact) + "\n")
+
+    exit_code = main(["compliance", "export", "--input", str(input_file)])
+    assert exit_code == 0
+
+
+def test_compliance_export_mixed_skips_workflow_counts_invocations(tmp_path):
+    """Mixed JSONL: workflow artifacts skipped, invocation artifacts counted."""
+    workflow_artifact = {
+        "artifact_type": "workflow",
+        "workflow_schema_version": "0.9.0",
+        "session_id": "s-123",
+        "status": "COMPLETED",
+        "started_at": 1000,
+        "finalized_at": 2000,
+        "steps": [],
+        "invocation_audit_checksums": [],
+        "failure_summary": None,
+        "metadata": {},
+    }
+    artifacts = [_make_artifact("PASS"), _make_artifact("PASS")]
+    input_file = tmp_path / "mixed.jsonl"
+    with open(input_file, "w") as f:
+        f.write(json.dumps(workflow_artifact) + "\n")
+        for a in artifacts:
+            f.write(json.dumps(a) + "\n")
+
+    output_file = tmp_path / "report.json"
+    exit_code = main([
+        "compliance", "export",
+        "--input", str(input_file),
+        "--output", str(output_file),
+    ])
+    assert exit_code == 0
+    report = json.loads(output_file.read_text())
+    assert report["total_artifacts"] == 2  # workflow artifact not counted
+    assert report["invalid_artifacts"] == 0

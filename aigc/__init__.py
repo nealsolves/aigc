@@ -28,8 +28,10 @@ from aigc.errors import (
     PreconditionError,
     RiskThresholdError,
     SchemaValidationError,
+    SessionStateError,
     ToolConstraintViolationError,
 )
+from aigc.session import GovernanceSession, SessionPreCallResult
 from aigc.retry import with_retry, RetryExhaustedError
 from aigc.sinks import (
     AuditSink,
@@ -94,7 +96,10 @@ __version__ = "0.3.3"
 __all__ = [
     "AIGC",
     "AIGCError",
+    "GovernanceSession",
     "PreCallResult",
+    "SessionPreCallResult",
+    "SessionStateError",
     "ArtifactSigner",
     "AuditChain",
     "AuditLineage",

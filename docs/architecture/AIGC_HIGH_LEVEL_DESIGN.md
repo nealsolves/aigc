@@ -21,11 +21,12 @@ One-line rule: the host performs actions; AIGC governs whether they are allowed
 and emits evidence.
 
 Availability boundary: this document describes the intended `1.0.0` public
-surface. The shipped `0.3.3` package and CLI do not yet export
-`GovernanceSession`, `SessionPreCallResult`, `AgentIdentity`,
-`AgentCapabilityManifest`, `ValidatorHook`, `BedrockTraceAdapter`,
-`A2AAdapter`, `aigc policy init`, or `aigc workflow ...` commands, and
-`AIGC.open_session(...)` is not part of the installable runtime yet.
+surface. The currently shipped package remains `v0.3.3`. The upcoming unreleased
+v0.9.0-beta line will add `GovernanceSession`, `SessionPreCallResult`, and
+`AIGC.open_session(...)`. `AgentIdentity`, `AgentCapabilityManifest`,
+`ValidatorHook`, `BedrockTraceAdapter`, `A2AAdapter`, `aigc policy init`, and
+`aigc workflow ...` commands remain planned-only and are not part of any
+currently released artifact.
 
 Headline 1.0.0 capabilities:
 
@@ -605,13 +606,18 @@ The shipped `0.3.3` public surface remains invocation-scoped.
 | `enforce_pre_call` / `enforce_post_call` | split invocation governance |
 | `PreCallResult` | single-use split handoff for invocation governance |
 
-Planned-only additions for `1.0.0` — not exported by `0.3.3`, not available
-in the `0.3.3` CLI, and not safe for current integrations to depend on yet:
+Planned for v0.9.0-beta (not yet released) — not part of the `v0.3.3` artifact:
 
-| Planned surface (not in `0.3.3`) | Intended role in `1.0.0` |
-| -------------------------------- | ------------------------ |
+| Surface | Intended role |
+| ------- | ------------- |
 | `GovernanceSession` | workflow governance primitive |
 | `SessionPreCallResult` | workflow-scoped split handoff |
+| `AIGC.open_session(...)` | instance-scoped workflow entrypoint |
+
+Planned for 1.0.0 (not in v0.9.0-beta) — not part of any currently released artifact:
+
+| Planned surface | Intended role in `1.0.0` |
+| --------------- | ------------------------ |
 | `AgentIdentity` | participant identity contract |
 | `AgentCapabilityManifest` | capability and protocol contract |
 | `ValidatorHook` | workflow validator extension point |

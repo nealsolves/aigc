@@ -165,3 +165,14 @@ class CustomGateViolationError(GovernanceViolationError):
             code="CUSTOM_GATE_VIOLATION",
             details=details,
         )
+
+
+class SessionStateError(AIGCError):
+    """Raised when a GovernanceSession lifecycle transition is invalid."""
+
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(
+            message,
+            code="WORKFLOW_INVALID_TRANSITION",
+            details=details,
+        )

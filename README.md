@@ -49,15 +49,14 @@ Since v0.3.3, split enforcement is the default — Phase A runs before the model
 call, Phase B validates output after. Pass `pre_call_enforcement=False` for the
 legacy unified mode (deprecated).
 
-The target-state `1.0.0` architecture expands this invocation-first model with
-planned workflow governance built around `AIGC.open_session(...)`,
-`GovernanceSession`, `SessionPreCallResult`, and optional Bedrock/A2A
-normalization adapters. The planned golden-path CLI names —
-`aigc policy init`, `aigc workflow init`, `aigc workflow lint`,
-`aigc workflow doctor`, `aigc workflow trace`, and
-`aigc workflow export` — are also frozen in the repo docs, but none of those
-workflow surfaces are part of the shipped `v0.3.3` runtime or CLI. That
-future-state design is captured in `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
+The upcoming unreleased v0.9.0-beta line will add workflow governance built
+around `AIGC.open_session(...)`, `GovernanceSession`, and `SessionPreCallResult`.
+The currently shipped package remains `v0.3.3`. Optional Bedrock/A2A normalization
+adapters, the full workflow CLI commands (`aigc policy init`, `aigc workflow init`,
+`aigc workflow lint`, `aigc workflow doctor`, `aigc workflow trace`,
+`aigc workflow export`), and PR-05+ surfaces remain planned-only and are not part
+of the `v0.3.3` runtime or CLI. That architecture is captured in
+`docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
 
 ## Release Narrative
 

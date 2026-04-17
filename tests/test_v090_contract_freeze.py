@@ -62,9 +62,9 @@ def _load_doc_parity_module():
     return module
 
 
-def test_v090_pr03_contract_truth_passes_for_repo():
+def test_v090_pr04_contract_truth_passes_for_repo():
     module = _load_doc_parity_module()
-    assert module.check_v090_pr03_contract() == []
+    assert module.check_v090_pr04_contract() == []
 
 
 def test_v090_golden_path_lists_are_frozen_in_plan_and_hld():
@@ -109,25 +109,34 @@ def test_v090_golden_path_lists_are_frozen_in_plan_and_hld():
     ) == EXPECTED_DOCS_ORDER
 
 
-def test_v090_public_surface_remains_invocation_only():
+def test_v090_public_surface_includes_session_primitives():
     assert PreCallResult is not None
     assert hasattr(aigc, "PreCallResult")
     assert hasattr(aigc, "enforce_pre_call")
     assert hasattr(aigc, "enforce_post_call")
 
+    # PR-04 surfaces — must now be importable from aigc (module-level class exports)
+    assert hasattr(aigc, "GovernanceSession"), "GovernanceSession must ship in PR-04"
+    assert hasattr(aigc, "SessionPreCallResult"), "SessionPreCallResult must ship in PR-04"
+
+    # open_session is an INSTANCE METHOD on AIGC, NOT a module-level export
+    assert not hasattr(aigc, "open_session"), (
+        "open_session must not be a module-level export — "
+        "it is instance-scoped via AIGC.open_session()"
+    )
+    assert callable(getattr(aigc.AIGC(), "open_session", None)), (
+        "AIGC instances must have open_session as a callable method"
+    )
+
+    # PR-05+ surfaces — must not exist yet
     for name in (
-        "GovernanceSession",
-        "SessionPreCallResult",
         "AgentIdentity",
         "AgentCapabilityManifest",
         "ValidatorHook",
         "BedrockTraceAdapter",
         "A2AAdapter",
-        "open_session",
     ):
-        assert not hasattr(aigc, name), f"aigc.{name} should not ship in PR-03"
-
-    assert not hasattr(AIGC, "open_session")
+        assert not hasattr(aigc, name), f"aigc.{name} should not ship until PR-05+"
 
 
 def test_v090_cli_surface_has_no_workflow_or_policy_init_commands():

@@ -12,6 +12,7 @@ from aigc._internal.errors import (
     PreconditionError,
     RiskThresholdError,
     SchemaValidationError,
+    SessionStateError,
     ToolConstraintViolationError,
 )
 
@@ -29,5 +30,6 @@ __all__ = [
     "PreconditionError",
     "RiskThresholdError",
     "SchemaValidationError",
+    "SessionStateError",
     "ToolConstraintViolationError",
 ]

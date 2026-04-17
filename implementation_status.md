@@ -2,8 +2,8 @@
 
 **Target Version:** `0.9.0` Beta
 **Baseline Version:** `0.3.3`
-**Active Branch:** `feat/v0.9-05-starters-and-migration`
-**Last Updated:** 2026-04-16
+**Active Branch:** `feat/v0.9-07-beta-proof`
+**Last Updated:** 2026-04-17
 
 ---
 
@@ -11,11 +11,8 @@
 
 Current state:
 
-- PR-01 is complete
-- PR-02 is complete
-- PR-03 is complete
-- PR-04 is complete
-- PR-05 is in progress
+- PR-01 through PR-06 are complete
+- PR-07 is in progress
 
 | Track | Status | Notes |
 |-------|--------|-------|
@@ -23,9 +20,9 @@ Current state:
 | Contract freeze | complete | PR-02 froze lifecycle, planned-only workflow surfaces, and protocol-boundary rules |
 | Golden-path contract | complete | PR-03 froze command names, starter profiles, docs order, and public-import rules |
 | Minimal session flow | complete | PR-04: GovernanceSession, AIGC.open_session, SessionPreCallResult |
-| Starters and migration | in progress | PR-05: aigc workflow init, aigc policy init, starter scaffolds, migration guide |
-| Diagnostics | not started | Starts in PR-06 |
-| Beta proof | not started | Starts in PR-07 |
+| Starters and migration | complete | PR-05: aigc workflow init, aigc policy init, starter scaffolds, migration guide |
+| Diagnostics | complete | PR-06: aigc workflow lint, aigc workflow doctor, frozen reason codes |
+| Beta proof | in progress | PR-07: quickstart docs, demo slice, failure-and-fix proof, clean-env harness |
 | Engine hardening | not started | Starts in PR-08 |
 | Exports and ops | not started | Starts in PR-09 |
 | Optional adapters | not started | Starts in PR-10a and PR-10b |
@@ -71,9 +68,9 @@ Current state:
 | PR-02 | `feat/v0.9-02-contract-freeze` | complete | Freeze lifecycle, `SessionPreCallResult`, `AIGC.open_session(...)`, and evidence separation |
 | PR-03 | `feat/v0.9-03-golden-path-contract` | complete | Freeze CLI shape, starter profiles, public-import rules, docs order, and first-user reason codes |
 | PR-04 | `feat/v0.9-04-minimal-session-flow` | complete | Smallest real governed local workflow path |
-| PR-05 | `feat/v0.9-05-starters-and-migration` | in progress | Starters, thin presets, and migration helpers |
-| PR-06 | `feat/v0.9-06-doctor-and-lint` | not started | Diagnostics, stable reason codes, and fix guidance |
-| PR-07 | `feat/v0.9-07-beta-proof` | not started | Mandatory stop-ship checkpoint for quickstart, demo, and failure-and-fix proof |
+| PR-05 | `feat/v0.9-05-starters-and-migration` | complete | Starters, thin presets, and migration helpers |
+| PR-06 | `feat/v0.9-06-doctor-and-lint` | complete | Diagnostics: workflow lint, doctor, frozen reason codes |
+| PR-07 | `feat/v0.9-07-beta-proof` | in progress | Mandatory stop-ship checkpoint for quickstart, demo, and failure-and-fix proof |
 | PR-08 | `feat/v0.9-08-engine-hardening` | not started | Sequencing, approvals, budgets, and validator-hook hardening |
 | PR-09 | `feat/v0.9-09-exports-and-ops` | not started | Trace, export, and operator polish |
 | PR-10a | `feat/v0.9-10-bedrock-adapter` | not started | Optional Bedrock adapter with alias-backed identity rules |
@@ -101,3 +98,22 @@ Current state:
 - [x] add staged CLI-shape and public-import boundary sentinel tests
 - [x] remove maintained demo `_internal` imports where public or local
       equivalents already exist
+
+---
+
+## PR-07 Deliverables
+
+- [ ] `docs/dev/pr_context.md` and `implementation_status.md` are aligned to PR-07
+- [ ] `docs/reference/WORKFLOW_QUICKSTART.md` exists and covers minimal starter to COMPLETED
+- [ ] `docs/reference/TROUBLESHOOTING.md` exists and covers doctor/lint guidance
+- [ ] `docs/reference/STARTER_INDEX.md` and `docs/reference/STARTER_RECIPES.md` exist
+- [ ] `docs/reference/WORKFLOW_CLI.md` exists and covers policy init, workflow init, workflow lint, workflow doctor only (not trace/export)
+- [ ] `docs/PUBLIC_INTEGRATION_CONTRACT.md` v0.9.0 section updated from planned-only to beta
+- [ ] `docs/reference/SUPPORTED_ENVIRONMENTS.md` exists
+- [ ] `docs/reference/OPERATIONS_RUNBOOK.md` exists
+- [ ] `tests/test_pr07_beta_proof.py` passes: minimal → COMPLETED, standard → COMPLETED, regulated failure path
+- [ ] `scripts/validate_v090_beta_proof.py` runs end-to-end in a clean venv within 15 minutes
+- [ ] `demo-app-api/workflow_routes.py` router imported in `demo-app-api/main.py`
+- [ ] `demo-app-react/src/WorkflowLab/WorkflowLab.tsx` exists with 4 tabs
+- [ ] no `aigc._internal` imports in any doc, example, demo, or starter
+- [ ] Full test suite passes: `python -m pytest -v`, `flake8 aigc`, `python scripts/check_doc_parity.py`, `pytest demo-app-api/tests -q`, `npm --prefix demo-app-react test`, `npm --prefix demo-app-react run build`

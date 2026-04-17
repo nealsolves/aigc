@@ -1793,15 +1793,14 @@ def check_v090_pr04_contract() -> list[str]:
 
 
 def check_v090_pr05_contract() -> list[str]:
-    """Verify PR-05 doc state: starters-and-migration surfaces documented as upcoming v0.9.0-beta."""
+    """Verify PR-05 deliverables remain present: starters-and-migration surfaces are shipped."""
     errors: list[str] = []
 
     required_files = [
-        _V090_PR_CONTEXT_REL,
-        "implementation_status.md",
         _V090_PR05_PUBLIC_CONTRACT_REL,
         "README.md",
         _V090_HLD_REL,
+        "implementation_status.md",
     ]
     texts: dict[str, str] = {}
     for rel in required_files:
@@ -1815,24 +1814,6 @@ def check_v090_pr05_contract() -> list[str]:
         return errors
 
     pfx = "[v0.9.0-pr05]"
-
-    # -- Active branch --
-    _require_all(
-        errors,
-        _V090_PR_CONTEXT_REL,
-        texts[_V090_PR_CONTEXT_REL],
-        [f"Active branch: `{_V090_PR05_ACTIVE_BRANCH}`"],
-        "PR-05 active branch",
-        error_prefix=pfx,
-    )
-    _require_all(
-        errors,
-        "implementation_status.md",
-        texts["implementation_status.md"],
-        [f"**Active Branch:** `{_V090_PR05_ACTIVE_BRANCH}`"],
-        "PR-05 active branch",
-        error_prefix=pfx,
-    )
 
     # -- PUBLIC_INTEGRATION_CONTRACT: PR-05 surfaces present, CLI entries removed from beyond-beta --
     _require_all(
@@ -1889,13 +1870,13 @@ def check_v090_pr05_contract() -> list[str]:
                 f"{pfx} {_V090_HLD_REL}: planned-only sentence not updated: {forbidden!r}"
             )
 
-    # -- implementation_status.md: PR-04 complete, PR-05 in progress --
+    # -- implementation_status.md: PR-05 complete and starters row present --
     _require_all(
         errors,
         "implementation_status.md",
         texts["implementation_status.md"],
-        ["PR-04 is complete", "Starters and migration"],
-        "PR-04 complete + starters row",
+        ["PR-01 through PR-06 are complete", "Starters and migration"],
+        "PR-01 through PR-06 complete + starters row",
         error_prefix=pfx,
     )
 

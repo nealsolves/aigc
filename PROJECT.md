@@ -29,6 +29,12 @@ The shipped runtime supports:
 The demo surface in this repo is a React frontend plus FastAPI backend that
 walks through the `v0.3.x` capabilities.
 
+The v0.9.0-beta workflow governance line is available on the
+`feat/v0.9-07-beta-proof` branch. It adds `AIGC.open_session()`,
+`GovernanceSession`, starter scaffolds, `aigc workflow init`, `aigc workflow lint`,
+and `aigc workflow doctor`. See [docs/reference/WORKFLOW_QUICKSTART.md](docs/reference/WORKFLOW_QUICKSTART.md)
+for the first-adopter path.
+
 ## Architecture Snapshot
 
 ![AIGC Runtime Architecture](docs/architecture/diagrams/aigc_architecture_component_light.svg)
@@ -106,6 +112,14 @@ aigc/
 │   ├── architecture/               High-level design, diagrams, threat model
 │   ├── design/                     Release design specs
 │   ├── decisions/                  ADRs for important design choices
+│   ├── reference/                  First-adopter workflow docs (v0.9.0-beta)
+│   │   ├── WORKFLOW_QUICKSTART.md  Start here for workflow governance
+│   │   ├── TROUBLESHOOTING.md      Doctor/lint guidance and reason codes
+│   │   ├── STARTER_INDEX.md        Profile index with links to recipes
+│   │   ├── STARTER_RECIPES.md      Per-profile commands and customization
+│   │   ├── WORKFLOW_CLI.md         CLI reference for shipped commands
+│   │   ├── SUPPORTED_ENVIRONMENTS.md  Python/OS matrix and requirements
+│   │   └── OPERATIONS_RUNBOOK.md   Test suite and validation commands
 ├── CHANGELOG.md                    User-facing release history
 ├── README.md                       First-stop overview and quick start
 └── PROJECT.md                      This repo guide
@@ -272,6 +286,9 @@ Use the docs in this order if you are orienting yourself quickly:
 | [docs/INTEGRATION_GUIDE.md](docs/INTEGRATION_GUIDE.md) | Host integration patterns and split-mode behavior |
 | [policies/policy_dsl_spec.md](policies/policy_dsl_spec.md) | Policy authoring reference |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed release notes and patch-level history |
+
+For v0.9.0-beta workflow governance, read the first-adopter docs in the
+order listed in the [README.md workflow section](README.md#workflow-governance-v090-beta).
 
 ## Notes for Repo Readers
 

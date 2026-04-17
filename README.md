@@ -49,14 +49,40 @@ Since v0.3.3, split enforcement is the default — Phase A runs before the model
 call, Phase B validates output after. Pass `pre_call_enforcement=False` for the
 legacy unified mode (deprecated).
 
-The upcoming unreleased v0.9.0-beta line will add workflow governance built
-around `AIGC.open_session(...)`, `GovernanceSession`, `SessionPreCallResult`,
-`aigc workflow init`, and `aigc policy init`. The currently shipped package
-remains `v0.3.3`. Optional Bedrock/A2A normalization adapters and the remaining
-workflow CLI commands (`aigc workflow lint`, `aigc workflow doctor`,
-`aigc workflow trace`, `aigc workflow export`) remain planned-only and are not
-part of the `v0.3.3` runtime or CLI. That architecture is captured in
+The v0.9.0-beta line adds workflow governance built around
+`AIGC.open_session(...)`, `GovernanceSession`, `SessionPreCallResult`,
+`aigc workflow init`, `aigc policy init`, `aigc workflow lint`, and
+`aigc workflow doctor`. Install from source on the
+`feat/v0.9-07-beta-proof` branch — no external API keys required. The
+currently shipped PyPI package remains `v0.3.3`. Optional Bedrock/A2A
+adapters and `aigc workflow trace`/`aigc workflow export` remain planned
+for later PRs. The target-state architecture is captured in
 `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
+
+## Workflow Governance (v0.9.0 Beta)
+
+Workflow governance is available in the v0.9.0-beta line. No external API
+keys required. Install from source, then:
+
+```bash
+aigc workflow init --profile minimal
+cd governance
+python workflow_example.py
+# Status:  COMPLETED
+# Steps:   2
+# Session: <uuid>
+```
+
+**First-adopter docs (read in this order):**
+
+1. [Workflow Quickstart](docs/reference/WORKFLOW_QUICKSTART.md)
+2. [Migration Guide](docs/migration.md)
+3. [Troubleshooting](docs/reference/TROUBLESHOOTING.md)
+4. [Starter Recipes](docs/reference/STARTER_RECIPES.md)
+5. [Workflow CLI Reference](docs/reference/WORKFLOW_CLI.md)
+6. [Public API Contract](docs/PUBLIC_INTEGRATION_CONTRACT.md)
+7. [Supported Environments](docs/reference/SUPPORTED_ENVIRONMENTS.md)
+8. [Operations Runbook](docs/reference/OPERATIONS_RUNBOOK.md)
 
 ## Release Narrative
 
@@ -184,10 +210,10 @@ The `aigc` console script exposes three practical commands:
   include DAG-level lineage analysis (node counts, duplicate detection,
   root/leaf/orphan lists, cycle detection)
 
-Planned `v0.9.0` commands may be named in target-state docs. `aigc workflow init`
-and `aigc policy init` are shipped in v0.9.0-beta. `aigc workflow lint`,
-`aigc workflow doctor`, `aigc workflow trace`, and `aigc workflow export` remain
-unshipped in the current `v0.3.3` CLI.
+The v0.9.0-beta line adds `aigc workflow init`, `aigc policy init`,
+`aigc workflow lint`, and `aigc workflow doctor`. `aigc workflow trace` and
+`aigc workflow export` are planned for a later PR and are not yet available.
+The current PyPI release (`v0.3.3`) CLI surface is unchanged.
 
 ## Repo Guide
 

@@ -542,3 +542,192 @@ def test_multi_hook_each_gets_own_deadline():
     assert Hook1.received_deadline == 200, f"Hook1 should receive deadline_ms=200, got {Hook1.received_deadline}"
     assert Hook2.received_deadline == 800, f"Hook2 should receive deadline_ms=800, got {Hook2.received_deadline}"
     assert session.workflow_artifact["status"] == "COMPLETED"
+
+
+# ---------------------------------------------------------------------------
+# Phase 7: Hook semantics completeness
+# ---------------------------------------------------------------------------
+
+def test_multi_hook_dispatch_order():
+    """Evidence list in artifact must reflect dispatch order (hook 1 before hook 2)."""
+    from aigc._internal.enforcement import AIGC
+    from aigc._internal.validator_hook import (
+        ValidatorHook, ValidatorHookResult, VALIDATOR_ALLOW,
+    )
+    import time as _time
+
+    class AllowHook1(ValidatorHook):
+        hook_id = "allow-hook-1"
+        hook_version = "1.0"
+
+        def evaluate(self, envelope):
+            return ValidatorHookResult(
+                decision=VALIDATOR_ALLOW,
+                reason_code=None,
+                explanation=None,
+                hook_id=self.hook_id,
+                hook_version=self.hook_version,
+                attempt=1,
+                latency_ms=1,
+                observed_at=int(_time.time() * 1000),
+            )
+
+    class AllowHook2(ValidatorHook):
+        hook_id = "allow-hook-2"
+        hook_version = "1.0"
+
+        def evaluate(self, envelope):
+            return ValidatorHookResult(
+                decision=VALIDATOR_ALLOW,
+                reason_code=None,
+                explanation=None,
+                hook_id=self.hook_id,
+                hook_version=self.hook_version,
+                attempt=1,
+                latency_ms=1,
+                observed_at=int(_time.time() * 1000),
+            )
+
+    a = AIGC()
+    session = _make_session(a, [AllowHook1(), AllowHook2()])
+    with session:
+        token = session.enforce_step_pre_call(dict(_BASE_INV))
+        session.enforce_step_post_call(token, dict(_GOOD_OUTPUT))
+        session.complete()
+
+    artifact = session.workflow_artifact
+    evidence = artifact.get("validator_hook_evidence", [])
+    assert len(evidence) == 2
+    assert evidence[0]["hook_id"] == "allow-hook-1"
+    assert evidence[1]["hook_id"] == "allow-hook-2"
+
+
+def test_hook_envelope_includes_invocation_checksum():
+    """Envelope's invocation_checksum must be a 64-char SHA-256 hex string."""
+    from aigc._internal.enforcement import AIGC
+    from aigc._internal.validator_hook import (
+        ValidatorHook, ValidatorHookResult, VALIDATOR_ALLOW,
+    )
+    import time as _time
+
+    captured = {}
+
+    class ChecksumCaptureHook(ValidatorHook):
+        hook_id = "checksum-capture-hook"
+        hook_version = "1.0"
+
+        def evaluate(self, envelope):
+            captured["invocation_checksum"] = envelope.invocation_checksum
+            return ValidatorHookResult(
+                decision=VALIDATOR_ALLOW,
+                reason_code=None,
+                explanation=None,
+                hook_id=self.hook_id,
+                hook_version=self.hook_version,
+                attempt=1,
+                latency_ms=1,
+                observed_at=int(_time.time() * 1000),
+            )
+
+    a = AIGC()
+    session = _make_session(a, [ChecksumCaptureHook()])
+    with session:
+        token = session.enforce_step_pre_call(dict(_BASE_INV))
+        session.enforce_step_post_call(token, dict(_GOOD_OUTPUT))
+        session.complete()
+
+    checksum = captured.get("invocation_checksum")
+    assert checksum is not None, "invocation_checksum must be set in envelope"
+    assert len(checksum) == 64, f"Expected 64-char SHA-256 hex, got len={len(checksum)}"
+    # Verify it is a valid hex string
+    assert all(c in "0123456789abcdef" for c in checksum), (
+        "invocation_checksum must be lowercase hex"
+    )
+
+
+def test_stale_result_marked_and_not_authoritative():
+    """A result with a wrong attempt number must be marked stale with EXECUTION_FAILURE."""
+    from aigc._internal.validator_hook import (
+        ValidatorHook, ValidatorHookResult, ValidatorHookEnvelope,
+        _call_hook_once,
+        VALIDATOR_ALLOW, VALIDATOR_EXECUTION_FAILURE,
+    )
+    import time as _time
+
+    class WrongAttemptHook(ValidatorHook):
+        hook_id = "wrong-attempt-hook"
+        hook_version = "1.0"
+
+        def evaluate(self, envelope):
+            return ValidatorHookResult(
+                decision=VALIDATOR_ALLOW,
+                reason_code=None,
+                explanation=None,
+                hook_id=self.hook_id,
+                hook_version=self.hook_version,
+                attempt=999,  # wrong attempt number
+                latency_ms=1,
+                observed_at=int(_time.time() * 1000),
+            )
+
+    hook = WrongAttemptHook()
+    now_ms = int(_time.time() * 1000)
+    env = ValidatorHookEnvelope(
+        hook_schema_version="1.0",
+        session_id="s-1",
+        step_id="step-1",
+        participant_id=None,
+        invocation={},
+        deadline_ms=5000,
+        observed_at=now_ms,
+    )
+    result = _call_hook_once(hook, env, attempt=1)
+    assert result.stale_result is True
+    assert result.decision == VALIDATOR_EXECUTION_FAILURE
+    assert result.reason_code == "HOOK_STALE_RESULT"
+
+
+def test_result_past_absolute_deadline_is_stale():
+    """A result whose observed_at is past envelope.observed_at + deadline_ms is stale."""
+    from aigc._internal.validator_hook import (
+        ValidatorHook, ValidatorHookResult, ValidatorHookEnvelope,
+        _call_hook_once,
+        VALIDATOR_ALLOW, VALIDATOR_EXECUTION_FAILURE,
+    )
+    import time as _time
+
+    now_ms = int(_time.time() * 1000)
+    deadline_ms = 1000  # 1 second deadline
+    absolute_deadline = now_ms + deadline_ms
+
+    class PastDeadlineHook(ValidatorHook):
+        hook_id = "past-deadline-hook"
+        hook_version = "1.0"
+
+        def evaluate(self, envelope):
+            # Return a result with observed_at well past the absolute deadline
+            return ValidatorHookResult(
+                decision=VALIDATOR_ALLOW,
+                reason_code=None,
+                explanation=None,
+                hook_id=self.hook_id,
+                hook_version=self.hook_version,
+                attempt=1,
+                latency_ms=1,
+                observed_at=absolute_deadline + 5000,  # 5 seconds past deadline
+            )
+
+    hook = PastDeadlineHook()
+    env = ValidatorHookEnvelope(
+        hook_schema_version="1.0",
+        session_id="s-1",
+        step_id="step-1",
+        participant_id=None,
+        invocation={},
+        deadline_ms=deadline_ms,
+        observed_at=now_ms,
+    )
+    result = _call_hook_once(hook, env, attempt=1)
+    assert result.stale_result is True
+    assert result.decision == VALIDATOR_EXECUTION_FAILURE
+    assert result.reason_code == "HOOK_STALE_RESULT"

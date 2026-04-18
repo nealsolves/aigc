@@ -854,6 +854,8 @@ class GovernanceSession:
                     invocation=enriched,
                     deadline_ms=_hook.timeout_ms,
                     observed_at=_obs_at,
+                    policy_file=effective_policy_file,
+                    invocation_checksum=_checksum(enriched),
                 )
                 _result = _invoke_hook(_hook, _envelope)
                 self._validator_hook_evidence.append({

@@ -42,6 +42,8 @@ class ValidatorHookEnvelope:
     invocation: dict[str, Any]
     deadline_ms: int
     observed_at: int  # unix milliseconds
+    policy_file: str | None = None
+    invocation_checksum: str | None = None
 
 
 @dataclass(frozen=True)
@@ -75,6 +77,13 @@ class ValidatorHook(abc.ABC):
 
     Retry semantics: on EXECUTION_FAILURE, _invoke_hook() retries up to
     max_retries times. On DENY or TIMEOUT, no retry occurs.
+
+    Class attributes:
+        timeout_ms: Per-invocation timeout in milliseconds (class-level
+            attribute, not instance).
+        max_retries: Max retries on EXECUTION_FAILURE (class-level
+            attribute, not instance).
+        DENY and REVIEW_REQUIRED decisions are never retried automatically.
     """
 
     hook_id: str
@@ -142,6 +151,26 @@ def _call_hook_once(
         )
 
     result = result_holder[0]
+
+    # Stale-result check: reject results that arrived after the deadline or
+    # whose attempt number doesn't match the active attempt.
+    _absolute_deadline = envelope.observed_at + envelope.deadline_ms
+    if result.observed_at > _absolute_deadline or result.attempt != attempt:
+        return ValidatorHookResult(
+            decision=VALIDATOR_EXECUTION_FAILURE,
+            reason_code="HOOK_STALE_RESULT",
+            explanation=(
+                f"Hook {hook.hook_id!r} returned a stale result "
+                f"(observed_at={result.observed_at}, "
+                f"deadline={_absolute_deadline}, attempt={result.attempt} vs {attempt})"
+            ),
+            hook_id=result.hook_id,
+            hook_version=result.hook_version,
+            attempt=attempt,
+            latency_ms=elapsed_ms,
+            observed_at=int(time.time() * 1000),
+            stale_result=True,
+        )
 
     _KNOWN_DECISIONS = {
         VALIDATOR_ALLOW,

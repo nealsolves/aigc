@@ -361,3 +361,67 @@ def test_unknown_workflow_field_still_rejected():
     }
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(policy, schema)
+
+
+# ---------------------------------------------------------------------------
+# Composition hardening: Phase 4 — new DSL fields must only narrow
+# ---------------------------------------------------------------------------
+
+def test_child_cannot_widen_participants():
+    """Child cannot add participant IDs not in base."""
+    with pytest.raises(PolicyValidationError, match="escalation"):
+        load_policy("tests/test_policies/composition_p4_widen_participants.yaml")
+
+
+def test_child_cannot_widen_participant_protocols():
+    """Child cannot widen protocols for a participant."""
+    with pytest.raises(PolicyValidationError, match="escalation"):
+        load_policy("tests/test_policies/composition_p4_widen_participant_protocols.yaml")
+
+
+def test_child_cannot_widen_required_sequence():
+    """Child cannot add steps to required_sequence."""
+    with pytest.raises(PolicyValidationError, match="escalation"):
+        load_policy("tests/test_policies/composition_p4_widen_required_sequence.yaml")
+
+
+def test_child_cannot_widen_allowed_transitions():
+    """Child cannot add transitions not in base."""
+    with pytest.raises(PolicyValidationError, match="escalation"):
+        load_policy("tests/test_policies/composition_p4_widen_allowed_transitions.yaml")
+
+
+def test_child_cannot_widen_allowed_agent_roles():
+    """Child cannot add roles not in base allowed_agent_roles."""
+    with pytest.raises(PolicyValidationError, match="escalation"):
+        load_policy("tests/test_policies/composition_p4_widen_allowed_agent_roles.yaml")
+
+
+def test_child_cannot_widen_handoffs():
+    """Child cannot add handoff pairs not in base."""
+    with pytest.raises(PolicyValidationError, match="escalation"):
+        load_policy("tests/test_policies/composition_p4_widen_handoffs.yaml")
+
+
+def test_child_can_narrow_escalation_threshold():
+    """Child can lower require_approval_after_steps (tightening)."""
+    policy = load_policy("tests/test_policies/composition_p4_narrow_escalation.yaml")
+    assert policy["workflow"]["escalation"]["require_approval_after_steps"] == 2
+
+
+def test_child_cannot_raise_escalation_threshold():
+    """Child cannot raise require_approval_after_steps (widening)."""
+    with pytest.raises(PolicyValidationError, match="escalation"):
+        load_policy("tests/test_policies/composition_p4_raise_escalation.yaml")
+
+
+def test_child_cannot_remove_protocol_constraint_section():
+    """Child cannot remove a base protocol family."""
+    with pytest.raises(PolicyValidationError, match="weakening"):
+        load_policy("tests/test_policies/composition_p4_remove_protocol_section.yaml")
+
+
+def test_child_cannot_weaken_protocol_constraints():
+    """Child cannot change a scalar value in a shared protocol family."""
+    with pytest.raises(PolicyValidationError, match="escalation"):
+        load_policy("tests/test_policies/composition_p4_weaken_protocol_constraints.yaml")

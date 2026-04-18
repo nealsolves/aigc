@@ -248,15 +248,22 @@ def _merge_policies(
 def _validate_composition_restriction(
     base: dict[str, Any],
     merged: dict[str, Any],
+    overlay: dict[str, Any] | None = None,
 ) -> None:
     """Enforce monotonic restriction: child policies may not expand roles or
     remove required postconditions relative to the base policy.
 
     :param base: The resolved base policy dict (before overlay was applied).
     :param merged: The merged policy dict (after overlay was applied).
+    :param overlay: The raw child (overlay) policy dict before merging.
+        Used for workflow field checks where array intersection can hide what
+        the child is attempting to add.
     :raises PolicyValidationError: If the merged policy escalates privileges or
         weakens postconditions.
     """
+    # Use overlay when available for workflow field comparisons so that
+    # intersect/union merge strategies cannot hide widening attempts.
+    child_wf_source = (overlay or {}).get("workflow") or {} if overlay is not None else None
     # Role escalation check: merged roles must be a subset of base roles
     base_roles = set(base.get("roles") or [])
     merged_roles = set(merged.get("roles") or [])
@@ -325,18 +332,183 @@ def _validate_composition_restriction(
             },
         )
 
-    # Participant narrowing check: merged participants (by id) must be ⊆ base participants
+    # For workflow DSL field checks, prefer the raw child overlay (before merge)
+    # so that array intersection/union strategies cannot hide widening attempts.
+    # When overlay is None (legacy call sites), fall back to merged_wf.
+    child_wf = child_wf_source if child_wf_source is not None else merged_wf
+
+    # Participant narrowing check: child participants (by id) must be ⊆ base participants
     base_participants = {p["id"] for p in (base_wf.get("participants") or [])}
-    merged_participants = {p["id"] for p in (merged_wf.get("participants") or [])}
-    if base_participants and (added := sorted(merged_participants - base_participants)):
+    child_participants = {p["id"] for p in (child_wf.get("participants") or [])}
+    if base_participants and (added := sorted(child_participants - base_participants)):
         raise PolicyValidationError(
             f"Composition escalation: child policy adds participants not in base: {added}",
             details={
                 "base_participant_ids": sorted(base_participants),
-                "merged_participant_ids": sorted(merged_participants),
+                "merged_participant_ids": sorted(child_participants),
                 "added_participant_ids": added,
             },
         )
+
+    # Per-participant roles/protocols narrowing
+    base_participants_map = {p["id"]: p for p in (base_wf.get("participants") or [])}
+    child_participants_map = {p["id"]: p for p in (child_wf.get("participants") or [])}
+    for pid, child_p in child_participants_map.items():
+        base_p = base_participants_map.get(pid, {})
+        base_p_roles = set(base_p.get("roles") or [])
+        child_p_roles = set(child_p.get("roles") or [])
+        if base_p_roles and (widened := sorted(child_p_roles - base_p_roles)):
+            raise PolicyValidationError(
+                f"Composition escalation: child widens roles for participant {pid!r}: {widened}",
+                details={"participant_id": pid, "widened_roles": widened},
+            )
+        base_p_protocols = set(base_p.get("protocols") or [])
+        child_p_protocols = set(child_p.get("protocols") or [])
+        if base_p_protocols and (widened := sorted(child_p_protocols - base_p_protocols)):
+            raise PolicyValidationError(
+                f"Composition escalation: child widens protocols for participant "
+                f"{pid!r}: {widened}",
+                details={"participant_id": pid, "widened_protocols": widened},
+            )
+        base_manifest = base_p.get("manifest_ref")
+        child_manifest = child_p.get("manifest_ref")
+        if base_manifest is not None and child_manifest != base_manifest:
+            raise PolicyValidationError(
+                f"Composition escalation: child changes manifest_ref for participant {pid!r}",
+                details={
+                    "participant_id": pid,
+                    "base_manifest_ref": base_manifest,
+                    "merged_manifest_ref": child_manifest,
+                },
+            )
+
+    # required_sequence must only narrow (check child overlay vs base)
+    base_seq = base_wf.get("required_sequence") or []
+    child_seq = child_wf.get("required_sequence") or []
+    base_seq_set = set(base_seq)
+    child_seq_set = set(child_seq)
+    if base_seq and (added := sorted(child_seq_set - base_seq_set)):
+        raise PolicyValidationError(
+            f"Composition escalation: child adds required_sequence steps not in base: {added}",
+            details={"base_required_sequence": base_seq, "added_steps": added},
+        )
+
+    # allowed_transitions must only narrow (check child overlay vs base)
+    base_trans = base_wf.get("allowed_transitions") or {}
+    child_trans = child_wf.get("allowed_transitions") or {}
+    if base_trans:
+        new_from_keys = sorted(set(child_trans) - set(base_trans))
+        if new_from_keys:
+            raise PolicyValidationError(
+                f"Composition escalation: child adds new 'from' step keys in "
+                f"allowed_transitions: {new_from_keys}",
+                details={"new_from_step_keys": new_from_keys},
+            )
+        for from_step, child_to_steps in child_trans.items():
+            base_to_steps = set(base_trans.get(from_step, []))
+            child_to_steps_set = set(child_to_steps)
+            if widened := sorted(child_to_steps_set - base_to_steps):
+                raise PolicyValidationError(
+                    f"Composition escalation: child widens allowed_transitions "
+                    f"for {from_step!r}: {widened}",
+                    details={"from_step": from_step, "widened_transitions": widened},
+                )
+
+    # allowed_agent_roles must only narrow (check child overlay vs base)
+    base_agent_roles = set(base_wf.get("allowed_agent_roles") or [])
+    child_agent_roles = set(child_wf.get("allowed_agent_roles") or [])
+    if base_agent_roles and (widened := sorted(child_agent_roles - base_agent_roles)):
+        raise PolicyValidationError(
+            f"Composition escalation: child widens allowed_agent_roles: {widened}",
+            details={
+                "base_allowed_agent_roles": sorted(base_agent_roles),
+                "widened_roles": widened,
+            },
+        )
+
+    # handoffs must only narrow (check child overlay vs base)
+    base_handoffs = {(h["from"], h["to"]) for h in (base_wf.get("handoffs") or [])}
+    child_handoffs = {(h["from"], h["to"]) for h in (child_wf.get("handoffs") or [])}
+    if base_handoffs and (added := sorted(child_handoffs - base_handoffs)):
+        raise PolicyValidationError(
+            f"Composition escalation: child adds handoff pairs not in base: {added}",
+            details={"added_handoffs": [{"from": f, "to": t} for f, t in added]},
+        )
+
+    # escalation.require_approval_after_steps can only tighten (lower or match)
+    # Use merged_wf here: the merged value correctly reflects the final resolved threshold.
+    base_esc = base_wf.get("escalation") or {}
+    merged_esc = merged_wf.get("escalation") or {}
+    base_esc_n = base_esc.get("require_approval_after_steps")
+    merged_esc_n = merged_esc.get("require_approval_after_steps")
+    if (
+        base_esc_n is not None
+        and merged_esc_n is not None
+        and merged_esc_n > base_esc_n
+    ):
+        raise PolicyValidationError(
+            f"Composition escalation: child raises escalation threshold "
+            f"from {base_esc_n} to {merged_esc_n}",
+            details={
+                "base_require_approval_after_steps": base_esc_n,
+                "merged_require_approval_after_steps": merged_esc_n,
+            },
+        )
+
+    # protocol_constraints must not add new families or weaken.
+    # Use child overlay for structural comparison; merged_wf for value checks.
+    # Only apply family-presence checks when the child explicitly declares
+    # protocol_constraints; a child that omits the key inherits the base intact.
+    base_proto = base_wf.get("protocol_constraints") or {}
+    child_proto_raw = child_wf.get("protocol_constraints")  # None if child omits the key
+    child_proto = child_proto_raw or {}
+    merged_proto = merged_wf.get("protocol_constraints") or {}
+    if base_proto and child_proto_raw is not None:
+        # Child cannot add new protocol families
+        if new_families := sorted(set(child_proto) - set(base_proto)):
+            raise PolicyValidationError(
+                f"Composition escalation: child adds new protocol families "
+                f"not in base: {new_families}",
+                details={"new_protocol_families": new_families},
+            )
+        # Child cannot remove base protocol families (check child overlay)
+        if removed_families := sorted(set(base_proto) - set(child_proto)):
+            raise PolicyValidationError(
+                f"Composition weakening: child removes base protocol families: "
+                f"{removed_families}",
+                details={"removed_protocol_families": removed_families},
+            )
+    if base_proto:
+        # For shared families, child cannot weaken scalar or list values
+        for family, base_constraints in base_proto.items():
+            merged_constraints = merged_proto.get(family, {})
+            if isinstance(base_constraints, dict) and isinstance(merged_constraints, dict):
+                for k, base_val in base_constraints.items():
+                    merged_val = merged_constraints.get(k)
+                    if merged_val is None:
+                        raise PolicyValidationError(
+                            f"Composition weakening: child removes "
+                            f"{family}.{k!r} from protocol_constraints",
+                            details={"family": family, "key": k},
+                        )
+                    if isinstance(base_val, list) and isinstance(merged_val, list):
+                        if widened := sorted(set(merged_val) - set(base_val)):
+                            raise PolicyValidationError(
+                                f"Composition escalation: child widens "
+                                f"{family}.{k!r}: {widened}",
+                                details={"family": family, "key": k, "widened": widened},
+                            )
+                    elif base_val != merged_val:
+                        raise PolicyValidationError(
+                            f"Composition escalation: child changes "
+                            f"{family}.{k!r} scalar value",
+                            details={
+                                "family": family,
+                                "key": k,
+                                "base": base_val,
+                                "merged": merged_val,
+                            },
+                        )
 
 
 # ── Policy version dates ─────────────────────────────────────────
@@ -484,8 +656,10 @@ def _resolve_extends(
     # Merge current policy into base (current overrides base)
     merged = _merge_policies(base_policy_dict, policy, strategy)
 
-    # Enforce monotonic restriction: child must not escalate privileges
-    _validate_composition_restriction(base_policy_dict, merged)
+    # Enforce monotonic restriction: child must not escalate privileges.
+    # Pass the raw overlay policy so that array intersection/union strategies
+    # cannot hide widening attempts in workflow DSL fields.
+    _validate_composition_restriction(base_policy_dict, merged, overlay=policy)
 
     # Remove extends and composition_strategy from merged policy
     merged.pop("extends", None)

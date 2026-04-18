@@ -1,0 +1,11 @@
+extends: composition_p4_base.yaml
+composition_strategy: intersect
+policy_version: "1.0"
+roles:
+  - planner
+workflow:
+  handoffs:
+    - from: agent-1
+      to: agent-2
+    - from: agent-2
+      to: agent-1

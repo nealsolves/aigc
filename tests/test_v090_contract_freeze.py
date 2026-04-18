@@ -339,3 +339,52 @@ def test_v090_pr06_workflow_doctor_cli_exits_cleanly_on_valid_policy(tmp_path):
         check=False,
     )
     assert result.returncode == 0, f"workflow doctor failed: {result.stderr}\n{result.stdout}"
+
+
+# ---------------------------------------------------------------------------
+# PR-08 contract freeze tests (Phase 6 diagnostics)
+# ---------------------------------------------------------------------------
+
+def test_freeze_expected_reason_codes_unchanged():
+    """
+    EXPECTED_REASON_CODES must have exactly 7 entries — the OQ-7 decision removed
+    WORKFLOW_STEP_BUDGET_EXCEEDED and WORKFLOW_HOOK_DENIED from the frozen public list.
+    """
+    assert len(EXPECTED_REASON_CODES) == 7, (
+        f"EXPECTED_REASON_CODES must have exactly 7 entries, got {len(EXPECTED_REASON_CODES)}: "
+        f"{EXPECTED_REASON_CODES}"
+    )
+    assert "WORKFLOW_STEP_BUDGET_EXCEEDED" not in EXPECTED_REASON_CODES, (
+        "WORKFLOW_STEP_BUDGET_EXCEEDED was removed from the frozen public list (OQ-7)"
+    )
+    assert "WORKFLOW_HOOK_DENIED" not in EXPECTED_REASON_CODES, (
+        "WORKFLOW_HOOK_DENIED was removed from the frozen public list (OQ-7)"
+    )
+
+
+def test_worktree_claude_md_does_not_add_step_budget_or_hook_denied_to_frozen_list():
+    """
+    The worktree CLAUDE.md must not list WORKFLOW_STEP_BUDGET_EXCEEDED or
+    WORKFLOW_HOOK_DENIED in the 'Minimum first-user reason codes' line.
+    These were removed by the OQ-7 decision.
+    """
+    claude_md_path = Path(__file__).resolve().parents[1] / "CLAUDE.md"
+    assert claude_md_path.exists(), f"CLAUDE.md not found at {claude_md_path}"
+    text = claude_md_path.read_text(encoding="utf-8")
+
+    # Find the line with the frozen reason codes
+    frozen_line = ""
+    for line in text.splitlines():
+        if "Minimum first-user reason codes" in line:
+            frozen_line = line
+            break
+
+    assert frozen_line, "Could not find 'Minimum first-user reason codes' line in CLAUDE.md"
+    assert "WORKFLOW_STEP_BUDGET_EXCEEDED" not in frozen_line, (
+        "CLAUDE.md must not list WORKFLOW_STEP_BUDGET_EXCEEDED in the frozen reason codes "
+        "(removed by OQ-7 decision)"
+    )
+    assert "WORKFLOW_HOOK_DENIED" not in frozen_line, (
+        "CLAUDE.md must not list WORKFLOW_HOOK_DENIED in the frozen reason codes "
+        "(removed by OQ-7 decision)"
+    )

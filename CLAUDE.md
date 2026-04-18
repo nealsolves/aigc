@@ -118,7 +118,7 @@ through the owning `GovernanceSession`.
 
 **Starter coverage (v0.9.0):** local multi-step review, approval checkpoint, source-required, and tool-budget flows. Hand-authored workflow DSL stays supported as advanced mode and is not required on the default path.
 
-**Minimum first-user reason codes (v0.9.0):** `WORKFLOW_INVALID_TRANSITION`, `WORKFLOW_APPROVAL_REQUIRED`, `WORKFLOW_SOURCE_REQUIRED`, `WORKFLOW_TOOL_BUDGET_EXCEEDED`, `WORKFLOW_STEP_BUDGET_EXCEEDED`, `WORKFLOW_HOOK_DENIED`, `WORKFLOW_UNSUPPORTED_BINDING`, `WORKFLOW_SESSION_TOKEN_INVALID`, `WORKFLOW_STARTER_INTEGRITY_ERROR`.
+**Minimum first-user reason codes (v0.9.0):** `WORKFLOW_INVALID_TRANSITION`, `WORKFLOW_APPROVAL_REQUIRED`, `WORKFLOW_SOURCE_REQUIRED`, `WORKFLOW_TOOL_BUDGET_EXCEEDED`, `WORKFLOW_UNSUPPORTED_BINDING`, `WORKFLOW_SESSION_TOKEN_INVALID`, `WORKFLOW_STARTER_INTEGRITY_ERROR`.
 
 **First-adopter docs order (v0.9.0):** workflow quickstart, invocation-only-to-workflow migration, troubleshooting, starter index and recipes, workflow CLI guide, public API boundary, supported environments, operations runbook, adapters last.
 

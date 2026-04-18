@@ -26,7 +26,16 @@ from typing import Any
 
 import yaml
 
-from aigc._internal.errors import PolicyLoadError, PolicyValidationError
+from aigc._internal.errors import (
+    PolicyLoadError,
+    PolicyValidationError,
+    WorkflowParticipantMismatchError,
+    WorkflowSequenceViolationError,
+    WorkflowTransitionDeniedError,
+    WorkflowRoleViolationError,
+    WorkflowProtocolViolationError,
+    WorkflowHandoffDeniedError,
+)
 from aigc._internal.policy_loader import load_policy
 from aigc._internal.workflow_lint import (
     detect_target_kind,
@@ -392,6 +401,18 @@ def diagnose_starter_dir(path: str) -> list[dict]:
 # Workflow artifact doctor
 # ---------------------------------------------------------------------------
 
+# Exception type names that map to WORKFLOW_INVALID_TRANSITION.
+# Includes SessionStateError and all new PR-08 engine error classes.
+_INVALID_TRANSITION_EXCEPTION_TYPES = frozenset({
+    "SessionStateError",
+    "WorkflowParticipantMismatchError",
+    "WorkflowSequenceViolationError",
+    "WorkflowTransitionDeniedError",
+    "WorkflowRoleViolationError",
+    "WorkflowProtocolViolationError",
+    "WorkflowHandoffDeniedError",
+})
+
 _LIFECYCLE_FAILURE_PATTERNS = [
     "Invalid session lifecycle transition",
     "cannot call",
@@ -428,15 +449,23 @@ def diagnose_workflow_artifact(path: str) -> list[dict]:
         msg = failure_summary.get("message", "")
 
         is_invalid_transition = (
-            exc_type == "SessionStateError"
+            exc_type in _INVALID_TRANSITION_EXCEPTION_TYPES
             or any(pat.lower() in msg.lower() for pat in _LIFECYCLE_FAILURE_PATTERNS)
         )
         if is_invalid_transition:
+            # Build a detail-rich message using any extra context stored in
+            # the failure_summary (participant_id, step_id, etc.)
+            detail_parts = []
+            for detail_key in ("participant_id", "step_id", "from_step", "to_step", "role"):
+                val = failure_summary.get(detail_key)
+                if val:
+                    detail_parts.append(f"{detail_key}={val!r}")
+            detail_str = ("; " + ", ".join(detail_parts)) if detail_parts else ""
             findings.append(_finding(
                 "WORKFLOW_INVALID_TRANSITION",
                 "ERROR",
                 f"Workflow session failed due to an invalid lifecycle transition. "
-                f"Exception: {exc_type}. Message: {msg or '(none)'}.",
+                f"Exception: {exc_type}{detail_str}. Message: {msg or '(none)'}.",
                 _next_action("WORKFLOW_INVALID_TRANSITION"),
             ))
         else:

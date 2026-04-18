@@ -2,7 +2,7 @@
 
 **Target Version:** `0.9.0` Beta
 **Baseline Version:** `0.3.3`
-**Active Branch:** `feat/v0.9-08-engine-hardening`
+**Active Branch:** `develop` (between PRs — PR-09 not yet started)
 **Last Updated:** 2026-04-18
 
 ---
@@ -11,8 +11,8 @@
 
 Current state:
 
-- PR-01 through PR-06 are complete
-- PR-07 is in progress
+- PR-01 through PR-08 are complete
+- PR-09 not yet started
 
 | Track | Status | Notes |
 |-------|--------|-------|
@@ -70,7 +70,7 @@ Current state:
 | PR-04 | `feat/v0.9-04-minimal-session-flow` | complete | Smallest real governed local workflow path |
 | PR-05 | `feat/v0.9-05-starters-and-migration` | complete | Starters, thin presets, and migration helpers |
 | PR-06 | `feat/v0.9-06-doctor-and-lint` | complete | Diagnostics: workflow lint, doctor, frozen reason codes |
-| PR-07 | `feat/v0.9-07-beta-proof` | in progress | Mandatory stop-ship checkpoint for quickstart, demo, and failure-and-fix proof |
+| PR-07 | `feat/v0.9-07-beta-proof` | complete | Mandatory stop-ship checkpoint for quickstart, demo, and failure-and-fix proof |
 | PR-08 | `feat/v0.9-08-engine-hardening` | complete | Sequencing, approvals, budgets, and validator-hook hardening |
 | PR-09 | `feat/v0.9-09-exports-and-ops` | not started | Trace, export, and operator polish |
 | PR-10a | `feat/v0.9-10-bedrock-adapter` | not started | Optional Bedrock adapter with alias-backed identity rules |

@@ -1,8 +1,8 @@
-# PR Context — `v0.9.0` PR-07 Quickstart, Demo, and Beta Proof
+# PR Context — `v0.9.0` PR-08 Engine Hardening (complete) / PR-09 Exports and Ops (next)
 
-Date: 2026-04-17
-Status: In Progress
-Active branch: `feat/v0.9-07-beta-proof`
+Date: 2026-04-18
+Status: Between PRs — PR-01 through PR-08 merged to develop; PR-09 not yet started
+Active branch: `develop`
 
 ---
 

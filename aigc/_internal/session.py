@@ -497,7 +497,10 @@ class GovernanceSession:
             from aigc._internal.validator_hook import (
                 ValidatorHookEnvelope,
                 _invoke_hook,
+                VALIDATOR_ALLOW,
                 VALIDATOR_DENY,
+                VALIDATOR_WARN,
+                VALIDATOR_EXECUTION_FAILURE,
                 VALIDATOR_TIMEOUT,
                 VALIDATOR_REVIEW_REQUIRED,
             )
@@ -544,7 +547,8 @@ class GovernanceSession:
                             "reason_code": _result.reason_code,
                         },
                     )
-                if _result.decision not in {"allow"}:
+                _non_warning = {VALIDATOR_ALLOW, VALIDATOR_WARN, VALIDATOR_EXECUTION_FAILURE}
+                if _result.decision not in _non_warning:
                     logger.warning(
                         "ValidatorHook %r returned %r for step %r in session %r",
                         _result.hook_id,

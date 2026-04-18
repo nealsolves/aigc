@@ -396,3 +396,82 @@ def test_flaky_hook_with_sufficient_retries_succeeds():
         session.enforce_step_post_call(token, dict(_GOOD_OUTPUT))
         session.complete()
     assert session.workflow_artifact["status"] == "COMPLETED"
+
+
+# ---------------------------------------------------------------------------
+# Fail-closed: unknown decision normalization (Bug 2 fix)
+# ---------------------------------------------------------------------------
+
+def test_unknown_decision_normalized_to_execution_failure():
+    """_call_hook_once must normalize an unrecognized decision to EXECUTION_FAILURE."""
+    from aigc._internal.validator_hook import (
+        ValidatorHook, ValidatorHookResult, ValidatorHookEnvelope,
+        _call_hook_once,
+        VALIDATOR_EXECUTION_FAILURE,
+    )
+    import time as _time
+
+    class BananaHook(ValidatorHook):
+        hook_id = "banana-hook"
+        hook_version = "1.0"
+
+        def evaluate(self, envelope):
+            return ValidatorHookResult(
+                decision="banana",
+                reason_code="UNKNOWN",
+                explanation="returning a nonsense decision",
+                hook_id=self.hook_id,
+                hook_version=self.hook_version,
+                attempt=1,
+                latency_ms=1,
+                observed_at=int(_time.time() * 1000),
+            )
+
+    hook = BananaHook()
+    env = ValidatorHookEnvelope(
+        hook_schema_version="1.0",
+        session_id="s-1",
+        step_id="step-1",
+        participant_id=None,
+        invocation={},
+        deadline_ms=5000,
+        observed_at=int(_time.time() * 1000),
+    )
+    result = _call_hook_once(hook, env, attempt=1)
+    assert result.decision == VALIDATOR_EXECUTION_FAILURE
+    assert result.reason_code == "HOOK_INVALID_DECISION"
+
+
+def test_unknown_decision_in_session_logs_warning_and_allows():
+    """Unknown decision (normalized to EXECUTION_FAILURE) must not block step — takes warning path."""
+    from aigc._internal.enforcement import AIGC
+    from aigc._internal.validator_hook import (
+        ValidatorHook, ValidatorHookResult, VALIDATOR_EXECUTION_FAILURE,
+    )
+    import time as _time
+
+    class BananaHookNoRetry(ValidatorHook):
+        hook_id = "banana-no-retry-hook"
+        hook_version = "1.0"
+        max_retries = 0  # EXECUTION_FAILURE returned immediately, no retry
+
+        def evaluate(self, envelope):
+            return ValidatorHookResult(
+                decision="banana",
+                reason_code="UNKNOWN",
+                explanation="returning a nonsense decision",
+                hook_id=self.hook_id,
+                hook_version=self.hook_version,
+                attempt=1,
+                latency_ms=1,
+                observed_at=int(_time.time() * 1000),
+            )
+
+    a = AIGC()
+    session = _make_session(a, [BananaHookNoRetry()])
+    # Must not raise — EXECUTION_FAILURE takes the warning path, not the deny path
+    with session:
+        token = session.enforce_step_pre_call(dict(_BASE_INV))
+        session.enforce_step_post_call(token, dict(_GOOD_OUTPUT))
+        session.complete()
+    assert session.workflow_artifact["status"] == "COMPLETED"

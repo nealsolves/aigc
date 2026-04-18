@@ -200,6 +200,28 @@ class WorkflowApprovalRequiredError(GovernanceViolationError):
         )
 
 
+class WorkflowStepBudgetExceededError(GovernanceViolationError):
+    """Raised when a session exceeds its max_steps budget."""
+
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(
+            message,
+            code="WORKFLOW_STEP_BUDGET_EXCEEDED",
+            details=details,
+        )
+
+
+class WorkflowHookDeniedError(GovernanceViolationError):
+    """Raised when a ValidatorHook returns DENY or times out."""
+
+    def __init__(self, message: str, *, details: dict | None = None):
+        super().__init__(
+            message,
+            code="WORKFLOW_HOOK_DENIED",
+            details=details,
+        )
+
+
 class WorkflowSourceRequiredError(GovernanceViolationError):
     """Raised or reported when source IDs are required but not provided."""
 

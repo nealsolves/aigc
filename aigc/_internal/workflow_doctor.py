@@ -66,6 +66,16 @@ _NEXT_ACTIONS: dict[str, str] = {
         "the max_calls limit defined in policy.yaml (tools.allowed_tools). "
         "See policies/policy_dsl_spec.md for tool constraint syntax."
     ),
+    "WORKFLOW_STEP_BUDGET_EXCEEDED": (
+        "The session reached its max_steps limit defined in the policy workflow "
+        "block. Increase max_steps in policy.yaml, or redesign the workflow to "
+        "complete within the allowed number of steps."
+    ),
+    "WORKFLOW_HOOK_DENIED": (
+        "A ValidatorHook returned DENY or timed out. Inspect the hook's "
+        "denial_reason in the error details. If using the built-in timeout, "
+        "increase the hook's timeout_ms or make the hook respond faster."
+    ),
     "WORKFLOW_UNSUPPORTED_BINDING": (
         "Remove or rename condition/guard entries that reference unsupported "
         "protocol names (grpc, websocket, soap). Only HTTP/REST adapter "

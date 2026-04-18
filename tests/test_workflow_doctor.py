@@ -126,6 +126,8 @@ def _make_valid_workflow_artifact(
         "steps": [{"step_id": f"step-{i}"} for i in range(steps)],
         "invocation_audit_checksums": checksums,
         "failure_summary": failure_summary,
+        "approval_checkpoints": [],
+        "validator_hook_evidence": [],
         "metadata": {},
     }
 

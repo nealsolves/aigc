@@ -1,0 +1,10 @@
+extends: workflow_composition_base.yaml
+composition_strategy: intersect
+policy_version: "1.0"
+roles:
+  - planner
+workflow:
+  max_steps: 3
+  max_total_tool_calls: 10
+  participants:
+    - id: agent-1

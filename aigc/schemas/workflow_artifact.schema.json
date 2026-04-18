@@ -28,6 +28,16 @@
       "items": {"type": "string"}
     },
     "failure_summary": {"type": ["object", "null"]},
+    "approval_checkpoints": {
+      "type": "array",
+      "description": "Ordered record of pause/resume events with approval metadata",
+      "items": {"type": "object"}
+    },
+    "validator_hook_evidence": {
+      "type": "array",
+      "description": "Ordered record of ValidatorHook evaluation results for steps in this session",
+      "items": {"type": "object"}
+    },
     "metadata": {"type": "object"}
   },
   "additionalProperties": false

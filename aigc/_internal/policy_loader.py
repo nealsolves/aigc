@@ -289,6 +289,55 @@ def _validate_composition_restriction(
             },
         )
 
+    # Workflow budget escalation checks: child must not widen base budgets
+    base_wf = base.get("workflow") or {}
+    merged_wf = merged.get("workflow") or {}
+
+    base_max_steps = base_wf.get("max_steps")
+    merged_max_steps = merged_wf.get("max_steps")
+    if (
+        base_max_steps is not None
+        and merged_max_steps is not None
+        and merged_max_steps > base_max_steps
+    ):
+        raise PolicyValidationError(
+            f"Composition escalation: child policy widens max_steps "
+            f"from {base_max_steps} to {merged_max_steps}",
+            details={
+                "base_max_steps": base_max_steps,
+                "merged_max_steps": merged_max_steps,
+            },
+        )
+
+    base_max_calls = base_wf.get("max_total_tool_calls")
+    merged_max_calls = merged_wf.get("max_total_tool_calls")
+    if (
+        base_max_calls is not None
+        and merged_max_calls is not None
+        and merged_max_calls > base_max_calls
+    ):
+        raise PolicyValidationError(
+            f"Composition escalation: child policy widens max_total_tool_calls "
+            f"from {base_max_calls} to {merged_max_calls}",
+            details={
+                "base_max_total_tool_calls": base_max_calls,
+                "merged_max_total_tool_calls": merged_max_calls,
+            },
+        )
+
+    # Participant narrowing check: merged participants (by id) must be ⊆ base participants
+    base_participants = {p["id"] for p in (base_wf.get("participants") or [])}
+    merged_participants = {p["id"] for p in (merged_wf.get("participants") or [])}
+    if base_participants and (added := sorted(merged_participants - base_participants)):
+        raise PolicyValidationError(
+            f"Composition escalation: child policy adds participants not in base: {added}",
+            details={
+                "base_participant_ids": sorted(base_participants),
+                "merged_participant_ids": sorted(merged_participants),
+                "added_participant_ids": added,
+            },
+        )
+
 
 # ── Policy version dates ─────────────────────────────────────────
 

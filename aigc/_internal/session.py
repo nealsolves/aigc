@@ -134,6 +134,7 @@ class GovernanceSession:
         session_id: str,
         policy_file: str | None,
         metadata: dict | None,
+        validator_hooks: "list[Any] | None" = None,
     ) -> None:
         self._aigc = aigc
         self._session_id = session_id
@@ -146,7 +147,8 @@ class GovernanceSession:
 
         # token_id → {"inner": PreCallResult, "step_id": str,
         #              "participant_id": str | None,
-        #              "effective_policy_file": str | None}
+        #              "effective_policy_file": str | None,
+        #              "tool_calls_count": int}
         self._pending_results: dict[str, dict[str, Any]] = {}
         self._consumed_token_ids: set[str] = set()
 
@@ -157,6 +159,34 @@ class GovernanceSession:
 
         self._failure_summary: dict[str, Any] | None = None
         self._workflow_artifact: dict[str, Any] | None = None
+
+        # Approval checkpoint records — populated by pause()/resume()
+        self._approval_records: list[dict[str, Any]] = []
+
+        # ValidatorHooks evaluated at each enforce_step_pre_call (internal contract)
+        self._validator_hooks: list[Any] = list(validator_hooks or [])
+        # Evidence records for the workflow artifact
+        self._validator_hook_evidence: list[dict[str, Any]] = []
+
+        # Workflow budget constraints — loaded via AIGC's own cache+loader (Fix 1:
+        # never call load_policy() directly here, which would bypass any custom loader)
+        self._max_steps: int | None = None
+        self._max_total_tool_calls: int | None = None
+        if policy_file is not None:
+            try:
+                _policy = self._aigc._policy_cache.get_or_load(
+                    policy_file,
+                    loader=self._aigc._policy_loader,
+                )
+                _wf = _policy.get("workflow") or {}
+                self._max_steps = _wf.get("max_steps")
+                self._max_total_tool_calls = _wf.get("max_total_tool_calls")
+            except Exception:  # noqa: BLE001
+                pass  # Policy load failure surfaces at step enforcement time
+
+        # Budget counters
+        self._authorized_step_count: int = 0
+        self._total_tool_calls_consumed: int = 0
 
     # ------------------------------------------------------------------
     # Public properties
@@ -247,13 +277,59 @@ class GovernanceSession:
             )
         self._state = to_state
 
-    def pause(self) -> None:
-        """Pause the session (OPEN → PAUSED)."""
+    def pause(
+        self,
+        *,
+        approval_id: str | None = None,
+        approver_id: str | None = None,
+        reason: str | None = None,
+    ) -> None:
+        """Pause the session (OPEN → PAUSED) and record an approval checkpoint."""
         self._transition(STATE_PAUSED)
+        checkpoint: dict[str, Any] = {
+            "checkpoint_id": approval_id or str(uuid.uuid4()),
+            "paused_at": int(time.time()),
+            "approver_id": approver_id,
+            "reason": reason,
+            "status": "pending",
+            "resumed_at": None,
+            "approval_note": None,
+        }
+        self._approval_records.append(checkpoint)
 
-    def resume(self) -> None:
-        """Resume a paused session (PAUSED → OPEN)."""
+    def resume(
+        self,
+        *,
+        approval_id: str | None = None,
+        approver_id: str | None = None,
+        approval_note: str | None = None,
+    ) -> None:
+        """Resume a paused session (PAUSED → OPEN) and close the pending checkpoint.
+
+        Fix 5: if approval_id is supplied it must match the pending checkpoint's
+        checkpoint_id — mismatched IDs are rejected with SessionStateError.
+        """
         self._transition(STATE_OPEN)
+        for rec in reversed(self._approval_records):
+            if rec["status"] == "pending":
+                if approval_id is not None and rec["checkpoint_id"] != approval_id:
+                    # Undo the state transition before raising
+                    self._state = STATE_PAUSED
+                    raise SessionStateError(
+                        f"approval_id mismatch: expected {rec['checkpoint_id']!r}, "
+                        f"got {approval_id!r}",
+                        details={
+                            "session_id": self._session_id,
+                            "expected_approval_id": rec["checkpoint_id"],
+                            "provided_approval_id": approval_id,
+                        },
+                    )
+                rec["status"] = "approved"
+                rec["resumed_at"] = int(time.time())
+                if approver_id is not None:
+                    rec["approver_id"] = approver_id
+                rec["approval_note"] = approval_note
+                break
 
     def complete(self) -> None:
         """Mark the session as successfully completed (OPEN/PAUSED → COMPLETED)."""
@@ -299,6 +375,8 @@ class GovernanceSession:
                 s["invocation_artifact_checksum"] for s in self._steps
             ],
             "failure_summary": self._failure_summary,
+            "approval_checkpoints": list(self._approval_records),
+            "validator_hook_evidence": list(self._validator_hook_evidence),
             "metadata": self._metadata,
         }
 
@@ -343,6 +421,23 @@ class GovernanceSession:
         """
         self._assert_accepting_new_step()
 
+        # Budget check: max_steps (Fix 4: raise WorkflowStepBudgetExceededError,
+        # not WorkflowToolBudgetExceededError, so doctor gives the right remediation)
+        if (
+            self._max_steps is not None
+            and self._authorized_step_count >= self._max_steps
+        ):
+            from aigc._internal.errors import WorkflowStepBudgetExceededError
+            raise WorkflowStepBudgetExceededError(
+                f"Session step budget exceeded: max_steps={self._max_steps}, "
+                f"authorized={self._authorized_step_count}",
+                details={
+                    "session_id": self._session_id,
+                    "max_steps": self._max_steps,
+                    "authorized_step_count": self._authorized_step_count,
+                },
+            )
+
         resolved_step_id = step_id or str(uuid.uuid4())
         token_id = str(uuid.uuid4())
 
@@ -360,14 +455,105 @@ class GovernanceSession:
             ctx["participant_id"] = participant_id
         enriched["context"] = ctx
 
+        # Budget check: max_total_tool_calls counted from invocation at pre_call time
+        # (Fix 2: invocation-time count matches existing tools.py contract and audit
+        # evidence — never count from output)
+        _tool_calls_this_step = len(enriched.get("tool_calls") or [])
+        _projected_total = self._total_tool_calls_consumed + _tool_calls_this_step
+        if (
+            self._max_total_tool_calls is not None
+            and _projected_total > self._max_total_tool_calls
+        ):
+            from aigc._internal.errors import WorkflowToolBudgetExceededError
+            raise WorkflowToolBudgetExceededError(
+                f"Session tool-call budget exceeded: "
+                f"max_total_tool_calls={self._max_total_tool_calls}, "
+                f"projected={_projected_total}",
+                details={
+                    "session_id": self._session_id,
+                    "max_total_tool_calls": self._max_total_tool_calls,
+                    "total_tool_calls_consumed": self._total_tool_calls_consumed,
+                    "tool_calls_this_step": _tool_calls_this_step,
+                },
+            )
+
         inner_result = self._aigc.enforce_pre_call(enriched)
+
+        # Run validator hooks after invocation-level governance passes
+        # (Fix 3: hooks are wired internally — validator_hooks is NOT a parameter of
+        # the public AIGC.open_session(); Fix 4: raise WorkflowHookDeniedError, not
+        # WorkflowApprovalRequiredError, so doctor gives the right remediation)
+        if self._validator_hooks:
+            from aigc._internal.validator_hook import (
+                ValidatorHookEnvelope,
+                _invoke_hook,
+                VALIDATOR_DENY,
+                VALIDATOR_TIMEOUT,
+                VALIDATOR_REVIEW_REQUIRED,
+            )
+            from aigc._internal.errors import WorkflowHookDeniedError
+            _obs_at = int(time.time() * 1000)
+            _envelope = ValidatorHookEnvelope(
+                hook_schema_version="1.0",
+                session_id=self._session_id,
+                step_id=resolved_step_id,
+                participant_id=participant_id,
+                invocation=enriched,
+                deadline_ms=next(
+                    (h.timeout_ms for h in self._validator_hooks), 5000
+                ),
+                observed_at=_obs_at,
+            )
+            for _hook in self._validator_hooks:
+                _result = _invoke_hook(_hook, _envelope)
+                self._validator_hook_evidence.append({
+                    "hook_id": _result.hook_id,
+                    "hook_version": _result.hook_version,
+                    "step_id": resolved_step_id,
+                    "decision": _result.decision,
+                    "reason_code": _result.reason_code,
+                    "explanation": _result.explanation,
+                    "attempt": _result.attempt,
+                    "latency_ms": _result.latency_ms,
+                    "observed_at": _result.observed_at,
+                    "stale_result": _result.stale_result,
+                    "provenance": _result.provenance,
+                })
+                if _result.decision in {
+                    VALIDATOR_DENY, VALIDATOR_TIMEOUT, VALIDATOR_REVIEW_REQUIRED
+                }:
+                    raise WorkflowHookDeniedError(
+                        f"Validator hook {_result.hook_id!r} blocked step "
+                        f"{resolved_step_id!r}: decision={_result.decision!r}, "
+                        f"reason_code={_result.reason_code!r}",
+                        details={
+                            "session_id": self._session_id,
+                            "step_id": resolved_step_id,
+                            "hook_id": _result.hook_id,
+                            "decision": _result.decision,
+                            "reason_code": _result.reason_code,
+                        },
+                    )
+                if _result.decision not in {"allow"}:
+                    logger.warning(
+                        "ValidatorHook %r returned %r for step %r in session %r",
+                        _result.hook_id,
+                        _result.decision,
+                        resolved_step_id,
+                        self._session_id,
+                    )
 
         self._pending_results[token_id] = {
             "inner": inner_result,
             "step_id": resolved_step_id,
             "participant_id": participant_id,
             "effective_policy_file": effective_policy_file,
+            "tool_calls_count": _tool_calls_this_step,
         }
+
+        # Increment only after all checks pass — pre-call rejection must not
+        # corrupt the authorized step counter
+        self._authorized_step_count += 1
 
         return SessionPreCallResult(
             session_id=self._session_id,
@@ -423,6 +609,10 @@ class GovernanceSession:
         object.__setattr__(session_result, "_consumed", True)
         self._consumed_token_ids.add(session_result._token_id)
         del self._pending_results[session_result._token_id]
+
+        # Increment tool-call counter from the invocation dict (Fix 2: consistent
+        # with pre_call budget check — both use invocation-time count)
+        self._total_tool_calls_consumed += entry["tool_calls_count"]
 
         # Step record uses REGISTRY values — never trusts token fields after verification
         inv_checksum = _checksum(inv_artifact)

@@ -173,6 +173,36 @@
         },
         "required": ["when", "then"]
       }
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Workflow-level governance constraints for governed sessions",
+      "properties": {
+        "max_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of authorized workflow steps"
+        },
+        "max_total_tool_calls": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum total tool-call units across all steps in the session"
+        },
+        "participants": {
+          "type": "array",
+          "description": "Allowed participant definitions (merge by stable id)",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id"],
+            "properties": {
+              "id": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      }
     }
   },
   "required": ["policy_version", "roles"]

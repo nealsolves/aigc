@@ -1,0 +1,9 @@
+extends: composition_p4_base.yaml
+composition_strategy: intersect
+policy_version: "1.0"
+roles:
+  - planner
+workflow:
+  protocol_constraints:
+    local:
+      min_version: "0.5"

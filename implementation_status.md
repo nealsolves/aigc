@@ -2,8 +2,8 @@
 
 **Target Version:** `0.9.0` Beta
 **Baseline Version:** `0.3.3`
-**Active Branch:** `feat/v0.9-07-beta-proof`
-**Last Updated:** 2026-04-17
+**Active Branch:** `feat/v0.9-08-engine-hardening`
+**Last Updated:** 2026-04-18
 
 ---
 
@@ -22,8 +22,8 @@ Current state:
 | Minimal session flow | complete | PR-04: GovernanceSession, AIGC.open_session, SessionPreCallResult |
 | Starters and migration | complete | PR-05: aigc workflow init, aigc policy init, starter scaffolds, migration guide |
 | Diagnostics | complete | PR-06: aigc workflow lint, aigc workflow doctor, frozen reason codes |
-| Beta proof | in progress | PR-07: quickstart docs, demo slice, failure-and-fix proof, clean-env harness |
-| Engine hardening | not started | Starts in PR-08 |
+| Beta proof | complete | PR-07: quickstart docs, demo slice, failure-and-fix proof, clean-env harness |
+| Engine hardening | complete | PR-08 complete |
 | Exports and ops | not started | Starts in PR-09 |
 | Optional adapters | not started | Starts in PR-10a and PR-10b |
 | Beta freeze | not started | Starts in PR-11 |
@@ -71,7 +71,7 @@ Current state:
 | PR-05 | `feat/v0.9-05-starters-and-migration` | complete | Starters, thin presets, and migration helpers |
 | PR-06 | `feat/v0.9-06-doctor-and-lint` | complete | Diagnostics: workflow lint, doctor, frozen reason codes |
 | PR-07 | `feat/v0.9-07-beta-proof` | in progress | Mandatory stop-ship checkpoint for quickstart, demo, and failure-and-fix proof |
-| PR-08 | `feat/v0.9-08-engine-hardening` | not started | Sequencing, approvals, budgets, and validator-hook hardening |
+| PR-08 | `feat/v0.9-08-engine-hardening` | complete | Sequencing, approvals, budgets, and validator-hook hardening |
 | PR-09 | `feat/v0.9-09-exports-and-ops` | not started | Trace, export, and operator polish |
 | PR-10a | `feat/v0.9-10-bedrock-adapter` | not started | Optional Bedrock adapter with alias-backed identity rules |
 | PR-10b | `feat/v0.9-10-a2a-adapter` | not started | Optional A2A adapter with strict wire-contract rules |

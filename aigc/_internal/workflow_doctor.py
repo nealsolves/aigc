@@ -26,7 +26,10 @@ from typing import Any
 
 import yaml
 
-from aigc._internal.errors import PolicyLoadError, PolicyValidationError
+from aigc._internal.errors import (
+    PolicyLoadError,
+    PolicyValidationError,
+)
 from aigc._internal.policy_loader import load_policy
 from aigc._internal.workflow_lint import (
     detect_target_kind,
@@ -65,6 +68,16 @@ _NEXT_ACTIONS: dict[str, str] = {
         "Reduce the number of tool_calls in your invocation to stay within "
         "the max_calls limit defined in policy.yaml (tools.allowed_tools). "
         "See policies/policy_dsl_spec.md for tool constraint syntax."
+    ),
+    "WORKFLOW_STEP_BUDGET_EXCEEDED": (
+        "The session reached its max_steps limit defined in the policy workflow "
+        "block. Increase max_steps in policy.yaml, or redesign the workflow to "
+        "complete within the allowed number of steps."
+    ),
+    "WORKFLOW_HOOK_DENIED": (
+        "A ValidatorHook returned DENY or timed out. Inspect the hook's "
+        "denial_reason in the error details. If using the built-in timeout, "
+        "increase the hook's timeout_ms or make the hook respond faster."
     ),
     "WORKFLOW_UNSUPPORTED_BINDING": (
         "Remove or rename condition/guard entries that reference unsupported "
@@ -382,6 +395,24 @@ def diagnose_starter_dir(path: str) -> list[dict]:
 # Workflow artifact doctor
 # ---------------------------------------------------------------------------
 
+# Exception type names that map to WORKFLOW_INVALID_TRANSITION.
+# Includes SessionStateError and all new PR-08 engine error classes.
+_INVALID_TRANSITION_EXCEPTION_TYPES = frozenset({
+    "SessionStateError",
+    "WorkflowParticipantMismatchError",
+    "WorkflowSequenceViolationError",
+    "WorkflowTransitionDeniedError",
+    "WorkflowRoleViolationError",
+    "WorkflowProtocolViolationError",
+    "WorkflowHandoffDeniedError",
+})
+
+# Exception type names that map directly to their own reason codes.
+_EXCEPTION_TYPE_TO_CODE: dict[str, str] = {
+    "WorkflowStepBudgetExceededError": "WORKFLOW_STEP_BUDGET_EXCEEDED",
+    "WorkflowHookDeniedError": "WORKFLOW_HOOK_DENIED",
+}
+
 _LIFECYCLE_FAILURE_PATTERNS = [
     "Invalid session lifecycle transition",
     "cannot call",
@@ -418,16 +449,32 @@ def diagnose_workflow_artifact(path: str) -> list[dict]:
         msg = failure_summary.get("message", "")
 
         is_invalid_transition = (
-            exc_type == "SessionStateError"
+            exc_type in _INVALID_TRANSITION_EXCEPTION_TYPES
             or any(pat.lower() in msg.lower() for pat in _LIFECYCLE_FAILURE_PATTERNS)
         )
         if is_invalid_transition:
+            # Build a detail-rich message using any extra context stored in
+            # the failure_summary (participant_id, step_id, etc.)
+            detail_parts = []
+            for detail_key in ("participant_id", "step_id", "from_step", "to_step", "role"):
+                val = failure_summary.get(detail_key)
+                if val:
+                    detail_parts.append(f"{detail_key}={val!r}")
+            detail_str = ("; " + ", ".join(detail_parts)) if detail_parts else ""
             findings.append(_finding(
                 "WORKFLOW_INVALID_TRANSITION",
                 "ERROR",
                 f"Workflow session failed due to an invalid lifecycle transition. "
-                f"Exception: {exc_type}. Message: {msg or '(none)'}.",
+                f"Exception: {exc_type}{detail_str}. Message: {msg or '(none)'}.",
                 _next_action("WORKFLOW_INVALID_TRANSITION"),
+            ))
+        elif exc_type in _EXCEPTION_TYPE_TO_CODE:
+            code = _EXCEPTION_TYPE_TO_CODE[exc_type]
+            findings.append(_finding(
+                code,
+                "ERROR",
+                f"Workflow session failed: {exc_type}. Message: {msg or '(none)'}.",
+                _next_action(code),
             ))
         else:
             findings.append(_finding(

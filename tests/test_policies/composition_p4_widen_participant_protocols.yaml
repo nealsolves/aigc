@@ -1,0 +1,13 @@
+extends: composition_p4_base.yaml
+composition_strategy: intersect
+policy_version: "1.0"
+roles:
+  - planner
+workflow:
+  participants:
+    - id: agent-1
+      roles:
+        - planner
+      protocols:
+        - local
+        - bedrock

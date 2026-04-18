@@ -1,0 +1,6 @@
+policy_version: "1.0"
+roles:
+  - planner
+workflow:
+  escalation:
+    require_approval_after_steps: 2

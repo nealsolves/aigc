@@ -126,6 +126,8 @@ def _make_valid_workflow_artifact(
         "steps": [{"step_id": f"step-{i}"} for i in range(steps)],
         "invocation_audit_checksums": checksums,
         "failure_summary": failure_summary,
+        "approval_checkpoints": [],
+        "validator_hook_evidence": [],
         "metadata": {},
     }
 
@@ -461,4 +463,145 @@ class TestDiagnoseTarget:
             MINIMAL_VALID_POLICY + f"expiration_date: '{PAST_DATE}'\n",
         )
         findings = diagnose_target(p, now=date(2025, 6, 1))
+        _assert_finding_shape(findings)
+
+
+# ---------------------------------------------------------------------------
+# PR-08 engine error normalization tests
+# ---------------------------------------------------------------------------
+
+class TestEngineErrorNormalizesToInvalidTransition:
+    """
+    Verify that the new PR-08 engine error classes (WorkflowParticipantMismatchError,
+    WorkflowSequenceViolationError, WorkflowTransitionDeniedError,
+    WorkflowProtocolViolationError, WorkflowRoleViolationError,
+    WorkflowHandoffDeniedError) all normalize to the frozen public doctor code
+    WORKFLOW_INVALID_TRANSITION when embedded in a FAILED workflow artifact.
+    """
+
+    def _make_failed_artifact(
+        self,
+        tmp_path: Path,
+        exception_type: str,
+        message: str,
+        filename: str = "wf.json",
+        extra: dict | None = None,
+    ) -> str:
+        summary = {"exception_type": exception_type, "message": message}
+        if extra:
+            summary.update(extra)
+        artifact = _make_valid_workflow_artifact(
+            status="FAILED",
+            failure_summary=summary,
+        )
+        p = tmp_path / filename
+        p.write_text(json.dumps(artifact))
+        return str(p)
+
+    def test_participant_mismatch_normalizes_to_invalid_transition(self, tmp_path):
+        """WorkflowParticipantMismatchError in failure_summary → WORKFLOW_INVALID_TRANSITION."""
+        path = self._make_failed_artifact(
+            tmp_path,
+            exception_type="WorkflowParticipantMismatchError",
+            message="participant_id 'agent-b' is not in declared participants",
+            filename="participant_mismatch.json",
+            extra={"participant_id": "agent-b", "step_id": "step-1"},
+        )
+        findings = diagnose_workflow_artifact(path)
+        codes = [f["code"] for f in findings]
+        assert "WORKFLOW_INVALID_TRANSITION" in codes, (
+            f"Expected WORKFLOW_INVALID_TRANSITION, got: {codes}"
+        )
+        matching = [f for f in findings if f["code"] == "WORKFLOW_INVALID_TRANSITION"]
+        assert all(f["severity"] == "ERROR" for f in matching)
+        _assert_finding_shape(findings)
+
+    def test_sequence_violation_normalizes_to_invalid_transition(self, tmp_path):
+        """WorkflowSequenceViolationError in failure_summary → WORKFLOW_INVALID_TRANSITION."""
+        path = self._make_failed_artifact(
+            tmp_path,
+            exception_type="WorkflowSequenceViolationError",
+            message="step 'step-3' violates required_sequence; expected 'step-2' next",
+            filename="sequence_violation.json",
+            extra={"step_id": "step-3"},
+        )
+        findings = diagnose_workflow_artifact(path)
+        codes = [f["code"] for f in findings]
+        assert "WORKFLOW_INVALID_TRANSITION" in codes, (
+            f"Expected WORKFLOW_INVALID_TRANSITION, got: {codes}"
+        )
+        matching = [f for f in findings if f["code"] == "WORKFLOW_INVALID_TRANSITION"]
+        assert all(f["severity"] == "ERROR" for f in matching)
+        _assert_finding_shape(findings)
+
+    def test_transition_denied_normalizes_to_invalid_transition(self, tmp_path):
+        """WorkflowTransitionDeniedError in failure_summary → WORKFLOW_INVALID_TRANSITION."""
+        path = self._make_failed_artifact(
+            tmp_path,
+            exception_type="WorkflowTransitionDeniedError",
+            message="transition from 'step-1' to 'step-3' is not in allowed_transitions",
+            filename="transition_denied.json",
+            extra={"from_step": "step-1", "to_step": "step-3"},
+        )
+        findings = diagnose_workflow_artifact(path)
+        codes = [f["code"] for f in findings]
+        assert "WORKFLOW_INVALID_TRANSITION" in codes, (
+            f"Expected WORKFLOW_INVALID_TRANSITION, got: {codes}"
+        )
+        matching = [f for f in findings if f["code"] == "WORKFLOW_INVALID_TRANSITION"]
+        assert all(f["severity"] == "ERROR" for f in matching)
+        _assert_finding_shape(findings)
+
+    def test_protocol_violation_normalizes_to_invalid_transition(self, tmp_path):
+        """WorkflowProtocolViolationError in failure_summary → WORKFLOW_INVALID_TRANSITION."""
+        path = self._make_failed_artifact(
+            tmp_path,
+            exception_type="WorkflowProtocolViolationError",
+            message="step protocol evidence failed protocol_constraints check",
+            filename="protocol_violation.json",
+            extra={"step_id": "step-2"},
+        )
+        findings = diagnose_workflow_artifact(path)
+        codes = [f["code"] for f in findings]
+        assert "WORKFLOW_INVALID_TRANSITION" in codes, (
+            f"Expected WORKFLOW_INVALID_TRANSITION, got: {codes}"
+        )
+        matching = [f for f in findings if f["code"] == "WORKFLOW_INVALID_TRANSITION"]
+        assert all(f["severity"] == "ERROR" for f in matching)
+        _assert_finding_shape(findings)
+
+    def test_role_violation_normalizes_to_invalid_transition(self, tmp_path):
+        """WorkflowRoleViolationError in failure_summary → WORKFLOW_INVALID_TRANSITION."""
+        path = self._make_failed_artifact(
+            tmp_path,
+            exception_type="WorkflowRoleViolationError",
+            message="role 'untrusted-agent' is not in allowed_agent_roles for step-1",
+            filename="role_violation.json",
+            extra={"step_id": "step-1", "role": "untrusted-agent"},
+        )
+        findings = diagnose_workflow_artifact(path)
+        codes = [f["code"] for f in findings]
+        assert "WORKFLOW_INVALID_TRANSITION" in codes, (
+            f"Expected WORKFLOW_INVALID_TRANSITION, got: {codes}"
+        )
+        matching = [f for f in findings if f["code"] == "WORKFLOW_INVALID_TRANSITION"]
+        assert all(f["severity"] == "ERROR" for f in matching)
+        _assert_finding_shape(findings)
+
+    def test_handoff_denied_normalizes_to_invalid_transition(self, tmp_path):
+        """WorkflowHandoffDeniedError in failure_summary → WORKFLOW_INVALID_TRANSITION."""
+        path = self._make_failed_artifact(
+            tmp_path,
+            exception_type="WorkflowHandoffDeniedError",
+            message="handoff from 'agent-a' to 'agent-c' is not in allowed_handoffs",
+            filename="handoff_denied.json",
+            extra={"participant_id": "agent-c"},
+        )
+        findings = diagnose_workflow_artifact(path)
+        codes = [f["code"] for f in findings]
+        assert "WORKFLOW_INVALID_TRANSITION" in codes, (
+            f"Expected WORKFLOW_INVALID_TRANSITION, got: {codes}"
+        )
+        matching = [f for f in findings if f["code"] == "WORKFLOW_INVALID_TRANSITION"]
+        assert all(f["severity"] == "ERROR" for f in matching)
         _assert_finding_shape(findings)

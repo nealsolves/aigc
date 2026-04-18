@@ -1,0 +1,9 @@
+policy_version: "1.0"
+roles:
+  - planner
+workflow:
+  allowed_transitions:
+    step-a:
+      - step-b
+    step-b:
+      - step-c

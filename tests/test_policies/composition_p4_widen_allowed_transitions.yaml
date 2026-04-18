@@ -1,0 +1,12 @@
+extends: composition_p4_base.yaml
+composition_strategy: intersect
+policy_version: "1.0"
+roles:
+  - planner
+workflow:
+  allowed_transitions:
+    step-a:
+      - step-b
+      - step-c
+    step-b:
+      - step-c

@@ -1,0 +1,6 @@
+extends: workflow_composition_base.yaml
+policy_version: "1.0"
+roles:
+  - planner
+  - reviewer
+  - admin

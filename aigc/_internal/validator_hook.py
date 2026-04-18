@@ -184,14 +184,14 @@ def _call_hook_once(
     }
     if result.decision not in _KNOWN_DECISIONS:
         return ValidatorHookResult(
-            decision=VALIDATOR_EXECUTION_FAILURE,
+            decision=VALIDATOR_DENY,
             reason_code="HOOK_INVALID_DECISION",
             explanation=f"Unrecognized decision: {result.decision!r}",
             hook_id=result.hook_id,
             hook_version=result.hook_version,
-            attempt=result.attempt,
-            latency_ms=result.latency_ms,
-            observed_at=result.observed_at,
+            attempt=attempt,
+            latency_ms=elapsed_ms,
+            observed_at=int(time.time() * 1000),
         )
 
     return result

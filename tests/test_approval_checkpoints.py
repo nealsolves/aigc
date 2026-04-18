@@ -234,6 +234,21 @@ def test_denied_checkpoint_keeps_session_paused():
         session.cancel()
 
 
+def test_resume_after_denied_checkpoint_raises_and_keeps_session_closed():
+    """A denied checkpoint must not be reopenable via resume()."""
+    a = _aigc()
+    with a.open_session() as session:
+        session.pause(approval_id="chk-denied")
+        session.deny_approval(denial_reason="Denied")
+        with pytest.raises(SessionStateError) as exc_info:
+            session.resume(approval_id="chk-denied")
+        assert exc_info.value.code == "WORKFLOW_INVALID_TRANSITION"
+        assert session.state == "PAUSED"
+        with pytest.raises(SessionStateError):
+            session.enforce_step_pre_call(dict(_BASE_INV))
+        session.cancel()
+
+
 def test_approved_checkpoint_allows_complete():
     """Regression: pause + resume + complete must still produce a COMPLETED artifact."""
     a = _aigc()

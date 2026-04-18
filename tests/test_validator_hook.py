@@ -32,6 +32,17 @@ def test_open_session_does_not_accept_validator_hooks():
     )
 
 
+def test_governance_session_ctor_does_not_accept_validator_hooks():
+    """The public GovernanceSession constructor must not expose validator_hooks."""
+    import inspect
+    import aigc
+    sig = inspect.signature(aigc.GovernanceSession)
+    assert "validator_hooks" not in sig.parameters, (
+        "validator_hooks must remain internal-only and absent from the public "
+        "GovernanceSession constructor"
+    )
+
+
 def test_validator_hook_importable_from_internal():
     """Internal module must be importable for use by the engine."""
     from aigc._internal.validator_hook import (
@@ -285,13 +296,14 @@ _GOOD_OUTPUT = {"result": "answer", "confidence": 0.95}
 def _make_session(aigc_instance, hooks):
     """Construct a GovernanceSession with hooks via the internal path."""
     from aigc._internal.session import GovernanceSession
-    return GovernanceSession(
+    session = GovernanceSession(
         aigc_instance,
         str(uuid.uuid4()),
         POLICY,
         None,
-        hooks,
     )
+    session._validator_hooks = list(hooks)
+    return session
 
 
 def test_allow_hook_permits_step():
@@ -402,12 +414,12 @@ def test_flaky_hook_with_sufficient_retries_succeeds():
 # Fail-closed: unknown decision normalization (Bug 2 fix)
 # ---------------------------------------------------------------------------
 
-def test_unknown_decision_normalized_to_execution_failure():
-    """_call_hook_once must normalize an unrecognized decision to EXECUTION_FAILURE."""
+def test_unknown_decision_normalized_to_deny():
+    """_call_hook_once must normalize an unrecognized decision to DENY."""
     from aigc._internal.validator_hook import (
         ValidatorHook, ValidatorHookResult, ValidatorHookEnvelope,
         _call_hook_once,
-        VALIDATOR_EXECUTION_FAILURE,
+        VALIDATOR_DENY,
     )
     import time as _time
 
@@ -438,22 +450,23 @@ def test_unknown_decision_normalized_to_execution_failure():
         observed_at=int(_time.time() * 1000),
     )
     result = _call_hook_once(hook, env, attempt=1)
-    assert result.decision == VALIDATOR_EXECUTION_FAILURE
+    assert result.decision == VALIDATOR_DENY
     assert result.reason_code == "HOOK_INVALID_DECISION"
 
 
-def test_unknown_decision_in_session_logs_warning_and_allows():
-    """Unknown decision (normalized to EXECUTION_FAILURE) must not block step — takes warning path."""
+def test_unknown_decision_in_session_fails_closed():
+    """Unknown decisions must fail closed when the hook result is consumed by a session."""
     from aigc._internal.enforcement import AIGC
+    from aigc._internal.errors import WorkflowHookDeniedError
     from aigc._internal.validator_hook import (
-        ValidatorHook, ValidatorHookResult, VALIDATOR_EXECUTION_FAILURE,
+        ValidatorHook, ValidatorHookResult,
     )
     import time as _time
 
     class BananaHookNoRetry(ValidatorHook):
         hook_id = "banana-no-retry-hook"
         hook_version = "1.0"
-        max_retries = 0  # EXECUTION_FAILURE returned immediately, no retry
+        max_retries = 0
 
         def evaluate(self, envelope):
             return ValidatorHookResult(
@@ -469,12 +482,12 @@ def test_unknown_decision_in_session_logs_warning_and_allows():
 
     a = AIGC()
     session = _make_session(a, [BananaHookNoRetry()])
-    # Must not raise — EXECUTION_FAILURE takes the warning path, not the deny path
-    with session:
-        token = session.enforce_step_pre_call(dict(_BASE_INV))
-        session.enforce_step_post_call(token, dict(_GOOD_OUTPUT))
-        session.complete()
-    assert session.workflow_artifact["status"] == "COMPLETED"
+    with pytest.raises(WorkflowHookDeniedError) as exc_info:
+        with session:
+            session.enforce_step_pre_call(dict(_BASE_INV))
+    assert exc_info.value.code == "WORKFLOW_HOOK_DENIED"
+    evidence = session.workflow_artifact["validator_hook_evidence"]
+    assert evidence[0]["reason_code"] == "HOOK_INVALID_DECISION"
 
 
 # ---------------------------------------------------------------------------

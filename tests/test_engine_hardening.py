@@ -385,6 +385,37 @@ def test_child_cannot_widen_required_sequence():
         load_policy("tests/test_policies/composition_p4_widen_required_sequence.yaml")
 
 
+def test_child_cannot_reorder_required_sequence_via_replace(tmp_path):
+    """Replace strategy cannot reorder required_sequence while keeping the same step ids."""
+    base = tmp_path / "base.yaml"
+    child = tmp_path / "child.yaml"
+    base.write_text(
+        "policy_version: '1.0'\n"
+        "roles:\n"
+        "  - planner\n"
+        "workflow:\n"
+        "  required_sequence:\n"
+        "    - draft\n"
+        "    - review\n",
+        encoding="utf-8",
+    )
+    child.write_text(
+        "extends: base.yaml\n"
+        "composition_strategy: replace\n"
+        "policy_version: '1.0'\n"
+        "roles:\n"
+        "  - planner\n"
+        "workflow:\n"
+        "  required_sequence:\n"
+        "    - review\n"
+        "    - draft\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PolicyValidationError, match="required_sequence"):
+        load_policy(str(child))
+
+
 def test_child_cannot_widen_allowed_transitions():
     """Child cannot add transitions not in base."""
     with pytest.raises(PolicyValidationError, match="escalation"):

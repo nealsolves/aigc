@@ -386,6 +386,20 @@ def _validate_composition_restriction(
             f"Composition escalation: child adds required_sequence steps not in base: {added}",
             details={"base_required_sequence": base_seq, "added_steps": added},
         )
+    if base_seq and child_seq:
+        base_iter = iter(base_seq)
+        if not all(
+            any(base_step == child_step for base_step in base_iter)
+            for child_step in child_seq
+        ):
+            raise PolicyValidationError(
+                "Composition escalation: child reorders required_sequence relative "
+                "to the base policy",
+                details={
+                    "base_required_sequence": base_seq,
+                    "child_required_sequence": child_seq,
+                },
+            )
 
     # allowed_transitions must only narrow (check child overlay vs base)
     base_trans = base_wf.get("allowed_transitions") or {}

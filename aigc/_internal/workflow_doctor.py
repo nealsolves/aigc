@@ -236,8 +236,10 @@ def diagnose_workflow_policy(
             ))
 
     # 3. Full semantic validation via load_policy (extends, composition, etc.)
-    # Guard: skip if date issues already found — load_policy uses the same
-    # validate_policy_dates path and would produce duplicate errors.
+    # Guard: skip only this semantic-validation step if date findings already
+    # exist — load_policy uses the same validate_policy_dates path and would
+    # otherwise duplicate those date-specific errors. The later advisory checks
+    # still run on the raw policy payload.
     _has_date_findings = bool(findings)
     if not _has_date_findings:
         try:

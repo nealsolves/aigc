@@ -3,8 +3,10 @@
 PR-07 clean-environment proof harness.
 
 Creates a fresh venv, installs the repo in editable mode, and runs the
-full quickstart journey end to end. Exits 0 when all gates PASS within
-budget, exits 1 otherwise.
+full quickstart journey end to end. In restricted-network environments the
+venv reuses the current interpreter's installed site-packages so the build
+backend and runtime dependencies are available without contacting an index.
+Exits 0 when all gates PASS within budget, exits 1 otherwise.
 
 Writes a JSON summary to stdout.
 
@@ -79,7 +81,13 @@ def _run_workflow_in_venv(
     assert r.returncode == 0, (
         f"Workflow runner for {func_name!r} exited {r.returncode}:\n{r.stderr}"
     )
-    return json.loads(r.stdout.strip())
+    # Take the last non-empty line — workflow templates may print progress lines
+    # to stdout (e.g. approval simulation), so only the final json.dumps line is
+    # safe to parse as the artifact.
+    json_line = next(
+        (l for l in reversed(r.stdout.splitlines()) if l.strip()), ""
+    )
+    return json.loads(json_line)
 
 
 def run_gate(name: str, fn) -> dict:
@@ -100,6 +108,30 @@ def run_gate(name: str, fn) -> dict:
     return {"gate": name, "passed": passed, "elapsed_s": elapsed, "error": error}
 
 
+def _emit_summary(gates: list[dict], success_elapsed: float) -> int:
+    print()
+    all_passed = all(g["passed"] for g in gates)
+    within_budget = success_elapsed <= BUDGET_SECONDS
+    summary = {
+        "summary": "PASS" if (all_passed and within_budget) else "FAIL",
+        "all_gates_passed": all_passed,
+        "total_success_path_elapsed_s": round(success_elapsed, 2),
+        "within_budget": within_budget,
+        "budget_seconds": BUDGET_SECONDS,
+        "gates": gates,
+    }
+    print(json.dumps(summary, indent=2))
+
+    if not within_budget:
+        print(
+            f"\nWARNING: success paths took {success_elapsed:.1f}s "
+            f"(budget: {BUDGET_SECONDS}s)",
+            file=sys.stderr,
+        )
+
+    return 0 if (all_passed and within_budget) else 1
+
+
 # ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
@@ -117,20 +149,60 @@ def main() -> int:
 
     # ------------------------------------------------------------------
     # Gate 1: create venv and install
+    #
+    # Restricted-network proof path:
+    #   1. Create a fresh venv that reuses the current interpreter's
+    #      site-packages so setuptools / PyYAML / jsonschema stay available
+    #      without any index access.
+    #   2. Install the repo editable with --no-deps --no-build-isolation so
+    #      pip does not try to resolve or download anything.
+    #   3. Verify the imported aigc module resolves to this checkout, not to
+    #      a host-installed copy.
     # ------------------------------------------------------------------
     def gate_install():
         print("  Creating virtual environment...", end="", flush=True)
-        venv.create(str(venv_dir), with_pip=True, clear=True)
+        venv.create(
+            str(venv_dir),
+            with_pip=True,
+            clear=True,
+            system_site_packages=True,
+        )
         print(" done", flush=True)
-        print("  Installing package in editable mode...", end="", flush=True)
         python = _venv_python(venv_dir)
         env = _venv_env(venv_dir)
-        r = _run([python, "-m", "pip", "install", "--no-build-isolation",
+
+        print("  Installing package in editable mode...", end="", flush=True)
+        r = _run([python, "-m", "pip", "install", "--no-deps",
+                  "--no-build-isolation",
                   "-e", str(REPO_ROOT), "-q"], env=env)
         assert r.returncode == 0, f"pip install failed:\n{r.stderr}"
         print(" done", flush=True)
 
-    gates.append(run_gate("venv_install", gate_install))
+        probe = _run(
+            [
+                python,
+                "-c",
+                "import aigc; from pathlib import Path; "
+                "print(Path(aigc.__file__).resolve())",
+            ],
+            env=env,
+        )
+        assert probe.returncode == 0, (
+            "post-install import probe failed:\n"
+            f"{probe.stderr}"
+        )
+        imported = Path(probe.stdout.strip())
+        expected = (REPO_ROOT / "aigc" / "__init__.py").resolve()
+        assert imported == expected, (
+            "editable install did not import from the current checkout:\n"
+            f"expected {expected}\n"
+            f"got      {imported}"
+        )
+
+    install_gate = run_gate("venv_install", gate_install)
+    gates.append(install_gate)
+    if not install_gate["passed"]:
+        return _emit_summary(gates, success_elapsed)
 
     env = _venv_env(venv_dir)
     python = _venv_python(venv_dir)
@@ -277,27 +349,7 @@ with governance.open_session(policy_file=policy_file) as session:
     # ------------------------------------------------------------------
     # Summary
     # ------------------------------------------------------------------
-    print()
-    all_passed = all(g["passed"] for g in gates)
-    within_budget = success_elapsed <= BUDGET_SECONDS
-    summary = {
-        "summary": "PASS" if (all_passed and within_budget) else "FAIL",
-        "all_gates_passed": all_passed,
-        "total_success_path_elapsed_s": round(success_elapsed, 2),
-        "within_budget": within_budget,
-        "budget_seconds": BUDGET_SECONDS,
-        "gates": gates,
-    }
-    print(json.dumps(summary, indent=2))
-
-    if not within_budget:
-        print(
-            f"\nWARNING: success paths took {success_elapsed:.1f}s "
-            f"(budget: {BUDGET_SECONDS}s)",
-            file=sys.stderr,
-        )
-
-    return 0 if (all_passed and within_budget) else 1
+    return _emit_summary(gates, success_elapsed)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from aigc._internal.workflow_lint import (
+    lint_audit_artifact,
     lint_policy,
     lint_starter_dir,
     lint_workflow_artifact,
@@ -47,6 +48,34 @@ def _make_valid_workflow_artifact(steps: int = 2, status: str = "COMPLETED") -> 
     }
 
 
+def _make_valid_audit_artifact() -> dict:
+    return {
+        "audit_schema_version": "1.0",
+        "policy_file": "policies/base_policy.yaml",
+        "policy_schema_version": "1.0",
+        "policy_version": "1.0",
+        "model_provider": "anthropic",
+        "model_identifier": "claude-sonnet-4-6",
+        "role": "ai-assistant",
+        "enforcement_result": "PASS",
+        "failures": [],
+        "failure_gate": None,
+        "failure_reason": None,
+        "input_checksum": "a" * 64,
+        "output_checksum": "b" * 64,
+        "timestamp": 1700000000,
+        "context": {},
+        "metadata": {},
+        "risk_score": None,
+        "signature": None,
+        "provenance": None,
+        "chain_id": None,
+        "chain_index": None,
+        "previous_audit_checksum": None,
+        "checksum": None,
+    }
+
+
 def _make_starter_dir(tmp_path: Path, *, internal_import: bool = False) -> Path:
     """Create a minimal valid starter directory."""
     d = tmp_path / "starter"
@@ -83,6 +112,11 @@ class TestDetectTargetKind:
         p = tmp_path / "wf.json"
         p.write_text(json.dumps(_make_valid_workflow_artifact()))
         assert detect_target_kind(str(p)) == "workflow_artifact"
+
+    def test_audit_artifact_json_detected(self, tmp_path):
+        p = tmp_path / "audit.json"
+        p.write_text(json.dumps(_make_valid_audit_artifact()))
+        assert detect_target_kind(str(p)) == "audit_artifact"
 
     def test_nonexistent_path_returns_unknown(self):
         assert detect_target_kind("/nonexistent/path.yaml") == "unknown"
@@ -291,6 +325,26 @@ class TestLintWorkflowArtifact:
 
 
 # ---------------------------------------------------------------------------
+# Audit artifact lint
+# ---------------------------------------------------------------------------
+
+class TestLintAuditArtifact:
+    def test_valid_audit_artifact_returns_no_findings(self, tmp_path):
+        artifact = _make_valid_audit_artifact()
+        p = tmp_path / "audit.json"
+        p.write_text(json.dumps(artifact))
+        assert lint_audit_artifact(str(p)) == []
+
+    def test_schema_violation_returns_finding(self, tmp_path):
+        artifact = _make_valid_audit_artifact()
+        del artifact["policy_version"]
+        p = tmp_path / "audit.json"
+        p.write_text(json.dumps(artifact))
+        findings = lint_audit_artifact(str(p))
+        assert any(f["code"] == "POLICY_SCHEMA_VALIDATION_ERROR" for f in findings)
+
+
+# ---------------------------------------------------------------------------
 # lint_target (unified)
 # ---------------------------------------------------------------------------
 
@@ -306,6 +360,12 @@ class TestLintTarget:
     def test_auto_detects_workflow_artifact(self, tmp_path):
         artifact = _make_valid_workflow_artifact()
         p = tmp_path / "wf.json"
+        p.write_text(json.dumps(artifact))
+        assert lint_target(str(p)) == []
+
+    def test_auto_detects_audit_artifact(self, tmp_path):
+        artifact = _make_valid_audit_artifact()
+        p = tmp_path / "audit.json"
         p.write_text(json.dumps(artifact))
         assert lint_target(str(p)) == []
 

@@ -5,17 +5,24 @@
 ## Prerequisites
 
 - Python 3.10 or later
-- AIGC installed in editable mode from the `feat/v0.9-07-beta-proof` branch:
+- AIGC installed in editable mode from the `feat/v0.9-07-beta-proof` branch.
+  Normal source installs require access to PyPI or an internal package mirror:
 
 ```bash
 git clone https://github.com/nealsolves/aigc
 cd aigc
 git checkout feat/v0.9-07-beta-proof
-pip install --no-build-isolation -e ".[dev]"
+pip install -e ".[dev]"
 ```
 
 No external API keys, Bedrock credentials, or A2A setup are required. The
 minimal starter runs entirely locally.
+
+Restricted-network maintainer validation uses a different path: run
+`python scripts/validate_v090_beta_proof.py`. That harness creates a fresh venv
+with `system_site_packages=True` and installs this checkout with
+`pip install --no-deps --no-build-isolation -e .`, so the proof run reuses the
+current interpreter's installed Python packages instead of contacting an index.
 
 ## Step 1 — Generate a minimal starter
 

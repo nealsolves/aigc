@@ -1,9 +1,20 @@
-type KnownStatus = 'PASS' | 'FAIL' | 'WARN'
+type KnownStatus =
+  | 'PASS'
+  | 'FAIL'
+  | 'WARN'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELED'
+  | 'INCOMPLETE'
 
 const STYLES: Record<KnownStatus, { bg: string; color: string; label: string }> = {
   PASS: { bg: 'rgba(61,219,217,0.12)',  color: 'var(--ibm-teal-30)',    label: '✓ Pass' },
   FAIL: { bg: 'rgba(255,126,182,0.12)', color: 'var(--ibm-magenta-40)', label: '✗ Fail' },
   WARN: { bg: 'rgba(255,198,0,0.12)',   color: '#ffc600',               label: '⚠ Warn' },
+  COMPLETED: { bg: 'rgba(61,219,217,0.12)',  color: 'var(--ibm-teal-30)',    label: '✓ Completed' },
+  FAILED: { bg: 'rgba(255,126,182,0.12)', color: 'var(--ibm-magenta-40)', label: '✗ Failed' },
+  CANCELED: { bg: 'rgba(128,128,128,0.12)', color: 'var(--text-secondary)', label: 'Canceled' },
+  INCOMPLETE: { bg: 'rgba(255,198,0,0.12)', color: '#ffc600', label: 'Incomplete' },
 }
 
 const FALLBACK_STYLE = { bg: 'rgba(128,128,128,0.12)', color: 'var(--text-secondary)' }

@@ -6,10 +6,13 @@ All imports are from the public aigc API only (no aigc._internal).
 """
 from __future__ import annotations
 
+import atexit
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Literal
 
@@ -21,16 +24,38 @@ from aigc import AIGC, ProvenanceGate
 
 router = APIRouter(prefix="/api/workflow/v090", tags=["workflow-v090"])
 
-# Module-level state
-_last_failed_artifact: dict | None = None
-# Directory written by the failure scenario so that /diagnose can run
-# `aigc workflow doctor <dir>` and detect WORKFLOW_SOURCE_REQUIRED.
-_last_failure_starter_dir: str | None = None
+# Per-run state keyed by run_id returned from the failure scenario.
+# Bounded to prevent unbounded temp-dir growth; evicted entries are cleaned up.
+_MAX_RUNS = 20
+_run_state: dict[str, dict] = {}   # run_id -> {"starter_dir": str, "artifact": dict}
+_POLICY_TMPDIR = tempfile.TemporaryDirectory(prefix="aigc_demo_policies_")
 _policy_cache: dict[str, str] = {}
 
 
+def _store_run(starter_dir: str, artifact: dict) -> str:
+    """Store per-run failure state; return a new opaque run_id."""
+    run_id = uuid.uuid4().hex
+    if len(_run_state) >= _MAX_RUNS:
+        oldest_id = next(iter(_run_state))
+        old = _run_state.pop(oldest_id)
+        shutil.rmtree(old["starter_dir"], ignore_errors=True)
+    _run_state[run_id] = {"starter_dir": starter_dir, "artifact": artifact}
+    return run_id
+
+
+def _cleanup_temp_artifacts() -> None:
+    for run in _run_state.values():
+        shutil.rmtree(run["starter_dir"], ignore_errors=True)
+    _run_state.clear()
+    _policy_cache.clear()
+    _POLICY_TMPDIR.cleanup()
+
+
+atexit.register(_cleanup_temp_artifacts)
+
+
 def _get_policy_path(profile: str) -> str:
-    """Write preset policy YAML to a tempfile, cache and return the path."""
+    """Write preset policy YAML to a managed temp dir, cache and return the path."""
     if profile in _policy_cache:
         return _policy_cache[profile]
     preset_map = {
@@ -39,13 +64,10 @@ def _get_policy_path(profile: str) -> str:
         "regulated": presets.RegulatedHighAssurancePreset,
     }
     preset = preset_map[profile]()
-    tmp = tempfile.NamedTemporaryFile(
-        suffix=".yaml", prefix=f"aigc_demo_{profile}_", delete=False
-    )
-    tmp.write(preset.policy_yaml.encode())
-    tmp.close()
-    _policy_cache[profile] = tmp.name
-    return tmp.name
+    policy_path = Path(_POLICY_TMPDIR.name) / f"{profile}.yaml"
+    policy_path.write_text(preset.policy_yaml, encoding="utf-8")
+    _policy_cache[profile] = str(policy_path)
+    return str(policy_path)
 
 
 def _sim(prompt: str) -> dict:
@@ -58,8 +80,6 @@ class WorkflowRunRequest(BaseModel):
 
 @router.post("/run")
 def run_workflow(req: WorkflowRunRequest):
-    global _last_failed_artifact
-
     if req.scenario == "minimal":
         policy_file = _get_policy_path("minimal")
         governance = AIGC()
@@ -161,8 +181,10 @@ def run_workflow(req: WorkflowRunRequest):
         # WORKFLOW_SOURCE_REQUIRED.  The doctor recognizes a valid starter directory
         # by the presence of policy.yaml + workflow_example.py + README.md, then
         # scans workflow_example.py for ProvenanceGate(require_source_ids=True).
-        global _last_failure_starter_dir
-        starter_dir = tempfile.mkdtemp(prefix="aigc_demo_starter_")
+        starter_dir = tempfile.mkdtemp(
+            prefix="aigc_demo_starter_",
+            dir=_POLICY_TMPDIR.name,
+        )
         Path(starter_dir, "policy.yaml").write_text(
             Path(policy_file).read_text()
         )
@@ -174,9 +196,8 @@ def run_workflow(req: WorkflowRunRequest):
         Path(starter_dir, "README.md").write_text(
             "# Regulated workflow demo starter\n"
         )
-        _last_failure_starter_dir = starter_dir
-        _last_failed_artifact = artifact
-        return {"artifact": artifact, "error": caught_error}
+        run_id = _store_run(starter_dir, artifact)
+        return {"artifact": artifact, "error": caught_error, "run_id": run_id}
 
 
 @router.post("/compare")
@@ -215,17 +236,27 @@ def compare_workflows():
 
 
 @router.get("/diagnose")
-def diagnose_last_failure():
-    """Run aigc workflow doctor on the starter dir from the most recent failure."""
-    if _last_failure_starter_dir is None:
+def diagnose_last_failure(run_id: str | None = None):
+    """Run aigc workflow doctor on the starter dir for a specific run.
+
+    ``run_id`` is returned by POST /run when scenario='failure'.  When omitted
+    the most recent failure is used (single-user convenience fallback).
+    """
+    if run_id is not None:
+        run = _run_state.get(run_id)
+    else:
+        run = list(_run_state.values())[-1] if _run_state else None
+
+    if run is None:
         return {"findings": [], "source": "no_prior_failure"}
 
+    starter_dir = run["starter_dir"]
     # The doctor detects WORKFLOW_SOURCE_REQUIRED by scanning workflow_example.py
     # for ProvenanceGate(require_source_ids=True) — it needs a directory, not an
     # artifact file.  We created that directory when the failure scenario ran.
     result = subprocess.run(
         [sys.executable, "-m", "aigc", "workflow", "doctor",
-         _last_failure_starter_dir, "--json"],
+         starter_dir, "--json"],
         capture_output=True, text=True,
     )
     # Parse findings regardless of exit code: doctor exits 1 for ERROR-severity

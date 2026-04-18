@@ -112,12 +112,18 @@ Editable install from source:
 ```bash
 python3 -m venv aigc-env
 source aigc-env/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-pip install --no-build-isolation -e '.[dev]'
+pip install -e '.[dev]'
 ```
 
-The `--no-build-isolation` flag keeps editable installs working in
-network-restricted environments by reusing already-installed build tools.
+This standard source install expects access to PyPI or an internal package
+mirror so pip can resolve `setuptools`, `PyYAML`, `jsonschema`, and their
+transitive dependencies.
+
+For restricted-network PR-07 proof runs, use
+`python scripts/validate_v090_beta_proof.py` instead. That harness creates a
+fresh venv with `system_site_packages=True` and installs this checkout with
+`pip install --no-deps --no-build-isolation -e .` so it reuses the current
+interpreter's installed Python packages without contacting an index.
 
 ## Quick Start
 

@@ -29,6 +29,7 @@ interface WorkflowArtifact {
 interface WorkflowRunResponse {
   artifact: WorkflowArtifact | null
   error: string | null
+  run_id?: string
 }
 
 interface CompareResponse {
@@ -89,6 +90,7 @@ export default function Lab11WorkflowLab() {
 
   // Failure & Fix tab
   const [failureResult, setFailureResult]   = useState<WorkflowRunResponse | null>(null)
+  const [lastFailureRunId, setLastFailureRunId] = useState<string | null>(null)
   const [findings, setFindings]             = useState<DiagnosisFinding[]>([])
   const [diagnoseSource, setDiagnoseSource] = useState<string>('')
   const [fixResult, setFixResult]           = useState<WorkflowRunResponse | null>(null)
@@ -119,11 +121,15 @@ export default function Lab11WorkflowLab() {
     if (res) {
       setFailureResult(res)
       if (res.artifact) setLastArtifact(res.artifact)
+      if (res.run_id) setLastFailureRunId(res.run_id)
     }
   }
 
   const runDoctorDiagnosis = async () => {
-    const res = await diagnoseApi.call('/api/workflow/v090/diagnose')
+    const path = lastFailureRunId
+      ? `/api/workflow/v090/diagnose?run_id=${lastFailureRunId}`
+      : '/api/workflow/v090/diagnose'
+    const res = await diagnoseApi.call(path)
     if (res) {
       setFindings(res.findings ?? [])
       setDiagnoseSource(res.source ?? '')
@@ -256,7 +262,7 @@ export default function Lab11WorkflowLab() {
               className="px-4 py-1.5 rounded text-sm font-medium text-white disabled:opacity-50"
               style={{ background: IBM_COLORS.orange40 }}
               onClick={runDoctorDiagnosis}
-              disabled={diagnoseApi.loading}
+              disabled={diagnoseApi.loading || loading}
             >
               {diagnoseApi.loading ? 'Diagnosing…' : 'Run Doctor Diagnosis'}
             </button>
@@ -326,6 +332,12 @@ export default function Lab11WorkflowLab() {
                 ))}
               </div>
             </div>
+          )}
+
+          {diagnoseSource === 'no_prior_failure' && findings.length === 0 && (
+            <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
+              Trigger Failure first to generate a workflow run, then rerun doctor diagnosis.
+            </p>
           )}
 
           {fixResult && (
@@ -418,7 +430,7 @@ export default function Lab11WorkflowLab() {
       {activeTab === 'evidence-view' && (
         <div>
           <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
-            Audit artifact from the most recent workflow run.
+            Workflow artifact from the most recent workflow run.
           </p>
 
           {lastArtifact ? (
@@ -444,7 +456,7 @@ export default function Lab11WorkflowLab() {
               </div>
               <CodeBlock
                 code={JSON.stringify(lastArtifact, null, 2)}
-                label="full audit artifact"
+                label="full workflow artifact"
               />
             </>
           ) : (

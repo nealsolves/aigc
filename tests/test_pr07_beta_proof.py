@@ -34,7 +34,7 @@ from aigc import AIGC, CustomGateViolationError, ProvenanceGate
 def _generate_starter(profile: str, output_dir: Path) -> Path:
     """Run aigc workflow init and return the output directory."""
     result = subprocess.run(
-        ["aigc", "workflow", "init",
+        [sys.executable, "-m", "aigc", "workflow", "init",
          "--profile", profile, "--output-dir", str(output_dir)],
         capture_output=True, text=True,
     )
@@ -200,7 +200,7 @@ class TestRegulatedBetaProof:
         _generate_starter("regulated-high-assurance", d)
 
         result = subprocess.run(
-            ["aigc", "workflow", "doctor", str(d), "--json"],
+            [sys.executable, "-m", "aigc", "workflow", "doctor", str(d), "--json"],
             capture_output=True, text=True,
         )
         assert result.returncode == 0, (
@@ -217,7 +217,7 @@ class TestRegulatedBetaProof:
         d.mkdir()
         _generate_starter("regulated-high-assurance", d)
         result = subprocess.run(
-            ["aigc", "workflow", "doctor", str(d)],
+            [sys.executable, "-m", "aigc", "workflow", "doctor", str(d)],
             capture_output=True, text=True,
         )
         # Doctor exits 1 only on ERROR severity; WORKFLOW_SOURCE_REQUIRED is INFO
@@ -232,6 +232,81 @@ class TestRegulatedBetaProof:
         # Run the unmodified generated script - it has source_ids in every step
         artifact = _exec_workflow_module(d, "run_regulated_workflow")
         assert artifact["status"] == "COMPLETED"
+
+
+# ---------------------------------------------------------------------------
+# Task 2.1.e  Clean-venv install gate — regression guard
+#
+# The validate_v090_beta_proof.py harness creates a fresh venv that reuses the
+# current interpreter's installed site-packages, then runs
+# `pip install --no-deps --no-build-isolation -e .` to prove the clean-env
+# install works without contacting a package index. These tests guard that
+# restricted-network bootstrap path.
+# ---------------------------------------------------------------------------
+
+class TestCleanEnvInstallProof:
+    """Structural guards for the clean-environment install gate."""
+
+    _SCRIPT = Path(__file__).parent.parent / "scripts" / "validate_v090_beta_proof.py"
+
+    def test_validate_script_has_no_pypi_bootstrap_commands(self):
+        """
+        The harness must not bootstrap build/runtime deps by calling pip against
+        a package index. Restricted-network validation should rely on
+        system_site_packages=True plus a no-deps editable install.
+        """
+        source = self._SCRIPT.read_text()
+        import re
+        for line in source.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            if re.search(r'["\']download["\']', stripped):
+                pytest.fail(
+                    "validate_v090_beta_proof.py still contains a live "
+                    "`pip download` step, which reintroduces index access for "
+                    f"restricted-network runs. Offending line: {stripped!r}"
+                )
+            if "setuptools" in stripped and "pip" in stripped:
+                pytest.fail(
+                    "validate_v090_beta_proof.py still shells out to pip for "
+                    "setuptools bootstrap instead of relying on "
+                    f"system_site_packages=True. Offending line: {stripped!r}"
+                )
+
+    def test_validate_script_uses_host_site_packages_and_no_deps_install(self):
+        """
+        gate_install must create the venv with system_site_packages=True and
+        then install the repo with --no-deps --no-build-isolation so the run
+        stays local to the current interpreter's already-installed packages.
+        """
+        source = self._SCRIPT.read_text()
+        code = "\n".join(
+            line for line in source.splitlines()
+            if not line.strip().startswith("#")
+        )
+        assert "system_site_packages=True" in code, (
+            "gate_install must create the fresh venv with system_site_packages=True "
+            "so build/runtime deps remain available without index access"
+        )
+        assert "--no-deps" in code, (
+            "gate_install must use --no-deps for the editable install so pip "
+            "does not resolve dependencies from an index"
+        )
+        assert "--no-build-isolation" in code, (
+            "gate_install must use --no-build-isolation for the editable "
+            "install so pip reuses the host interpreter's already-installed "
+            "build backend"
+        )
+
+    def test_validate_script_is_importable(self):
+        """The harness script must be syntactically valid Python."""
+        import ast
+        source = self._SCRIPT.read_text()
+        try:
+            ast.parse(source)
+        except SyntaxError as exc:
+            pytest.fail(f"validate_v090_beta_proof.py has a syntax error: {exc}")
 
 
 # ---------------------------------------------------------------------------

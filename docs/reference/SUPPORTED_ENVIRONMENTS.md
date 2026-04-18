@@ -26,18 +26,40 @@ yet validated.
 | `PyYAML` | `>=6.0` | Policy file parsing |
 | `jsonschema` | `>=4.0` | Policy and artifact schema validation |
 
-Both packages are listed in `pyproject.toml` and installed automatically with
-`pip install -e .`.
+Both packages are listed in `pyproject.toml`. Normal source installs require
+PyPI access (or an internal mirror). Install with:
+
+```bash
+pip install -e .
+```
 
 ## Development extras
 
-Install with `pip install -e ".[dev]"` to get the dev extras:
+Install with the dev extras to also get the test runner and linter:
+
+```bash
+pip install -e ".[dev]"
+```
 
 | Package | Purpose |
 |---------|---------|
 | `pytest` | Test runner |
 | `pytest-cov` | Coverage reporting |
 | `flake8` | Python linting |
+
+## Restricted-network proof runs
+
+The PR-07 clean-environment proof harness uses a separate maintainer path for
+restricted-network environments:
+
+```bash
+python scripts/validate_v090_beta_proof.py
+```
+
+That harness creates a fresh venv with `system_site_packages=True` and installs
+this checkout with `pip install --no-deps --no-build-isolation -e .`, reusing
+the current interpreter's installed `setuptools`, `PyYAML`, `jsonschema`, and
+their transitive dependencies instead of contacting a package index.
 
 ## Not required
 

@@ -144,6 +144,37 @@ def _make_workflow_artifact(tmp_path: Path, status: str = "COMPLETED") -> Path:
     return p
 
 
+def _make_audit_artifact(tmp_path: Path, enforcement_result: str = "PASS") -> Path:
+    artifact = {
+        "audit_schema_version": "1.0",
+        "policy_file": "policies/base_policy.yaml",
+        "policy_schema_version": "1.0",
+        "policy_version": "1.0",
+        "model_provider": "anthropic",
+        "model_identifier": "claude-sonnet-4-6",
+        "role": "ai-assistant",
+        "enforcement_result": enforcement_result,
+        "failures": [],
+        "failure_gate": None,
+        "failure_reason": None,
+        "input_checksum": "a" * 64,
+        "output_checksum": "b" * 64,
+        "timestamp": 1700000000,
+        "context": {},
+        "metadata": {},
+        "risk_score": None,
+        "signature": None,
+        "provenance": None,
+        "chain_id": None,
+        "chain_index": None,
+        "previous_audit_checksum": None,
+        "checksum": None,
+    }
+    p = tmp_path / "audit.json"
+    p.write_text(json.dumps(artifact), encoding="utf-8")
+    return p
+
+
 class TestWorkflowLintCLI:
     """CLI tests for aigc workflow lint."""
 
@@ -172,6 +203,11 @@ class TestWorkflowLintCLI:
 
     def test_valid_workflow_artifact_exits_0(self, tmp_path):
         p = _make_workflow_artifact(tmp_path)
+        exit_code = main(["workflow", "lint", str(p)])
+        assert exit_code == 0
+
+    def test_valid_audit_artifact_exits_0(self, tmp_path):
+        p = _make_audit_artifact(tmp_path)
         exit_code = main(["workflow", "lint", str(p)])
         assert exit_code == 0
 

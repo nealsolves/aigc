@@ -3,6 +3,14 @@ import { vi } from 'vitest'
 import { useApi } from '@/hooks/useApi'
 import { AigcProvider } from '@/context/AigcContext'
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
 describe('useApi', () => {
   it('starts idle', () => {
     const { result } = renderHook(() => useApi(), { wrapper: AigcProvider })
@@ -53,6 +61,42 @@ describe('useApi', () => {
     const { result } = renderHook(() => useApi(), { wrapper: AigcProvider })
     await act(async () => { await result.current.call('/api/enforce', {}) })
     // useAigc audit history should now contain the artifact
+    vi.unstubAllGlobals()
+  })
+
+  it('ignores a stale response when a newer request finishes first', async () => {
+    const slow = deferred<{ ok: boolean; json: () => Promise<{ status: string }> }>()
+    const fast = deferred<{ ok: boolean; json: () => Promise<{ status: string }> }>()
+    vi.stubGlobal('fetch', vi.fn()
+      .mockReturnValueOnce(slow.promise)
+      .mockReturnValueOnce(fast.promise))
+
+    const { result } = renderHook(() => useApi<{ status: string }>(), { wrapper: AigcProvider })
+
+    let slowResult: { status: string } | null = null
+    let fastResult: { status: string } | null = null
+    let slowPromise!: Promise<{ status: string } | null>
+    let fastPromise!: Promise<{ status: string } | null>
+
+    await act(async () => {
+      slowPromise = result.current.call('/slow')
+      fastPromise = result.current.call('/fast')
+    })
+
+    fast.resolve({ ok: true, json: async () => ({ status: 'new' }) })
+    await act(async () => {
+      fastResult = await fastPromise
+    })
+
+    slow.resolve({ ok: true, json: async () => ({ status: 'old' }) })
+    await act(async () => {
+      slowResult = await slowPromise
+    })
+
+    expect(fastResult).toEqual({ status: 'new' })
+    expect(slowResult).toBeNull()
+    expect(result.current.loading).toBe(false)
+    expect(result.current.error).toBeNull()
     vi.unstubAllGlobals()
   })
 })

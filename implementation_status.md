@@ -2,8 +2,8 @@
 
 **Target Version:** `0.9.0` Beta
 **Baseline Version:** `0.3.3`
-**Active Branch:** `feat/v0.9-07-beta-proof`
-**Last Updated:** 2026-04-17
+**Active Branch:** `feat/v0.9-08-engine-hardening`
+**Last Updated:** 2026-04-18
 
 ---
 
@@ -22,7 +22,7 @@ Current state:
 | Minimal session flow | complete | PR-04: GovernanceSession, AIGC.open_session, SessionPreCallResult |
 | Starters and migration | complete | PR-05: aigc workflow init, aigc policy init, starter scaffolds, migration guide |
 | Diagnostics | complete | PR-06: aigc workflow lint, aigc workflow doctor, frozen reason codes |
-| Beta proof | in progress | PR-07: quickstart docs, demo slice, failure-and-fix proof, clean-env harness |
+| Beta proof | complete | PR-07: quickstart docs, demo slice, failure-and-fix proof, clean-env harness |
 | Engine hardening | complete | PR-08 complete |
 | Exports and ops | not started | Starts in PR-09 |
 | Optional adapters | not started | Starts in PR-10a and PR-10b |

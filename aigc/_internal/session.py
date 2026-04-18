@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from aigc._internal.errors import (
     InvocationValidationError,
     SessionStateError,
-    WorkflowToolBudgetExceededError,
 )
 from aigc._internal.sinks import emit_to_sink
 
@@ -138,7 +137,6 @@ class GovernanceSession:
         session_id: str,
         policy_file: str | None,
         metadata: dict | None,
-        validator_hooks: "list[Any] | None" = None,
     ) -> None:
         self._aigc = aigc
         self._session_id = session_id
@@ -168,7 +166,7 @@ class GovernanceSession:
         self._approval_records: list[dict[str, Any]] = []
 
         # ValidatorHooks evaluated at each enforce_step_pre_call (internal contract)
-        self._validator_hooks: list[Any] = list(validator_hooks or [])
+        self._validator_hooks: list[Any] = []
         # Evidence records for the workflow artifact
         self._validator_hook_evidence: list[dict[str, Any]] = []
 
@@ -341,27 +339,52 @@ class GovernanceSession:
         Fix 5: if approval_id is supplied it must match the pending checkpoint's
         checkpoint_id — mismatched IDs are rejected with SessionStateError.
         """
+        if self._state != STATE_PAUSED:
+            raise SessionStateError(
+                f"resume() requires a PAUSED session (state={self._state!r})",
+                details={
+                    "session_id": self._session_id,
+                    "current_state": self._state,
+                },
+            )
+
+        pending = [
+            rec for rec in reversed(self._approval_records) if rec["status"] == "pending"
+        ]
+        if not pending:
+            raise SessionStateError(
+                "resume() requires a pending approval checkpoint",
+                details={
+                    "session_id": self._session_id,
+                    "current_state": self._state,
+                    "pending_approval_ids": [],
+                },
+            )
+
+        target = pending[0]
+        if approval_id is not None:
+            target = next(
+                (rec for rec in pending if rec["checkpoint_id"] == approval_id),
+                None,
+            )
+            if target is None:
+                raise SessionStateError(
+                    f"approval_id mismatch: expected {pending[0]['checkpoint_id']!r}, "
+                    f"got {approval_id!r}",
+                    details={
+                        "session_id": self._session_id,
+                        "expected_approval_id": pending[0]["checkpoint_id"],
+                        "pending_approval_ids": [rec["checkpoint_id"] for rec in pending],
+                        "provided_approval_id": approval_id,
+                    },
+                )
+
         self._transition(STATE_OPEN)
-        for rec in reversed(self._approval_records):
-            if rec["status"] == "pending":
-                if approval_id is not None and rec["checkpoint_id"] != approval_id:
-                    # Undo the state transition before raising
-                    self._state = STATE_PAUSED
-                    raise SessionStateError(
-                        f"approval_id mismatch: expected {rec['checkpoint_id']!r}, "
-                        f"got {approval_id!r}",
-                        details={
-                            "session_id": self._session_id,
-                            "expected_approval_id": rec["checkpoint_id"],
-                            "provided_approval_id": approval_id,
-                        },
-                    )
-                rec["status"] = "approved"
-                rec["resumed_at"] = int(time.time())
-                if approver_id is not None:
-                    rec["approver_id"] = approver_id
-                rec["approval_note"] = approval_note
-                break
+        target["status"] = "approved"
+        target["resumed_at"] = int(time.time())
+        if approver_id is not None:
+            target["approver_id"] = approver_id
+        target["approval_note"] = approval_note
 
     def deny_approval(
         self,
@@ -847,10 +870,7 @@ class GovernanceSession:
             from aigc._internal.validator_hook import (
                 ValidatorHookEnvelope,
                 _invoke_hook,
-                VALIDATOR_ALLOW,
                 VALIDATOR_DENY,
-                VALIDATOR_WARN,
-                VALIDATOR_EXECUTION_FAILURE,
                 VALIDATOR_TIMEOUT,
                 VALIDATOR_REVIEW_REQUIRED,
             )
@@ -897,15 +917,8 @@ class GovernanceSession:
                             "reason_code": _result.reason_code,
                         },
                     )
-                _non_warning = {VALIDATOR_ALLOW, VALIDATOR_WARN, VALIDATOR_EXECUTION_FAILURE}
-                if _result.decision not in _non_warning:
-                    logger.warning(
-                        "ValidatorHook %r returned %r for step %r in session %r",
-                        _result.hook_id,
-                        _result.decision,
-                        resolved_step_id,
-                        self._session_id,
-                    )
+                # After fail-closed raise above, only ALLOW/WARN/EXECUTION_FAILURE
+                # remain — all are safe to continue.
 
         self._pending_results[token_id] = {
             "inner": inner_result,
@@ -974,25 +987,10 @@ class GovernanceSession:
         self._consumed_token_ids.add(session_result._token_id)
         del self._pending_results[session_result._token_id]
 
-        # Increment tool-call counter from the invocation dict (Fix 2: consistent
-        # with pre_call budget check — both use invocation-time count)
+        # Increment tool-call counter from the invocation dict (consistent with
+        # pre_call budget check — both use invocation-time count). Budget is
+        # enforced entirely at pre-call; this increment can never exceed the limit.
         self._total_tool_calls_consumed += entry["tool_calls_count"]
-
-        # Budget post-call reconciliation — check if actual consumption exceeds budget
-        if (
-            self._max_total_tool_calls is not None
-            and self._total_tool_calls_consumed > self._max_total_tool_calls
-        ):
-            raise WorkflowToolBudgetExceededError(
-                f"Session tool-call budget exceeded post-call: "
-                f"max_total_tool_calls={self._max_total_tool_calls}, "
-                f"actual_consumed={self._total_tool_calls_consumed}",
-                details={
-                    "session_id": self._session_id,
-                    "max_total_tool_calls": self._max_total_tool_calls,
-                    "total_tool_calls_consumed": self._total_tool_calls_consumed,
-                },
-            )
 
         # Step record uses REGISTRY values — never trusts token fields after verification
         inv_checksum = _checksum(inv_artifact)

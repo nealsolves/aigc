@@ -29,12 +29,6 @@ import yaml
 from aigc._internal.errors import (
     PolicyLoadError,
     PolicyValidationError,
-    WorkflowParticipantMismatchError,
-    WorkflowSequenceViolationError,
-    WorkflowTransitionDeniedError,
-    WorkflowRoleViolationError,
-    WorkflowProtocolViolationError,
-    WorkflowHandoffDeniedError,
 )
 from aigc._internal.policy_loader import load_policy
 from aigc._internal.workflow_lint import (
@@ -413,6 +407,12 @@ _INVALID_TRANSITION_EXCEPTION_TYPES = frozenset({
     "WorkflowHandoffDeniedError",
 })
 
+# Exception type names that map directly to their own reason codes.
+_EXCEPTION_TYPE_TO_CODE: dict[str, str] = {
+    "WorkflowStepBudgetExceededError": "WORKFLOW_STEP_BUDGET_EXCEEDED",
+    "WorkflowHookDeniedError": "WORKFLOW_HOOK_DENIED",
+}
+
 _LIFECYCLE_FAILURE_PATTERNS = [
     "Invalid session lifecycle transition",
     "cannot call",
@@ -467,6 +467,14 @@ def diagnose_workflow_artifact(path: str) -> list[dict]:
                 f"Workflow session failed due to an invalid lifecycle transition. "
                 f"Exception: {exc_type}{detail_str}. Message: {msg or '(none)'}.",
                 _next_action("WORKFLOW_INVALID_TRANSITION"),
+            ))
+        elif exc_type in _EXCEPTION_TYPE_TO_CODE:
+            code = _EXCEPTION_TYPE_TO_CODE[exc_type]
+            findings.append(_finding(
+                code,
+                "ERROR",
+                f"Workflow session failed: {exc_type}. Message: {msg or '(none)'}.",
+                _next_action(code),
             ))
         else:
             findings.append(_finding(

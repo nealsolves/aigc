@@ -70,3 +70,28 @@ def test_host_can_resume_after_escalation_requirement():
 
     # The approval checkpoint was created before the raise
     assert caught_approval_id is not None
+
+
+def test_host_can_proceed_after_escalation_and_approval():
+    """After escalation triggers, resume() allows the step to complete without re-triggering."""
+    from aigc._internal.errors import SessionStateError  # noqa: F401 (imported for clarity)
+    s = _session({"require_approval_after_steps": 2})
+    with s:
+        t1 = s.enforce_step_pre_call(dict(_BASE_INV))
+        s.enforce_step_post_call(t1, dict(_GOOD_OUTPUT))
+        t2 = s.enforce_step_pre_call(dict(_BASE_INV))
+        s.enforce_step_post_call(t2, dict(_GOOD_OUTPUT))
+        # Now authorized_step_count==2, next pre_call should trigger escalation
+        caught_id = None
+        try:
+            s.enforce_step_pre_call(dict(_BASE_INV))
+        except WorkflowApprovalRequiredError as exc:
+            caught_id = exc.details.get("checkpoint_id")
+        assert caught_id is not None
+        # Resolve the approval
+        s.resume(approval_id=caught_id)
+        # Now retry the same step — must NOT raise again (no infinite loop)
+        t3 = s.enforce_step_pre_call(dict(_BASE_INV))
+        s.enforce_step_post_call(t3, dict(_GOOD_OUTPUT))
+        s.complete()
+    assert s.workflow_artifact["status"] == "COMPLETED"

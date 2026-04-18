@@ -425,3 +425,15 @@ def test_child_cannot_weaken_protocol_constraints():
     """Child cannot change a scalar value in a shared protocol family."""
     with pytest.raises(PolicyValidationError, match="escalation"):
         load_policy("tests/test_policies/composition_p4_weaken_protocol_constraints.yaml")
+
+
+def test_child_cannot_drop_max_steps_via_replace():
+    """Replace strategy cannot silently drop base max_steps (must block, not pass)."""
+    with pytest.raises(PolicyValidationError, match="max_steps"):
+        load_policy("tests/test_policies/composition_p4_drop_max_steps_replace.yaml")
+
+
+def test_child_cannot_narrow_require_approval_for_roles():
+    """Child cannot remove roles from require_approval_for_roles."""
+    with pytest.raises(PolicyValidationError, match="weakening"):
+        load_policy("tests/test_policies/composition_p4_narrow_esc_roles.yaml")

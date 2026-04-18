@@ -302,35 +302,29 @@ def _validate_composition_restriction(
 
     base_max_steps = base_wf.get("max_steps")
     merged_max_steps = merged_wf.get("max_steps")
-    if (
-        base_max_steps is not None
-        and merged_max_steps is not None
-        and merged_max_steps > base_max_steps
-    ):
-        raise PolicyValidationError(
-            f"Composition escalation: child policy widens max_steps "
-            f"from {base_max_steps} to {merged_max_steps}",
-            details={
-                "base_max_steps": base_max_steps,
-                "merged_max_steps": merged_max_steps,
-            },
-        )
+    if base_max_steps is not None:
+        if merged_max_steps is None or merged_max_steps > base_max_steps:
+            raise PolicyValidationError(
+                f"Composition escalation: child policy widens max_steps "
+                f"(base={base_max_steps}, merged={merged_max_steps})",
+                details={
+                    "base_max_steps": base_max_steps,
+                    "merged_max_steps": merged_max_steps,
+                },
+            )
 
     base_max_calls = base_wf.get("max_total_tool_calls")
     merged_max_calls = merged_wf.get("max_total_tool_calls")
-    if (
-        base_max_calls is not None
-        and merged_max_calls is not None
-        and merged_max_calls > base_max_calls
-    ):
-        raise PolicyValidationError(
-            f"Composition escalation: child policy widens max_total_tool_calls "
-            f"from {base_max_calls} to {merged_max_calls}",
-            details={
-                "base_max_total_tool_calls": base_max_calls,
-                "merged_max_total_tool_calls": merged_max_calls,
-            },
-        )
+    if base_max_calls is not None:
+        if merged_max_calls is None or merged_max_calls > base_max_calls:
+            raise PolicyValidationError(
+                f"Composition escalation: child policy widens max_total_tool_calls "
+                f"(base={base_max_calls}, merged={merged_max_calls})",
+                details={
+                    "base_max_total_tool_calls": base_max_calls,
+                    "merged_max_total_tool_calls": merged_max_calls,
+                },
+            )
 
     # For workflow DSL field checks, prefer the raw child overlay (before merge)
     # so that array intersection/union strategies cannot hide widening attempts.
@@ -441,17 +435,28 @@ def _validate_composition_restriction(
     merged_esc = merged_wf.get("escalation") or {}
     base_esc_n = base_esc.get("require_approval_after_steps")
     merged_esc_n = merged_esc.get("require_approval_after_steps")
-    if (
-        base_esc_n is not None
-        and merged_esc_n is not None
-        and merged_esc_n > base_esc_n
-    ):
+    if base_esc_n is not None:
+        if merged_esc_n is None or merged_esc_n > base_esc_n:
+            raise PolicyValidationError(
+                f"Composition escalation: child raises escalation threshold "
+                f"(base={base_esc_n}, merged={merged_esc_n})",
+                details={
+                    "base_require_approval_after_steps": base_esc_n,
+                    "merged_require_approval_after_steps": merged_esc_n,
+                },
+            )
+
+    # escalation.require_approval_for_roles can only narrow (child cannot remove roles)
+    base_esc_roles = set(base_esc.get("require_approval_for_roles") or [])
+    merged_esc_roles = set(merged_esc.get("require_approval_for_roles") or [])
+    if base_esc_roles and (removed_roles := sorted(base_esc_roles - merged_esc_roles)):
         raise PolicyValidationError(
-            f"Composition escalation: child raises escalation threshold "
-            f"from {base_esc_n} to {merged_esc_n}",
+            f"Composition weakening: child removes roles from "
+            f"require_approval_for_roles: {removed_roles}",
             details={
-                "base_require_approval_after_steps": base_esc_n,
-                "merged_require_approval_after_steps": merged_esc_n,
+                "base_require_approval_for_roles": sorted(base_esc_roles),
+                "merged_require_approval_for_roles": sorted(merged_esc_roles),
+                "removed_roles": removed_roles,
             },
         )
 

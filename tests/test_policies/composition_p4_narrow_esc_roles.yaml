@@ -1,0 +1,9 @@
+extends: composition_p4_esc_roles_base.yaml
+composition_strategy: intersect
+policy_version: "1.0"
+roles:
+  - planner
+  - reviewer
+workflow:
+  escalation:
+    require_approval_for_roles: []

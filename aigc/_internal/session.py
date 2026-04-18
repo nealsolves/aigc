@@ -215,6 +215,10 @@ class GovernanceSession:
         self._authorized_step_count: int = 0
         self._total_tool_calls_consumed: int = 0
 
+        # Escalation re-fire guard: True while an escalation is pending approval
+        # for the current step. Cleared in enforce_step_post_call on success.
+        self._escalation_in_progress: bool = False
+
     # ------------------------------------------------------------------
     # Public properties
     # ------------------------------------------------------------------
@@ -761,20 +765,27 @@ class GovernanceSession:
             _need_approval = False
             _esc_reason = None
             _esc_rule = None
-            if (
-                _esc_n is not None
-                and self._authorized_step_count > 0
-                and self._authorized_step_count % _esc_n == 0
-            ):
-                _need_approval = True
-                _esc_reason = f"Escalation: approval required after every {_esc_n} steps"
-                _esc_rule = f"require_approval_after_steps={_esc_n}"
-            if _esc_roles and _invoc_role_esc in _esc_roles:
-                _need_approval = True
-                _esc_reason = f"Escalation: approval required for role {_invoc_role_esc!r}"
-                _esc_rule = f"require_approval_for_roles includes {_invoc_role_esc!r}"
+            # Skip re-firing escalation if already in progress for this step
+            # (post-resume retry). Once the step succeeds in enforce_step_post_call,
+            # _escalation_in_progress is cleared so the next trigger fires normally.
+            if self._escalation_in_progress:
+                _need_approval = False
+            else:
+                if (
+                    _esc_n is not None
+                    and self._authorized_step_count > 0
+                    and self._authorized_step_count % _esc_n == 0
+                ):
+                    _need_approval = True
+                    _esc_reason = f"Escalation: approval required after every {_esc_n} steps"
+                    _esc_rule = f"require_approval_after_steps={_esc_n}"
+                if _esc_roles and _invoc_role_esc in _esc_roles:
+                    _need_approval = True
+                    _esc_reason = f"Escalation: approval required for role {_invoc_role_esc!r}"
+                    _esc_rule = f"require_approval_for_roles includes {_invoc_role_esc!r}"
             if _need_approval:
                 _esc_checkpoint_id = str(uuid.uuid4())
+                self._escalation_in_progress = True
                 self.pause(
                     approval_id=_esc_checkpoint_id,
                     reason=_esc_reason,
@@ -996,5 +1007,6 @@ class GovernanceSession:
         self._sequence_position += 1
         self._last_completed_step_id = entry["step_id"]
         self._last_completed_participant_id = entry["participant_id"]
+        self._escalation_in_progress = False  # Step completed — clear escalation gate
 
         return inv_artifact

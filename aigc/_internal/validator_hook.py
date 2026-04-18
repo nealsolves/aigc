@@ -84,6 +84,8 @@ class ValidatorHook(abc.ABC):
         max_retries: Max retries on EXECUTION_FAILURE (class-level
             attribute, not instance).
         DENY and REVIEW_REQUIRED decisions are never retried automatically.
+
+    Hook contract: evaluate() must not raise and must not mutate envelope.invocation.
     """
 
     hook_id: str

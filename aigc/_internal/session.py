@@ -521,6 +521,273 @@ class GovernanceSession:
             )
 
         resolved_step_id = step_id or str(uuid.uuid4())
+
+        # 5A1: Participant enforcement
+        if self._participants_by_id:
+            from aigc._internal.errors import WorkflowParticipantMismatchError
+            if participant_id is None:
+                raise WorkflowParticipantMismatchError(
+                    "participants declared in policy but no participant_id supplied for this step",
+                    details={
+                        "session_id": self._session_id,
+                        "step_id": resolved_step_id,
+                        "reason_code": "WORKFLOW_PARTICIPANT_ID_REQUIRED",
+                    },
+                )
+            if participant_id not in self._participants_by_id:
+                raise WorkflowParticipantMismatchError(
+                    f"participant_id={participant_id!r} not in declared participants",
+                    details={
+                        "session_id": self._session_id,
+                        "step_id": resolved_step_id,
+                        "participant_id": participant_id,
+                        "declared_participant_ids": list(self._participants_by_id),
+                    },
+                )
+            _part = self._participants_by_id[participant_id]
+            _part_roles = _part.get("roles")
+            _invoc_role = invocation.get("role")
+            if _part_roles and _invoc_role not in _part_roles:
+                raise WorkflowParticipantMismatchError(
+                    f"invocation role={_invoc_role!r} not in participant "
+                    f"{participant_id!r} allowed roles: {_part_roles}",
+                    details={
+                        "session_id": self._session_id,
+                        "participant_id": participant_id,
+                        "invocation_role": _invoc_role,
+                        "allowed_roles": _part_roles,
+                        "reason_code": "WORKFLOW_PARTICIPANT_ROLE_MISMATCH",
+                    },
+                )
+
+        # 5B: Required sequence enforcement
+        if (
+            self._required_sequence is not None
+            and self._sequence_position < len(self._required_sequence)
+        ):
+            from aigc._internal.errors import WorkflowSequenceViolationError
+            expected_step_id = self._required_sequence[self._sequence_position]
+            if step_id is None:
+                raise WorkflowSequenceViolationError(
+                    f"required_sequence declared: step_id is required at position "
+                    f"{self._sequence_position} (expected {expected_step_id!r})",
+                    details={
+                        "session_id": self._session_id,
+                        "sequence_position": self._sequence_position,
+                        "expected_step_id": expected_step_id,
+                        "reason_code": "WORKFLOW_SEQUENCE_STEP_ID_REQUIRED",
+                    },
+                )
+            if resolved_step_id != expected_step_id:
+                raise WorkflowSequenceViolationError(
+                    f"required_sequence violation: expected "
+                    f"step_id={expected_step_id!r} at position "
+                    f"{self._sequence_position}, got {resolved_step_id!r}",
+                    details={
+                        "session_id": self._session_id,
+                        "sequence_position": self._sequence_position,
+                        "expected_step_id": expected_step_id,
+                        "actual_step_id": resolved_step_id,
+                    },
+                )
+            # Do NOT advance _sequence_position here — advance in post_call on success
+
+        # 5C: Allowed transitions enforcement
+        if self._allowed_transitions is not None and self._last_completed_step_id is not None:
+            from aigc._internal.errors import WorkflowTransitionDeniedError
+            if step_id is None:
+                raise WorkflowTransitionDeniedError(
+                    "allowed_transitions declared: step_id is required to verify transition",
+                    details={
+                        "session_id": self._session_id,
+                        "last_completed_step_id": self._last_completed_step_id,
+                        "reason_code": "WORKFLOW_TRANSITION_STEP_ID_REQUIRED",
+                    },
+                )
+            _allowed_to = self._allowed_transitions.get(self._last_completed_step_id, [])
+            if resolved_step_id not in _allowed_to:
+                raise WorkflowTransitionDeniedError(
+                    f"Transition from {self._last_completed_step_id!r} to {resolved_step_id!r} "
+                    f"is not in allowed_transitions",
+                    details={
+                        "session_id": self._session_id,
+                        "from_step_id": self._last_completed_step_id,
+                        "to_step_id": resolved_step_id,
+                        "allowed_transitions": _allowed_to,
+                    },
+                )
+        # Note: first step (_last_completed_step_id is None) has no transition check
+
+        # 5D: Allowed agent roles enforcement
+        if self._allowed_agent_roles is not None:
+            from aigc._internal.errors import WorkflowRoleViolationError
+            _invoc_role = invocation.get("role")
+            if _invoc_role not in self._allowed_agent_roles:
+                raise WorkflowRoleViolationError(
+                    f"invocation role={_invoc_role!r} not in "
+                    f"allowed_agent_roles: {self._allowed_agent_roles}",
+                    details={
+                        "session_id": self._session_id,
+                        "step_id": resolved_step_id,
+                        "invocation_role": _invoc_role,
+                        "allowed_agent_roles": self._allowed_agent_roles,
+                    },
+                )
+
+        # 5E: Protocol constraints enforcement
+        if self._protocol_constraints is not None:
+            from aigc._internal.errors import WorkflowProtocolViolationError
+            _protocol = invocation.get("protocol") or (
+                invocation.get("context") or {}
+            ).get("protocol")
+            if _protocol is None:
+                raise WorkflowProtocolViolationError(
+                    "protocol_constraints declared but no protocol specified in invocation "
+                    "(set invocation['protocol'] or invocation['context']['protocol'])",
+                    details={
+                        "session_id": self._session_id,
+                        "step_id": resolved_step_id,
+                        "reason_code": "WORKFLOW_PROTOCOL_REQUIRED",
+                    },
+                )
+            if _protocol not in self._protocol_constraints:
+                raise WorkflowProtocolViolationError(
+                    f"Protocol {_protocol!r} not in declared protocol_constraints sections: "
+                    f"{list(self._protocol_constraints)}",
+                    details={
+                        "session_id": self._session_id,
+                        "step_id": resolved_step_id,
+                        "protocol": _protocol,
+                        "declared_protocols": list(self._protocol_constraints),
+                    },
+                )
+            _ctx = invocation.get("context") or {}
+            _proto_evidence = _ctx.get("protocol_evidence")
+            if not isinstance(_proto_evidence, dict) or _protocol not in _proto_evidence:
+                raise WorkflowProtocolViolationError(
+                    f"No evidence for protocol {_protocol!r} in context['protocol_evidence']",
+                    details={
+                        "session_id": self._session_id,
+                        "step_id": resolved_step_id,
+                        "protocol": _protocol,
+                    },
+                )
+            # Participant protocol check
+            if participant_id and self._participants_by_id:
+                _part = self._participants_by_id.get(participant_id)
+                if _part:
+                    _part_protos = _part.get("protocols")
+                    if _part_protos and _protocol not in _part_protos:
+                        raise WorkflowProtocolViolationError(
+                            f"Protocol {_protocol!r} not in participant "
+                            f"{participant_id!r} allowed protocols",
+                            details={
+                                "session_id": self._session_id,
+                                "participant_id": participant_id,
+                                "protocol": _protocol,
+                                "allowed_protocols": _part_protos,
+                            },
+                        )
+            # Protocol-family-specific runtime checks
+            _evidence_for_protocol = _proto_evidence.get(_protocol, {})
+            if _protocol == "bedrock":
+                # Alias-backed identity required when participant declares bedrock protocol
+                if participant_id and self._participants_by_id:
+                    _part = self._participants_by_id.get(participant_id)
+                    if _part and "bedrock" in (_part.get("protocols") or []):
+                        if not _evidence_for_protocol.get("alias_backed"):
+                            raise WorkflowProtocolViolationError(
+                                "Bedrock governed binding requires alias-backed identity; "
+                                "set context['protocol_evidence']"
+                                "['bedrock']['alias_backed'] = True",
+                                details={
+                                    "session_id": self._session_id,
+                                    "participant_id": participant_id,
+                                    "protocol": "bedrock",
+                                },
+                            )
+            elif _protocol == "a2a":
+                # gRPC transport is out of scope for v0.9.0
+                if _evidence_for_protocol.get("transport") == "grpc":
+                    raise WorkflowProtocolViolationError(
+                        "gRPC transport is not supported for a2a in v0.9.0",
+                        details={
+                            "session_id": self._session_id,
+                            "protocol": "a2a",
+                            "transport": "grpc",
+                        },
+                    )
+                # Require supportedInterfaces with protocolVersion "1.0"
+                _interfaces = _evidence_for_protocol.get("supportedInterfaces") or []
+                if not any(
+                    isinstance(i, dict) and i.get("protocolVersion") == "1.0"
+                    for i in _interfaces
+                ):
+                    raise WorkflowProtocolViolationError(
+                        "A2A evidence must include supportedInterfaces[] entry with "
+                        "protocolVersion == '1.0'",
+                        details={
+                            "session_id": self._session_id,
+                            "protocol": "a2a",
+                        },
+                    )
+
+        # 5F: Handoffs enforcement
+        if (
+            self._handoffs is not None
+            and self._last_completed_participant_id is not None
+            and participant_id is not None
+            and self._last_completed_participant_id != participant_id
+        ):
+            from aigc._internal.errors import WorkflowHandoffDeniedError
+            _allowed_handoffs = {(h["from"], h["to"]) for h in self._handoffs}
+            if (self._last_completed_participant_id, participant_id) not in _allowed_handoffs:
+                raise WorkflowHandoffDeniedError(
+                    f"Handoff from participant {self._last_completed_participant_id!r} to "
+                    f"{participant_id!r} is not in allowed handoffs",
+                    details={
+                        "session_id": self._session_id,
+                        "from_participant_id": self._last_completed_participant_id,
+                        "to_participant_id": participant_id,
+                    },
+                )
+
+        # 5G: Escalation enforcement
+        if self._escalation is not None and self._state == STATE_OPEN:
+            from aigc._internal.errors import WorkflowApprovalRequiredError
+            _esc_n = self._escalation.get("require_approval_after_steps")
+            _esc_roles = self._escalation.get("require_approval_for_roles") or []
+            _invoc_role_esc = invocation.get("role")
+            _need_approval = False
+            _esc_reason = None
+            _esc_rule = None
+            if (
+                _esc_n is not None
+                and self._authorized_step_count > 0
+                and self._authorized_step_count % _esc_n == 0
+            ):
+                _need_approval = True
+                _esc_reason = f"Escalation: approval required after every {_esc_n} steps"
+                _esc_rule = f"require_approval_after_steps={_esc_n}"
+            if _esc_roles and _invoc_role_esc in _esc_roles:
+                _need_approval = True
+                _esc_reason = f"Escalation: approval required for role {_invoc_role_esc!r}"
+                _esc_rule = f"require_approval_for_roles includes {_invoc_role_esc!r}"
+            if _need_approval:
+                _esc_checkpoint_id = str(uuid.uuid4())
+                self.pause(
+                    approval_id=_esc_checkpoint_id,
+                    reason=_esc_reason,
+                )
+                raise WorkflowApprovalRequiredError(
+                    _esc_reason or "Escalation: approval required",
+                    details={
+                        "session_id": self._session_id,
+                        "checkpoint_id": _esc_checkpoint_id,
+                        "escalation_rule": _esc_rule,
+                    },
+                )
+
         token_id = str(uuid.uuid4())
 
         # Build enriched invocation: apply session-level policy override, then
@@ -722,5 +989,10 @@ class GovernanceSession:
             "invocation_artifact_checksum": inv_checksum,
         })
         self._step_policy_files.append(entry["effective_policy_file"])
+
+        # Advance tracking state for sequence, transitions, and handoffs
+        self._sequence_position += 1
+        self._last_completed_step_id = entry["step_id"]
+        self._last_completed_participant_id = entry["participant_id"]
 
         return inv_artifact

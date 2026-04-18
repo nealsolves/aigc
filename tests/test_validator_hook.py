@@ -475,3 +475,70 @@ def test_unknown_decision_in_session_logs_warning_and_allows():
         session.enforce_step_post_call(token, dict(_GOOD_OUTPUT))
         session.complete()
     assert session.workflow_artifact["status"] == "COMPLETED"
+
+
+# ---------------------------------------------------------------------------
+# Bug 3 fix: Each hook gets its own deadline (not first hook's deadline)
+# ---------------------------------------------------------------------------
+
+def test_multi_hook_each_gets_own_deadline():
+    """Phase 1 Bug 3: each validator hook must receive its own deadline_ms, not the first hook's."""
+    from aigc._internal.enforcement import AIGC
+    from aigc._internal.validator_hook import (
+        ValidatorHook, ValidatorHookResult, VALIDATOR_ALLOW,
+    )
+    import time as _time
+
+    # Hook 1: timeout_ms=200
+    class Hook1(ValidatorHook):
+        hook_id = "hook-1"
+        hook_version = "1.0"
+        timeout_ms = 200
+        received_deadline = None
+
+        def evaluate(self, envelope):
+            Hook1.received_deadline = envelope.deadline_ms
+            return ValidatorHookResult(
+                decision=VALIDATOR_ALLOW,
+                reason_code=None,
+                explanation="Allow from hook1",
+                hook_id=self.hook_id,
+                hook_version=self.hook_version,
+                attempt=1,
+                latency_ms=1,
+                observed_at=int(_time.time() * 1000),
+            )
+
+    # Hook 2: timeout_ms=800
+    class Hook2(ValidatorHook):
+        hook_id = "hook-2"
+        hook_version = "1.0"
+        timeout_ms = 800
+        received_deadline = None
+
+        def evaluate(self, envelope):
+            Hook2.received_deadline = envelope.deadline_ms
+            return ValidatorHookResult(
+                decision=VALIDATOR_ALLOW,
+                reason_code=None,
+                explanation="Allow from hook2",
+                hook_id=self.hook_id,
+                hook_version=self.hook_version,
+                attempt=1,
+                latency_ms=1,
+                observed_at=int(_time.time() * 1000),
+            )
+
+    a = AIGC()
+    hook1 = Hook1()
+    hook2 = Hook2()
+    session = _make_session(a, [hook1, hook2])
+    with session:
+        token = session.enforce_step_pre_call(dict(_BASE_INV))
+        session.enforce_step_post_call(token, dict(_GOOD_OUTPUT))
+        session.complete()
+
+    # Verify each hook received its own deadline
+    assert Hook1.received_deadline == 200, f"Hook1 should receive deadline_ms=200, got {Hook1.received_deadline}"
+    assert Hook2.received_deadline == 800, f"Hook2 should receive deadline_ms=800, got {Hook2.received_deadline}"
+    assert session.workflow_artifact["status"] == "COMPLETED"

@@ -505,19 +505,17 @@ class GovernanceSession:
                 VALIDATOR_REVIEW_REQUIRED,
             )
             from aigc._internal.errors import WorkflowHookDeniedError
-            _obs_at = int(time.time() * 1000)
-            _envelope = ValidatorHookEnvelope(
-                hook_schema_version="1.0",
-                session_id=self._session_id,
-                step_id=resolved_step_id,
-                participant_id=participant_id,
-                invocation=enriched,
-                deadline_ms=next(
-                    (h.timeout_ms for h in self._validator_hooks), 5000
-                ),
-                observed_at=_obs_at,
-            )
             for _hook in self._validator_hooks:
+                _obs_at = int(time.time() * 1000)
+                _envelope = ValidatorHookEnvelope(
+                    hook_schema_version="1.0",
+                    session_id=self._session_id,
+                    step_id=resolved_step_id,
+                    participant_id=participant_id,
+                    invocation=enriched,
+                    deadline_ms=_hook.timeout_ms,
+                    observed_at=_obs_at,
+                )
                 _result = _invoke_hook(_hook, _envelope)
                 self._validator_hook_evidence.append({
                     "hook_id": _result.hook_id,

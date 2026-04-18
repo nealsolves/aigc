@@ -187,9 +187,9 @@ Checklist:
 
 ### PR-08 — Workflow Engine Hardening
 
-- [ ] restrictive composition is enforced and widening merges fail validation
-- [ ] approvals, budgets, transitions, and handoffs behave deterministically
-- [ ] validator hooks have typed contracts, bounded timeouts, and auditable
+- [x] restrictive composition is enforced and widening merges fail validation
+- [x] approvals, budgets, transitions, and handoffs behave deterministically
+- [x] validator hooks have typed contracts, bounded timeouts, and auditable
       provenance
 
 ### PR-09 — Trace, Export, CLI, and Operator Polish

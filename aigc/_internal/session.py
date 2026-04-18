@@ -333,6 +333,16 @@ class GovernanceSession:
 
     def complete(self) -> None:
         """Mark the session as successfully completed (OPEN/PAUSED → COMPLETED)."""
+        for rec in self._approval_records:
+            if rec["status"] != "approved":
+                raise SessionStateError(
+                    f"Cannot complete session with unresolved approval checkpoint"
+                    f" {rec['checkpoint_id']!r} (status={rec['status']!r})",
+                    details={
+                        "session_id": self._session_id,
+                        "pending_checkpoint_id": rec["checkpoint_id"],
+                    },
+                )
         self._transition(STATE_COMPLETED)
 
     def cancel(self) -> None:

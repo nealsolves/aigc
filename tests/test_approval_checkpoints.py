@@ -162,3 +162,32 @@ def test_resume_without_approval_id_closes_pending_regardless():
 
     artifact = session.workflow_artifact
     assert artifact["approval_checkpoints"][0]["status"] == "approved"
+
+
+# ---------------------------------------------------------------------------
+# Fail-closed: complete() must not proceed with unresolved checkpoints
+# ---------------------------------------------------------------------------
+
+def test_complete_with_pending_checkpoint_raises():
+    """complete() must raise SessionStateError when a checkpoint is still pending."""
+    a = _aigc()
+    with pytest.raises(SessionStateError) as exc_info:
+        with a.open_session() as session:
+            session.pause(approval_id="chk-pending")
+            # deliberately skip resume() — checkpoint remains pending
+            session.complete()
+    assert exc_info.value.code == "WORKFLOW_INVALID_TRANSITION"
+    assert exc_info.value.details["pending_checkpoint_id"] == "chk-pending"
+
+
+def test_complete_with_all_checkpoints_resolved_succeeds():
+    """complete() must succeed once all checkpoints have been resolved via resume()."""
+    a = _aigc()
+    with a.open_session() as session:
+        session.pause(approval_id="chk-resolve")
+        session.resume(approval_id="chk-resolve")
+        session.complete()
+
+    artifact = session.workflow_artifact
+    assert artifact["status"] == "COMPLETED"
+    assert artifact["approval_checkpoints"][0]["status"] == "approved"

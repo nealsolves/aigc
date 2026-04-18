@@ -367,6 +367,8 @@ def test_paused_session_allows_inflight_post_call():
     session.pause()
     # Phase B while PAUSED must succeed — it is not a new step
     session.enforce_step_post_call(token, dict(_GOOD_OUTPUT))
+    # Resolve the checkpoint before completing (fail-closed guard)
+    session.resume()
     session.complete()
     session.finalize()
     assert session.state == STATE_FINALIZED

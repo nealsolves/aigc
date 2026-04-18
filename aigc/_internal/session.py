@@ -12,7 +12,11 @@ import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from aigc._internal.errors import InvocationValidationError, SessionStateError
+from aigc._internal.errors import (
+    InvocationValidationError,
+    SessionStateError,
+    WorkflowToolBudgetExceededError,
+)
 from aigc._internal.sinks import emit_to_sink
 
 if TYPE_CHECKING:
@@ -168,10 +172,23 @@ class GovernanceSession:
         # Evidence records for the workflow artifact
         self._validator_hook_evidence: list[dict[str, Any]] = []
 
-        # Workflow budget constraints — loaded via AIGC's own cache+loader (Fix 1:
-        # never call load_policy() directly here, which would bypass any custom loader)
+        # Workflow budget constraints and policy fields — loaded via AIGC's own cache+loader
+        # (Fix 1: never call load_policy() directly here, which would bypass any custom loader)
+        # Initialize defaults first (for when policy_file is None or load fails)
         self._max_steps: int | None = None
         self._max_total_tool_calls: int | None = None
+        self._participants: list[dict] | None = None
+        self._participants_by_id: dict[str, dict] = {}
+        self._required_sequence: list[str] | None = None
+        self._allowed_transitions: dict[str, list[str]] | None = None
+        self._allowed_agent_roles: list[str] | None = None
+        self._handoffs: list[dict] | None = None
+        self._escalation: dict | None = None
+        self._protocol_constraints: dict | None = None
+        self._sequence_position: int = 0
+        self._last_completed_step_id: str | None = None
+        self._last_completed_participant_id: str | None = None
+
         if policy_file is not None:
             try:
                 _policy = self._aigc._policy_cache.get_or_load(
@@ -181,6 +198,16 @@ class GovernanceSession:
                 _wf = _policy.get("workflow") or {}
                 self._max_steps = _wf.get("max_steps")
                 self._max_total_tool_calls = _wf.get("max_total_tool_calls")
+                self._participants = _wf.get("participants")
+                self._participants_by_id = {
+                    p["id"]: p for p in (self._participants or [])
+                }
+                self._required_sequence = _wf.get("required_sequence")
+                self._allowed_transitions = _wf.get("allowed_transitions")
+                self._allowed_agent_roles = _wf.get("allowed_agent_roles")
+                self._handoffs = _wf.get("handoffs")
+                self._escalation = _wf.get("escalation")
+                self._protocol_constraints = _wf.get("protocol_constraints")
             except Exception:  # noqa: BLE001
                 pass  # Policy load failure surfaces at step enforcement time
 
@@ -670,6 +697,22 @@ class GovernanceSession:
         # Increment tool-call counter from the invocation dict (Fix 2: consistent
         # with pre_call budget check — both use invocation-time count)
         self._total_tool_calls_consumed += entry["tool_calls_count"]
+
+        # Budget post-call reconciliation — check if actual consumption exceeds budget
+        if (
+            self._max_total_tool_calls is not None
+            and self._total_tool_calls_consumed > self._max_total_tool_calls
+        ):
+            raise WorkflowToolBudgetExceededError(
+                f"Session tool-call budget exceeded post-call: "
+                f"max_total_tool_calls={self._max_total_tool_calls}, "
+                f"actual_consumed={self._total_tool_calls_consumed}",
+                details={
+                    "session_id": self._session_id,
+                    "max_total_tool_calls": self._max_total_tool_calls,
+                    "total_tool_calls_consumed": self._total_tool_calls_consumed,
+                },
+            )
 
         # Step record uses REGISTRY values — never trusts token fields after verification
         inv_checksum = _checksum(inv_artifact)

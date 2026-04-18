@@ -248,6 +248,63 @@ def test_split_enforcement_top_level_hasattr():
         assert hasattr(aigc, name), f"aigc.{name} not exported"
 
 
+def test_pr06_workflow_error_classes_exported():
+    """All PR-06 frozen reason-code error classes are importable from aigc."""
+    from aigc import (
+        WorkflowApprovalRequiredError,
+        WorkflowSourceRequiredError,
+        WorkflowToolBudgetExceededError,
+        WorkflowUnsupportedBindingError,
+        WorkflowSessionTokenInvalidError,
+    )
+    from aigc import AIGCError, GovernanceViolationError
+
+    assert WorkflowApprovalRequiredError is not None
+    assert issubclass(WorkflowApprovalRequiredError, GovernanceViolationError)
+
+    assert WorkflowSourceRequiredError is not None
+    assert issubclass(WorkflowSourceRequiredError, GovernanceViolationError)
+
+    assert WorkflowToolBudgetExceededError is not None
+    assert issubclass(WorkflowToolBudgetExceededError, GovernanceViolationError)
+
+    assert WorkflowUnsupportedBindingError is not None
+    assert issubclass(WorkflowUnsupportedBindingError, GovernanceViolationError)
+
+    assert WorkflowSessionTokenInvalidError is not None
+    assert issubclass(WorkflowSessionTokenInvalidError, AIGCError)
+    assert not issubclass(WorkflowSessionTokenInvalidError, GovernanceViolationError)
+
+
+def test_pr06_workflow_errors_in_all():
+    """PR-06 error classes are in aigc.__all__."""
+    import aigc
+    for name in (
+        "WorkflowApprovalRequiredError",
+        "WorkflowSourceRequiredError",
+        "WorkflowToolBudgetExceededError",
+        "WorkflowUnsupportedBindingError",
+        "WorkflowSessionTokenInvalidError",
+    ):
+        assert name in aigc.__all__, f"{name} missing from aigc.__all__"
+
+
+def test_pr06_workflow_errors_have_correct_codes():
+    """Each PR-06 error class carries the frozen reason code."""
+    from aigc import (
+        WorkflowApprovalRequiredError,
+        WorkflowSourceRequiredError,
+        WorkflowToolBudgetExceededError,
+        WorkflowUnsupportedBindingError,
+        WorkflowSessionTokenInvalidError,
+    )
+    assert WorkflowApprovalRequiredError("x").code == "WORKFLOW_APPROVAL_REQUIRED"
+    assert WorkflowSourceRequiredError("x").code == "WORKFLOW_SOURCE_REQUIRED"
+    assert WorkflowToolBudgetExceededError("x").code == "WORKFLOW_TOOL_BUDGET_EXCEEDED"
+    assert WorkflowUnsupportedBindingError("x").code == "WORKFLOW_UNSUPPORTED_BINDING"
+    assert WorkflowSessionTokenInvalidError("x").code == "WORKFLOW_SESSION_TOKEN_INVALID"
+
+
 def test_all_list_completeness():
     """__all__ contains every M2 symbol that should be public."""
     expected_m2_symbols = {

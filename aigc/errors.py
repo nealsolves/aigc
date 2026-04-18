@@ -14,7 +14,12 @@ from aigc._internal.errors import (
     SchemaValidationError,
     SessionStateError,
     ToolConstraintViolationError,
+    WorkflowApprovalRequiredError,
+    WorkflowSessionTokenInvalidError,
+    WorkflowSourceRequiredError,
     WorkflowStarterIntegrityError,
+    WorkflowToolBudgetExceededError,
+    WorkflowUnsupportedBindingError,
 )
 
 __all__ = [
@@ -33,5 +38,10 @@ __all__ = [
     "SchemaValidationError",
     "SessionStateError",
     "ToolConstraintViolationError",
+    "WorkflowApprovalRequiredError",
+    "WorkflowSessionTokenInvalidError",
+    "WorkflowSourceRequiredError",
     "WorkflowStarterIntegrityError",
+    "WorkflowToolBudgetExceededError",
+    "WorkflowUnsupportedBindingError",
 ]

@@ -26,6 +26,8 @@ from aigc._internal.errors import PolicyLoadError, PolicyValidationError
 from aigc._internal.lineage import AuditLineage
 from aigc._internal.policy_init import _cmd_policy_init
 from aigc._internal.workflow_init import _cmd_workflow_init
+from aigc._internal.workflow_lint import lint_target
+from aigc._internal.workflow_doctor import diagnose_target
 
 
 def _load_schema() -> dict:
@@ -295,6 +297,58 @@ def _cmd_compliance_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_workflow_lint(args: argparse.Namespace) -> int:
+    """Run the workflow lint subcommand."""
+    all_findings: list[dict] = []
+    exit_code = 0
+
+    for target in args.targets:
+        findings = lint_target(target, kind=args.kind)
+        if findings:
+            exit_code = 1
+        all_findings.append({"target": target, "findings": findings})
+
+    if args.json:
+        print(json.dumps(all_findings, indent=2))
+    else:
+        for entry in all_findings:
+            target = entry["target"]
+            findings = entry["findings"]
+            if findings:
+                print(f"FAIL  {target}")
+                for f in findings:
+                    print(f"      [{f['code']}] {f['message']}", file=sys.stderr)
+            else:
+                print(f"OK    {target}")
+
+    return exit_code
+
+
+def _cmd_workflow_doctor(args: argparse.Namespace) -> int:
+    """Run the workflow doctor subcommand."""
+    findings = diagnose_target(args.target, kind=args.kind)
+
+    has_error = any(f.get("severity") == "ERROR" for f in findings)
+    exit_code = 1 if has_error else 0
+
+    if args.json:
+        print(json.dumps(findings, indent=2))
+    else:
+        if not findings:
+            print(f"OK    {args.target}  (no issues found)")
+        else:
+            for f in findings:
+                sev = f.get("severity", "INFO")
+                code = f.get("code", "")
+                message = f.get("message", "")
+                next_action = f.get("next_action", "")
+                stream = sys.stderr if sev == "ERROR" else sys.stdout
+                print(f"[{sev}] {code}: {message}", file=stream)
+                print(f"  -> {next_action}", file=stream)
+
+    return exit_code
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
@@ -426,6 +480,53 @@ def build_parser() -> argparse.ArgumentParser:
         help="Default role in generated policy (default: ai-assistant)",
     )
     workflow_init_parser.set_defaults(func=_cmd_workflow_init)
+
+    # aigc workflow lint <targets...> [--kind auto|policy|starter_dir|workflow_artifact] [--json]
+    workflow_lint_parser = workflow_sub.add_parser(
+        "lint",
+        help="Statically lint governance targets (policy files, starter dirs, workflow artifacts)",
+    )
+    workflow_lint_parser.add_argument(
+        "targets",
+        nargs="+",
+        help="Paths to lint (policy YAML, starter directory, or workflow artifact JSON)",
+    )
+    workflow_lint_parser.add_argument(
+        "--kind",
+        choices=["auto", "policy", "starter_dir", "workflow_artifact"],
+        default="auto",
+        help="Target kind (default: auto-detect)",
+    )
+    workflow_lint_parser.add_argument(
+        "--json",
+        action="store_true",
+        default=False,
+        help="Output findings as JSON array",
+    )
+    workflow_lint_parser.set_defaults(func=_cmd_workflow_lint)
+
+    # aigc workflow doctor <target> [--kind auto|...] [--json]
+    workflow_doctor_parser = workflow_sub.add_parser(
+        "doctor",
+        help="Run runtime/evidence diagnostics on a governance target",
+    )
+    workflow_doctor_parser.add_argument(
+        "target",
+        help="Path to diagnose (policy YAML, starter directory, or artifact JSON)",
+    )
+    workflow_doctor_parser.add_argument(
+        "--kind",
+        choices=["auto", "policy", "starter_dir", "workflow_artifact", "audit_artifact"],
+        default="auto",
+        help="Target kind (default: auto-detect)",
+    )
+    workflow_doctor_parser.add_argument(
+        "--json",
+        action="store_true",
+        default=False,
+        help="Output findings as JSON array",
+    )
+    workflow_doctor_parser.set_defaults(func=_cmd_workflow_doctor)
 
     return parser
 

@@ -14,6 +14,11 @@ from aigc._internal.errors import (
     PreconditionError,
     SchemaValidationError,
     ToolConstraintViolationError,
+    WorkflowApprovalRequiredError,
+    WorkflowSessionTokenInvalidError,
+    WorkflowSourceRequiredError,
+    WorkflowToolBudgetExceededError,
+    WorkflowUnsupportedBindingError,
 )
 
 
@@ -101,3 +106,55 @@ def test_audit_artifact_attached_after_failure():
     assert exc.audit_artifact is None
     exc.audit_artifact = {"enforcement_result": "FAIL"}
     assert exc.audit_artifact["enforcement_result"] == "FAIL"
+
+
+# ---------------------------------------------------------------------------
+# PR-06 frozen workflow reason-code error classes
+# ---------------------------------------------------------------------------
+
+def test_workflow_approval_required_error():
+    exc = WorkflowApprovalRequiredError("approval needed")
+    assert exc.code == "WORKFLOW_APPROVAL_REQUIRED"
+    assert "approval needed" in str(exc)
+    assert isinstance(exc, GovernanceViolationError)
+    assert isinstance(exc, AIGCError)
+
+
+def test_workflow_source_required_error():
+    exc = WorkflowSourceRequiredError("source IDs missing", details={"gate": "ProvenanceGate"})
+    assert exc.code == "WORKFLOW_SOURCE_REQUIRED"
+    assert exc.details["gate"] == "ProvenanceGate"
+    assert isinstance(exc, GovernanceViolationError)
+
+
+def test_workflow_tool_budget_exceeded_error():
+    exc = WorkflowToolBudgetExceededError("search exceeded max_calls")
+    assert exc.code == "WORKFLOW_TOOL_BUDGET_EXCEEDED"
+    assert isinstance(exc, GovernanceViolationError)
+
+
+def test_workflow_unsupported_binding_error():
+    exc = WorkflowUnsupportedBindingError("gRPC not supported")
+    assert exc.code == "WORKFLOW_UNSUPPORTED_BINDING"
+    assert isinstance(exc, GovernanceViolationError)
+
+
+def test_workflow_session_token_invalid_error():
+    exc = WorkflowSessionTokenInvalidError("token already consumed")
+    assert exc.code == "WORKFLOW_SESSION_TOKEN_INVALID"
+    # WorkflowSessionTokenInvalidError extends AIGCError (not GovernanceViolationError)
+    assert isinstance(exc, AIGCError)
+    assert not isinstance(exc, GovernanceViolationError)
+
+
+def test_workflow_pr06_errors_have_audit_artifact_attribute():
+    """All PR-06 error classes inherit audit_artifact from AIGCError."""
+    for cls in (
+        WorkflowApprovalRequiredError,
+        WorkflowSourceRequiredError,
+        WorkflowToolBudgetExceededError,
+        WorkflowUnsupportedBindingError,
+        WorkflowSessionTokenInvalidError,
+    ):
+        exc = cls("test")
+        assert exc.audit_artifact is None

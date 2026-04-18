@@ -19,4 +19,16 @@ describe('StatusBadge', () => {
     expect(screen.getByText(/Warn/)).toBeInTheDocument()
     expect(screen.queryByText('WARN')).not.toBeInTheDocument()
   })
+
+  it('renders workflow COMPLETED as "Completed"', () => {
+    render(<StatusBadge status="COMPLETED" />)
+    expect(screen.getByText(/Completed/)).toBeInTheDocument()
+    expect(screen.queryByText('COMPLETED')).not.toBeInTheDocument()
+  })
+
+  it('renders workflow FAILED as "Failed"', () => {
+    render(<StatusBadge status="FAILED" />)
+    expect(screen.getByText(/Failed/)).toBeInTheDocument()
+    expect(screen.queryByText('FAILED')).not.toBeInTheDocument()
+  })
 })

@@ -62,7 +62,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   execution model for `v0.3.3+`. Existing call sites that omit `pre_call_enforcement`
   will now run in split mode.
 - Release-facing runtime docs now advertise the current verification baseline:
-  `966 tests`, coverage above the `90%` CI gate, and audit schema `v1.4`.
+  `1233 tests`, coverage above the `90%` CI gate, and audit schema `v1.4`.
 
   **Migration:** No change required for call sites that already pass
   `pre_call_enforcement=True`. Call sites that rely on unified mode must add

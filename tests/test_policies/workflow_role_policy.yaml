@@ -1,0 +1,6 @@
+policy_version: "1.0"
+roles:
+  - planner
+workflow:
+  allowed_agent_roles:
+    - planner

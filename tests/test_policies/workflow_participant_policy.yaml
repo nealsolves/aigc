@@ -1,0 +1,12 @@
+policy_version: "1.0"
+roles:
+  - planner
+workflow:
+  participants:
+    - id: agent-1
+      description: Primary agent
+      roles:
+        - planner
+      protocols:
+        - local
+      manifest_ref: manifests/agent-1.yaml

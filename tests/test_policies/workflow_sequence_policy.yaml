@@ -1,0 +1,8 @@
+policy_version: "1.0"
+roles:
+  - planner
+workflow:
+  required_sequence:
+    - step-a
+    - step-b
+    - step-c

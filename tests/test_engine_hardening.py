@@ -288,3 +288,76 @@ def test_terminal_state_rejects_finalize():
     session.finalize()
     with pytest.raises(SessionStateError):
         session.finalize()
+
+
+# ---------------------------------------------------------------------------
+# Schema tests: Phase 3 — extended workflow DSL fields
+# ---------------------------------------------------------------------------
+
+def test_workflow_participants_extended_shape_accepted_by_schema():
+    schema = _load_schema()
+    policy = yaml.safe_load(Path("tests/test_policies/workflow_participant_policy.yaml").read_text())
+    jsonschema.validate(policy, schema)
+
+
+def test_required_sequence_accepted_by_schema():
+    schema = _load_schema()
+    policy = yaml.safe_load(Path("tests/test_policies/workflow_sequence_policy.yaml").read_text())
+    jsonschema.validate(policy, schema)
+
+
+def test_allowed_transitions_accepted_by_schema():
+    schema = _load_schema()
+    policy = yaml.safe_load(Path("tests/test_policies/workflow_transition_policy.yaml").read_text())
+    jsonschema.validate(policy, schema)
+
+
+def test_allowed_agent_roles_accepted_by_schema():
+    schema = _load_schema()
+    policy = yaml.safe_load(Path("tests/test_policies/workflow_role_policy.yaml").read_text())
+    jsonschema.validate(policy, schema)
+
+
+def test_handoffs_accepted_by_schema():
+    schema = _load_schema()
+    policy = yaml.safe_load(Path("tests/test_policies/workflow_handoff_policy.yaml").read_text())
+    jsonschema.validate(policy, schema)
+
+
+def test_escalation_accepted_by_schema():
+    schema = _load_schema()
+    policy = yaml.safe_load(Path("tests/test_policies/workflow_escalation_policy.yaml").read_text())
+    jsonschema.validate(policy, schema)
+
+
+def test_protocol_constraints_accepted_by_schema():
+    schema = _load_schema()
+    policy = yaml.safe_load(Path("tests/test_policies/workflow_protocol_policy.yaml").read_text())
+    jsonschema.validate(policy, schema)
+
+
+def test_protocol_constraints_accept_local_bedrock_a2a_sections():
+    schema = _load_schema()
+    policy = {
+        "policy_version": "1.0",
+        "roles": ["planner"],
+        "workflow": {
+            "protocol_constraints": {
+                "local": {"min_version": "1.0"},
+                "bedrock": {"require_alias": True},
+                "a2a": {"protocol_version": "1.0"},
+            }
+        }
+    }
+    jsonschema.validate(policy, schema)
+
+
+def test_unknown_workflow_field_still_rejected():
+    schema = _load_schema()
+    policy = {
+        "policy_version": "1.0",
+        "roles": ["planner"],
+        "workflow": {"unknown_field": True},
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(policy, schema)

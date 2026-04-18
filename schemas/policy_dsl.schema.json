@@ -191,15 +191,64 @@
         },
         "participants": {
           "type": "array",
-          "description": "Allowed participant definitions (merge by stable id)",
+          "description": "Stable workflow participants used for governed binding and handoffs",
           "items": {
             "type": "object",
             "additionalProperties": false,
             "required": ["id"],
             "properties": {
-              "id": { "type": "string" },
-              "description": { "type": "string" }
+              "id": {"type": "string"},
+              "description": {"type": "string"},
+              "roles": {"type": "array", "items": {"type": "string"}},
+              "protocols": {"type": "array", "items": {"type": "string"}},
+              "manifest_ref": {"type": "string"}
             }
+          }
+        },
+        "required_sequence": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Ordered step_id values that must be executed in sequence"
+        },
+        "allowed_transitions": {
+          "type": "object",
+          "additionalProperties": {"type": "array", "items": {"type": "string"}},
+          "description": "Map of step_id to list of allowed next step_ids"
+        },
+        "allowed_agent_roles": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Restricts which roles may participate in this session"
+        },
+        "handoffs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "to"],
+            "additionalProperties": false,
+            "properties": {
+              "from": {"type": "string"},
+              "to": {"type": "string"}
+            }
+          },
+          "description": "Allowed participant-to-participant handoff pairs"
+        },
+        "escalation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "require_approval_after_steps": {"type": "integer", "minimum": 1},
+            "require_approval_for_roles": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "protocol_constraints": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Named protocol evidence requirements enforced at workflow runtime",
+          "properties": {
+            "local": {"type": "object", "additionalProperties": true},
+            "bedrock": {"type": "object", "additionalProperties": true},
+            "a2a": {"type": "object", "additionalProperties": true}
           }
         }
       }

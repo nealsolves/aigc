@@ -31,7 +31,19 @@
     "approval_checkpoints": {
       "type": "array",
       "description": "Ordered record of pause/resume events with approval metadata",
-      "items": {"type": "object"}
+      "items": {
+        "type": "object",
+        "properties": {
+          "checkpoint_id": {"type": "string"},
+          "paused_at": {"type": "integer"},
+          "approver_id": {"type": ["string", "null"]},
+          "reason": {"type": ["string", "null"]},
+          "status": {"type": "string", "enum": ["pending", "approved", "denied"]},
+          "resumed_at": {"type": ["integer", "null"]},
+          "approval_note": {"type": ["string", "null"]},
+          "denial_reason": {"type": ["string", "null"]}
+        }
+      }
     },
     "validator_hook_evidence": {
       "type": "array",

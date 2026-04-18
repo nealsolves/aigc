@@ -294,6 +294,7 @@ class GovernanceSession:
             "status": "pending",
             "resumed_at": None,
             "approval_note": None,
+            "denial_reason": None,
         }
         self._approval_records.append(checkpoint)
 
@@ -330,6 +331,50 @@ class GovernanceSession:
                     rec["approver_id"] = approver_id
                 rec["approval_note"] = approval_note
                 break
+
+    def deny_approval(
+        self,
+        *,
+        approval_id: str | None = None,
+        approver_id: str | None = None,
+        denial_reason: str | None = None,
+    ) -> None:
+        """Deny a pending approval checkpoint. Session remains PAUSED."""
+        # State guard: must be PAUSED with at least one pending checkpoint
+        _pending = [r for r in self._approval_records if r["status"] == "pending"]
+        if self._state != STATE_PAUSED or not _pending:
+            raise SessionStateError(
+                f"deny_approval() requires a PAUSED session with a pending checkpoint "
+                f"(state={self._state!r})",
+                details={
+                    "session_id": self._session_id,
+                    "current_state": self._state,
+                },
+            )
+        # Find target checkpoint
+        if approval_id is not None:
+            target = next(
+                (r for r in self._approval_records
+                 if r["checkpoint_id"] == approval_id and r["status"] == "pending"),
+                None,
+            )
+            if target is None:
+                raise SessionStateError(
+                    f"No pending checkpoint with approval_id={approval_id!r}",
+                    details={
+                        "session_id": self._session_id,
+                        "approval_id": approval_id,
+                    },
+                )
+        else:
+            # Most recent pending
+            target = _pending[-1]
+        target["status"] = "denied"
+        if approver_id is not None:
+            target["approver_id"] = approver_id
+        target["denial_reason"] = denial_reason
+        target["resumed_at"] = None
+        # Session stays PAUSED — do NOT transition
 
     def complete(self) -> None:
         """Mark the session as successfully completed (OPEN/PAUSED → COMPLETED)."""

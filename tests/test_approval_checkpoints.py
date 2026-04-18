@@ -191,3 +191,57 @@ def test_complete_with_all_checkpoints_resolved_succeeds():
     artifact = session.workflow_artifact
     assert artifact["status"] == "COMPLETED"
     assert artifact["approval_checkpoints"][0]["status"] == "approved"
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: deny_approval() semantics
+# ---------------------------------------------------------------------------
+
+def test_deny_approval_blocks_complete():
+    """deny_approval() must leave the session in a state where complete() raises."""
+    a = _aigc()
+    with pytest.raises(SessionStateError) as exc_info:
+        with a.open_session() as session:
+            session.pause(approval_id="chk-denied")
+            session.deny_approval(denial_reason="Rejected")
+            session.complete()
+    assert exc_info.value.code == "WORKFLOW_INVALID_TRANSITION"
+
+
+def test_denial_reason_recorded_in_artifact():
+    """deny_approval() must record denial_reason and status='denied' in the artifact."""
+    a = _aigc()
+    with a.open_session() as session:
+        session.pause(approval_id="chk-sec")
+        session.deny_approval(denial_reason="Rejected by security team")
+        session.cancel()
+
+    artifact = session.workflow_artifact
+    checkpoints = artifact.get("approval_checkpoints", [])
+    assert len(checkpoints) == 1
+    chk = checkpoints[0]
+    assert chk["status"] == "denied"
+    assert chk["denial_reason"] == "Rejected by security team"
+
+
+def test_denied_checkpoint_keeps_session_paused():
+    """deny_approval() must leave the session in PAUSED state."""
+    a = _aigc()
+    with a.open_session() as session:
+        session.pause(approval_id="chk-stay-paused")
+        session.deny_approval(denial_reason="Denied")
+        assert session._state == "PAUSED"
+        session.cancel()
+
+
+def test_approved_checkpoint_allows_complete():
+    """Regression: pause + resume + complete must still produce a COMPLETED artifact."""
+    a = _aigc()
+    with a.open_session() as session:
+        session.pause(approval_id="chk-happy")
+        session.resume(approval_id="chk-happy")
+        session.complete()
+
+    artifact = session.workflow_artifact
+    assert artifact["status"] == "COMPLETED"
+    assert artifact["approval_checkpoints"][0]["status"] == "approved"

@@ -446,6 +446,30 @@ def test_child_cannot_widen_handoffs():
         load_policy("tests/test_policies/composition_p4_widen_handoffs.yaml")
 
 
+def test_child_cannot_drop_required_sequence_via_replace():
+    """Child cannot drop required_sequence key under replace strategy — disables enforcement."""
+    with pytest.raises(PolicyValidationError, match="clears required_sequence"):
+        load_policy("tests/test_policies/composition_p4_drop_required_sequence_replace.yaml")
+
+
+def test_child_cannot_drop_allowed_transitions_via_replace():
+    """Child cannot drop allowed_transitions key under replace strategy — disables enforcement."""
+    with pytest.raises(PolicyValidationError, match="clears allowed_transitions"):
+        load_policy("tests/test_policies/composition_p4_drop_allowed_transitions_replace.yaml")
+
+
+def test_child_cannot_drop_allowed_agent_roles_via_replace():
+    """Child cannot drop allowed_agent_roles key under replace strategy — disables enforcement."""
+    with pytest.raises(PolicyValidationError, match="clears allowed_agent_roles"):
+        load_policy("tests/test_policies/composition_p4_drop_allowed_agent_roles_replace.yaml")
+
+
+def test_child_cannot_drop_handoffs_via_replace():
+    """Child cannot drop handoffs key under replace strategy — disables enforcement."""
+    with pytest.raises(PolicyValidationError, match="clears all handoffs"):
+        load_policy("tests/test_policies/composition_p4_drop_handoffs_replace.yaml")
+
+
 def test_child_can_narrow_escalation_threshold():
     """Child can lower require_approval_after_steps (tightening)."""
     policy = load_policy("tests/test_policies/composition_p4_narrow_escalation.yaml")

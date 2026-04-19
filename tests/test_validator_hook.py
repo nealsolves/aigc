@@ -662,11 +662,11 @@ def test_hook_envelope_includes_invocation_checksum():
 
 
 def test_stale_result_marked_and_not_authoritative():
-    """A result with a wrong attempt number must be marked stale with EXECUTION_FAILURE."""
+    """A result with a wrong attempt number must be marked stale with TIMEOUT (fail-closed)."""
     from aigc._internal.validator_hook import (
         ValidatorHook, ValidatorHookResult, ValidatorHookEnvelope,
         _call_hook_once,
-        VALIDATOR_ALLOW, VALIDATOR_EXECUTION_FAILURE,
+        VALIDATOR_ALLOW, VALIDATOR_TIMEOUT,
     )
     import time as _time
 
@@ -699,7 +699,7 @@ def test_stale_result_marked_and_not_authoritative():
     )
     result = _call_hook_once(hook, env, attempt=1)
     assert result.stale_result is True
-    assert result.decision == VALIDATOR_EXECUTION_FAILURE
+    assert result.decision == VALIDATOR_TIMEOUT
     assert result.reason_code == "HOOK_STALE_RESULT"
 
 
@@ -708,7 +708,7 @@ def test_result_past_absolute_deadline_is_stale():
     from aigc._internal.validator_hook import (
         ValidatorHook, ValidatorHookResult, ValidatorHookEnvelope,
         _call_hook_once,
-        VALIDATOR_ALLOW, VALIDATOR_EXECUTION_FAILURE,
+        VALIDATOR_ALLOW, VALIDATOR_TIMEOUT,
     )
     import time as _time
 
@@ -745,5 +745,5 @@ def test_result_past_absolute_deadline_is_stale():
     )
     result = _call_hook_once(hook, env, attempt=1)
     assert result.stale_result is True
-    assert result.decision == VALIDATOR_EXECUTION_FAILURE
+    assert result.decision == VALIDATOR_TIMEOUT
     assert result.reason_code == "HOOK_STALE_RESULT"

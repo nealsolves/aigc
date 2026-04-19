@@ -387,8 +387,15 @@ def _validate_composition_restriction(
     # required_sequence must only narrow (check child overlay vs base)
     base_seq = base_wf.get("required_sequence") or []
     child_seq = child_wf.get("required_sequence") or []
+    merged_seq = merged_wf.get("required_sequence") or []
     base_seq_set = set(base_seq)
     child_seq_set = set(child_seq)
+    if base_seq and not merged_seq:
+        raise PolicyValidationError(
+            "Composition escalation: child policy clears required_sequence declared in base, "
+            "disabling sequence enforcement",
+            details={"base_required_sequence": list(base_seq)},
+        )
     if base_seq and (added := sorted(child_seq_set - base_seq_set)):
         raise PolicyValidationError(
             f"Composition escalation: child adds required_sequence steps not in base: {added}",
@@ -412,6 +419,13 @@ def _validate_composition_restriction(
     # allowed_transitions must only narrow (check child overlay vs base)
     base_trans = base_wf.get("allowed_transitions") or {}
     child_trans = child_wf.get("allowed_transitions") or {}
+    merged_trans = merged_wf.get("allowed_transitions") or {}
+    if base_trans and not merged_trans:
+        raise PolicyValidationError(
+            "Composition escalation: child policy clears allowed_transitions declared in base, "
+            "disabling transition enforcement",
+            details={"base_allowed_transitions": dict(base_trans)},
+        )
     if base_trans:
         new_from_keys = sorted(set(child_trans) - set(base_trans))
         if new_from_keys:
@@ -433,6 +447,13 @@ def _validate_composition_restriction(
     # allowed_agent_roles must only narrow (check child overlay vs base)
     base_agent_roles = set(base_wf.get("allowed_agent_roles") or [])
     child_agent_roles = set(child_wf.get("allowed_agent_roles") or [])
+    merged_agent_roles = set(merged_wf.get("allowed_agent_roles") or [])
+    if base_agent_roles and not merged_agent_roles:
+        raise PolicyValidationError(
+            "Composition escalation: child policy clears allowed_agent_roles declared in base, "
+            "disabling agent role enforcement",
+            details={"base_allowed_agent_roles": sorted(base_agent_roles)},
+        )
     if base_agent_roles and (widened := sorted(child_agent_roles - base_agent_roles)):
         raise PolicyValidationError(
             f"Composition escalation: child widens allowed_agent_roles: {widened}",
@@ -445,6 +466,13 @@ def _validate_composition_restriction(
     # handoffs must only narrow (check child overlay vs base)
     base_handoffs = {(h["from"], h["to"]) for h in (base_wf.get("handoffs") or [])}
     child_handoffs = {(h["from"], h["to"]) for h in (child_wf.get("handoffs") or [])}
+    merged_handoffs = {(h["from"], h["to"]) for h in (merged_wf.get("handoffs") or [])}
+    if base_handoffs and not merged_handoffs:
+        raise PolicyValidationError(
+            "Composition escalation: child policy clears all handoffs declared in base, "
+            "disabling handoff enforcement",
+            details={"base_handoffs": [{"from": f, "to": t} for f, t in sorted(base_handoffs)]},
+        )
     if base_handoffs and (added := sorted(child_handoffs - base_handoffs)):
         raise PolicyValidationError(
             f"Composition escalation: child adds handoff pairs not in base: {added}",

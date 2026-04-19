@@ -163,10 +163,12 @@ def _call_hook_once(
 
     # Stale-result check: reject results that arrived after the deadline or
     # whose attempt number doesn't match the active attempt.
+    # Use TIMEOUT (not EXECUTION_FAILURE) so stale results fail closed — they
+    # are not transient errors that warrant retry.
     _absolute_deadline = envelope.observed_at + envelope.deadline_ms
     if result.observed_at > _absolute_deadline or result.attempt != attempt:
         return ValidatorHookResult(
-            decision=VALIDATOR_EXECUTION_FAILURE,
+            decision=VALIDATOR_TIMEOUT,
             reason_code="HOOK_STALE_RESULT",
             explanation=(
                 f"Hook {hook.hook_id!r} returned a stale result "

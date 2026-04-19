@@ -1,150 +1,195 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 860">
-  <defs>
-    <style>
-      svg { font-family: 'IBM Plex Sans', Arial, sans-serif; }
-      .mono { font-family: 'IBM Plex Mono', 'IBM Plex Sans', Arial, sans-serif; }
-      .title { fill: #0f62fe; font-size: 11px; font-weight: 700; letter-spacing: 1.4px; }
-      .subtitle { fill: #697789; font-size: 11px; letter-spacing: 0.4px; }
-      .section { fill: #526277; font-size: 9px; font-weight: 700; letter-spacing: 1.1px; }
-      .label { fill: #161616; font-size: 11px; font-weight: 600; text-anchor: middle; dominant-baseline: middle; }
-      .sub { fill: #5f6b7a; font-size: 8px; text-anchor: middle; dominant-baseline: middle; }
-      .note { fill: #445163; font-size: 8px; }
-      .small { fill: #6c7988; font-size: 7px; }
-      .frame { fill: none; stroke: #c5cfdb; stroke-width: 1.1; }
-      .host { fill: #ffffff; stroke: #c5cfdb; stroke-width: 1; }
-      .workflowWrap { fill: #eef6ff; stroke: #0f62fe; stroke-width: 1.2; }
-      .policyWrap { fill: #f6f8fb; stroke: #c5cfdb; stroke-width: 1; }
-      .kernelWrap { fill: #f8f4ff; stroke: #8a3ffc; stroke-width: 1.2; }
-      .opsWrap { fill: #f6f8fb; stroke: #c5cfdb; stroke-width: 1; }
-      .box { fill: #ffffff; stroke: #c5cfdb; stroke-width: 0.9; }
-      .boxBlue { fill: #ffffff; stroke: #0f62fe; stroke-width: 1; }
-      .boxPurple { fill: #ffffff; stroke: #8a3ffc; stroke-width: 1; }
-      .boxGreen { fill: #defbe6; stroke: #42be65; stroke-width: 1; }
-      .boxGray { fill: #ffffff; stroke: #c5cfdb; stroke-width: 0.9; }
-      .conn { fill: none; stroke: #0f62fe; stroke-width: 1.2; }
-      .connDim { fill: none; stroke: #a8b4c4; stroke-width: 1; stroke-dasharray: 4 3; }
-      .watermark { fill: #93a0b1; font-size: 10px; letter-spacing: 0.5px; }
-    </style>
-    <marker id="arrow" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto">
-      <path d="M0 0 L10 3.5 L0 7 z" fill="#0f62fe"/>
-    </marker>
-    <marker id="arrowDim" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto">
-      <path d="M0 0 L10 3.5 L0 7 z" fill="#a8b4c4"/>
-    </marker>
-  </defs>
-
-  <rect width="1100" height="860" fill="#ffffff" rx="8"/>
-
-  <text class="title mono" x="52" y="38">AIGC v0.9.0 BETA</text>
-  <text class="subtitle mono" x="52" y="56">Component View for the local develop workflow-governance line</text>
-
-  <rect class="frame" x="52" y="84" width="996" height="98" rx="8"/>
-  <rect class="frame" x="52" y="204" width="996" height="496" rx="8"/>
-  <rect class="frame" x="52" y="722" width="996" height="92" rx="8"/>
-
-  <text class="section mono" x="72" y="104">HOST APPLICATION</text>
-  <text class="section mono" x="72" y="224">AIGC SDK v0.9.0 BETA SURFACE</text>
-  <text class="section mono" x="72" y="742">BETA ADOPTION + OPERATOR SURFACES</text>
-
-  <rect class="host" x="84" y="118" width="232" height="42" rx="8"/>
-  <rect class="host" x="352" y="118" width="242" height="42" rx="8"/>
-  <rect class="host" x="632" y="118" width="372" height="42" rx="8"/>
-  <text class="label" x="200" y="138">App / Agent / Orchestrator</text>
-  <text class="label" x="473" y="138">Provider / Tool / Transport Runtime</text>
-  <text class="label" x="818" y="138">Host owns execution, retries, credentials, business state</text>
-  <path class="conn" d="M316 139 L352 139" marker-end="url(#arrow)"/>
-  <path class="connDim" d="M594 139 L632 139" marker-end="url(#arrowDim)"/>
-
-  <rect class="policyWrap" x="82" y="258" width="248" height="178" rx="10"/>
-  <text class="section mono" x="102" y="280">POLICY + LOADING</text>
-  <rect class="boxGray" x="98" y="300" width="104" height="42" rx="8"/>
-  <rect class="boxGray" x="214" y="300" width="100" height="42" rx="8"/>
-  <rect class="boxGray" x="98" y="356" width="104" height="42" rx="8"/>
-  <rect class="boxGray" x="214" y="356" width="100" height="42" rx="8"/>
-  <text class="label" x="150" y="320">Policy YAML</text>
-  <text class="label" x="264" y="320">PolicyCache</text>
-  <text class="label" x="150" y="376">FilePolicyLoader</text>
-  <text class="sub" x="150" y="388">or PolicyLoaderBase</text>
-  <text class="label" x="264" y="376">JSON Schemas</text>
-  <path class="conn" d="M202 321 L214 321" marker-end="url(#arrow)"/>
-  <path class="conn" d="M150 342 L150 356" marker-end="url(#arrow)"/>
-  <path class="connDim" d="M214 377 L202 377" marker-end="url(#arrowDim)"/>
-
-  <rect class="workflowWrap" x="356" y="258" width="662" height="188" rx="10"/>
-  <text class="section mono" x="376" y="280">WORKFLOW GOVERNANCE LAYER</text>
-  <rect class="boxBlue" x="378" y="304" width="134" height="48" rx="8"/>
-  <rect class="boxBlue" x="540" y="304" width="150" height="48" rx="8"/>
-  <rect class="boxBlue" x="718" y="304" width="152" height="48" rx="8"/>
-  <rect class="boxBlue" x="888" y="304" width="112" height="48" rx="8"/>
-  <text class="label" x="445" y="324">AIGC.open_session()</text>
-  <text class="label" x="615" y="324">GovernanceSession</text>
-  <text class="label" x="794" y="320">SessionPreCallResult</text>
-  <text class="sub" x="794" y="334">workflow-bound split token</text>
-  <text class="label" x="944" y="324">Workflow DSL</text>
-  <text class="sub" x="944" y="338">sequence · budgets · approvals</text>
-  <path class="conn" d="M512 328 L540 328" marker-end="url(#arrow)"/>
-  <path class="conn" d="M690 328 L718 328" marker-end="url(#arrow)"/>
-  <path class="connDim" d="M944 352 L944 390 L698 390" marker-end="url(#arrowDim)"/>
-
-  <rect class="boxBlue" x="392" y="380" width="300" height="44" rx="8"/>
-  <rect class="boxGreen" x="726" y="380" width="274" height="44" rx="8"/>
-  <text class="label" x="542" y="400">Tracks steps, checkpoints, participants, budgets</text>
-  <text class="label" x="863" y="396">Workflow artifact</text>
-  <text class="sub" x="863" y="410">COMPLETED · FAILED · CANCELED · INCOMPLETE</text>
-
-  <rect class="kernelWrap" x="356" y="470" width="662" height="164" rx="10"/>
-  <text class="section mono" x="376" y="492">INVOCATION ENTRYPOINTS + DETERMINISTIC KERNEL</text>
-  <rect class="boxPurple" x="378" y="516" width="132" height="44" rx="8"/>
-  <rect class="boxPurple" x="528" y="516" width="126" height="44" rx="8"/>
-  <rect class="boxPurple" x="672" y="516" width="166" height="44" rx="8"/>
-  <rect class="boxPurple" x="856" y="516" width="144" height="44" rx="8"/>
-  <text class="label" x="444" y="536">enforce_invocation()</text>
-  <text class="label" x="591" y="536">AIGC.enforce()</text>
-  <text class="label" x="755" y="532">split APIs</text>
-  <text class="sub" x="755" y="546">pre_call / post_call</text>
-  <text class="label" x="928" y="532">ordered gates</text>
-  <text class="sub" x="928" y="546">auth -> output -> risk</text>
-  <path class="conn" d="M510 538 L528 538" marker-end="url(#arrow)"/>
-  <path class="conn" d="M654 538 L672 538" marker-end="url(#arrow)"/>
-  <path class="conn" d="M838 538 L856 538" marker-end="url(#arrow)"/>
-
-  <rect class="boxPurple" x="392" y="580" width="608" height="34" rx="8"/>
-  <text class="label" x="696" y="597">pre_authorization -> guards -> role -> preconditions -> tools -> post_authorization -> pre_output -> schema -> postconditions -> post_output -> risk</text>
-
-  <rect class="boxGreen" x="82" y="476" width="248" height="56" rx="8"/>
-  <rect class="boxGreen" x="82" y="548" width="248" height="56" rx="8"/>
-  <rect class="boxGray" x="82" y="620" width="248" height="56" rx="8"/>
-  <text class="label" x="206" y="495">Invocation artifact</text>
-  <text class="sub" x="206" y="509">PASS or FAIL per invocation attempt</text>
-  <text class="label" x="206" y="567">AuditSink + signing</text>
-  <text class="sub" x="206" y="581">JSONL · callback · custom · optional signer</text>
-  <text class="label" x="206" y="639">Stored-trail analysis</text>
-  <text class="sub" x="206" y="653">AuditLineage / compliance export --lineage</text>
-
-  <path class="conn" d="M200 160 L200 476" marker-end="url(#arrow)"/>
-  <path class="conn" d="M316 139 L444 516" marker-end="url(#arrow)"/>
-  <path class="conn" d="M594 139 L755 516" marker-end="url(#arrow)"/>
-  <path class="conn" d="M690 328 L672 538" marker-end="url(#arrow)"/>
-  <path class="conn" d="M1000 538 L1000 507 L330 507" marker-end="url(#arrow)"/>
-  <path class="conn" d="M330 507 L330 566" marker-end="url(#arrow)"/>
-  <path class="conn" d="M726 402 L330 402 L330 638" marker-end="url(#arrow)"/>
-  <path class="connDim" d="M330 566 L330 638" marker-end="url(#arrowDim)"/>
-
-  <rect class="opsWrap" x="82" y="754" width="936" height="42" rx="10"/>
-  <rect class="box" x="98" y="764" width="176" height="24" rx="6"/>
-  <rect class="box" x="292" y="764" width="176" height="24" rx="6"/>
-  <rect class="box" x="486" y="764" width="176" height="24" rx="6"/>
-  <rect class="box" x="680" y="764" width="322" height="24" rx="6"/>
-  <text class="label" x="186" y="776">aigc workflow init</text>
-  <text class="label" x="380" y="776">aigc workflow lint</text>
-  <text class="label" x="574" y="776">aigc workflow doctor</text>
-  <text class="label" x="841" y="776">beta adopter flow + diagnosis around starter/workflow state</text>
-  <path class="connDim" d="M186 764 L186 604" marker-end="url(#arrowDim)"/>
-  <path class="connDim" d="M380 764 L944 352" marker-end="url(#arrowDim)"/>
-  <path class="connDim" d="M574 764 L863 424" marker-end="url(#arrowDim)"/>
-
-  <text class="note mono" x="84" y="414">The host still performs provider and tool calls after AIGC authorizes a step or invocation.</text>
-  <text class="note mono" x="84" y="456">The beta adds workflow evidence; it does not collapse AIGC into a hosted orchestrator.</text>
-  <text class="small mono" x="84" y="832">Planned-only public items intentionally omitted: AgentIdentity, AgentCapabilityManifest, public ValidatorHook, BedrockTraceAdapter, A2AAdapter, workflow trace/export.</text>
-  <text class="watermark mono" x="52" y="848">AIGC v0.9.0 Beta · local develop only · github.com/nealsolves/aigc</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1240"><defs><style>
+  svg {
+    font-family: 'IBM Plex Sans', 'Avenir Next', 'Segoe UI', sans-serif;
+  }
+  .mono {
+    font-family: 'IBM Plex Mono', 'SFMono-Regular', 'Menlo', monospace;
+  }
+  .page-title {
+    fill: #0b5cc5;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .page-subtitle {
+    fill: #536276;
+    font-size: 15px;
+  }
+  .section-tag {
+    fill: #586476;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+  }
+  .panel-title {
+    fill: #586476;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+  }
+  .box-title {
+    fill: #152235;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .box-sub {
+    fill: #4f6073;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .body {
+    fill: #2f3b4c;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .body-plus {
+    fill: #2f3b4c;
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .small {
+    fill: #6e7c91;
+    font-size: 12px;
+  }
+  .small-plus {
+    fill: #6e7c91;
+    font-size: 13px;
+  }
+  .footer-note {
+    fill: #2f3b4c;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .footer-note-lg {
+    fill: #2f3b4c;
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .footer-small {
+    fill: #6e7c91;
+    font-size: 12px;
+  }
+  .footer-small-lg {
+    fill: #6e7c91;
+    font-size: 13px;
+  }
+  .frame {
+    fill: none;
+    stroke: #cad4e1;
+    stroke-width: 1.4;
+  }
+  .band {
+    fill: #ffffff;
+    stroke: #cad4e1;
+    stroke-width: 1.4;
+  }
+  .host-box {
+    fill: #ffffff;
+    stroke: #bcc7d6;
+    stroke-width: 1.4;
+  }
+  .policy-panel {
+    fill: #eef3f8;
+    stroke: #afbed4;
+    stroke-width: 1.5;
+  }
+  .workflow-panel {
+    fill: #edf5ff;
+    stroke: #2f6feb;
+    stroke-width: 1.7;
+  }
+  .kernel-panel {
+    fill: #f4efff;
+    stroke: #6f5ef5;
+    stroke-width: 1.7;
+  }
+  .evidence-panel {
+    fill: #edf8ef;
+    stroke: #3aa35b;
+    stroke-width: 1.6;
+  }
+  .ops-panel {
+    fill: #f2f5f8;
+    stroke: #c0c9d6;
+    stroke-width: 1.4;
+  }
+  .adapter-panel {
+    fill: #f6f4ff;
+    stroke: #7a71ea;
+    stroke-width: 1.4;
+    stroke-dasharray: 8 7;
+  }
+  .note-box {
+    fill: #ffffff;
+    stroke: #c7d2df;
+    stroke-width: 1.2;
+  }
+  .node-neutral {
+    fill: #ffffff;
+    stroke: #bcc7d6;
+    stroke-width: 1.3;
+  }
+  .node-policy {
+    fill: #ffffff;
+    stroke: #afbed4;
+    stroke-width: 1.3;
+  }
+  .node-workflow {
+    fill: #ffffff;
+    stroke: #2f6feb;
+    stroke-width: 1.35;
+  }
+  .node-kernel {
+    fill: #ffffff;
+    stroke: #6f5ef5;
+    stroke-width: 1.35;
+  }
+  .node-evidence {
+    fill: #ffffff;
+    stroke: #3aa35b;
+    stroke-width: 1.35;
+  }
+  .node-ops {
+    fill: #ffffff;
+    stroke: #c0c9d6;
+    stroke-width: 1.25;
+  }
+  .node-adapter {
+    fill: #ffffff;
+    stroke: #7a71ea;
+    stroke-width: 1.25;
+    stroke-dasharray: 7 6;
+  }
+  .connector {
+    fill: none;
+    stroke: #587296;
+    stroke-width: 2.3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .connector-muted {
+    fill: none;
+    stroke: #8ea1ba;
+    stroke-width: 2.0;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 7 7;
+  }
+  .connector-soft {
+    fill: none;
+    stroke: #587296;
+    stroke-opacity: 0.68;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+</style>
+<marker id="arrow" viewBox="0 0 12 10" refX="10" refY="5" markerWidth="10" markerHeight="8" orient="auto">
+  <path d="M0 0 L12 5 L0 10 z" fill="#587296" />
+</marker>
+<marker id="arrow-muted" viewBox="0 0 12 10" refX="10" refY="5" markerWidth="10" markerHeight="8" orient="auto">
+  <path d="M0 0 L12 5 L0 10 z" fill="#8ea1ba" />
+</marker>
+<marker id="arrow-soft" viewBox="0 0 12 10" refX="10" refY="5" markerWidth="10" markerHeight="8" orient="auto">
+  <path d="M0 0 L12 5 L0 10 z" fill="#587296" fill-opacity="0.68" />
+</marker></defs><rect width="1600" height="1240" fill="#f5f7fb" rx="24" /><rect x="36" y="36" width="1528" height="1168" class="frame" rx="24" /><text class="page-title mono" x="60" y="44">AIGC v0.9.0 BETA</text><text class="page-subtitle" x="60" y="68">Source-only beta surface on local develop. The installable package remains v0.3.3.</text><rect x="60" y="72" width="1480" height="138" rx="24" class="band" /><text class="section-tag mono" x="84" y="96">HOST APPLICATION</text><rect x="92" y="114" width="302" height="72" rx="18" class="host-box" /><text class="box-title" x="243" y="150.0" text-anchor="middle">App / Agent / Orchestrator</text><rect x="418" y="114" width="338" height="72" rx="18" class="host-box" /><text class="box-title" x="587" y="136.0" text-anchor="middle">Provider / Tool /</text><text class="box-title" x="587" y="164.0" text-anchor="middle">Transport Runtime</text><rect x="782" y="110" width="670" height="80" rx="18" class="note-box" /><text class="body" x="1117" y="140.0" text-anchor="middle">Host owns execution, retries, credentials, and business state.</text><text class="small" x="1117" y="162.0" text-anchor="middle">Provider and tool calls remain outside AIGC after authorization.</text><rect x="60" y="238" width="1480" height="764" rx="24" class="band" /><text class="section-tag mono" x="84" y="262">AIGC SDK v0.9.0 BETA SURFACE</text><rect x="90" y="286" width="300" height="480" rx="22" class="policy-panel" /><text class="panel-title mono" x="114" y="314">POLICY + LOADING</text><rect x="418" y="286" width="780" height="258" rx="22" class="workflow-panel" /><text class="panel-title mono" x="444" y="314">WORKFLOW GOVERNANCE LAYER</text><rect x="418" y="570" width="780" height="296" rx="22" class="kernel-panel" /><text class="panel-title mono" x="444" y="590">INVOCATION ENTRYPOINTS + DETERMINISTIC KERNEL</text><rect x="1222" y="286" width="290" height="580" rx="22" class="evidence-panel" /><text class="panel-title mono" x="1246" y="314">EVIDENCE + SUPPORT</text><rect x="112" y="336" width="124" height="78" rx="18" class="node-policy" /><text class="box-title" x="174" y="375.0" text-anchor="middle">Policy YAML</text><rect x="254" y="336" width="124" height="78" rx="18" class="node-policy" /><text class="box-title" x="316" y="375.0" text-anchor="middle">PolicyCache</text><rect x="112" y="432" width="124" height="90" rx="18" class="node-policy" /><text class="box-title" x="174" y="465.5" text-anchor="middle">FilePolicyLoader</text><text class="box-sub" x="174" y="491.0" text-anchor="middle">or PolicyLoaderBase</text><rect x="254" y="432" width="124" height="90" rx="18" class="node-policy" /><text class="box-title" x="316" y="477.0" text-anchor="middle">JSON Schemas</text><rect x="110" y="558" width="268" height="126" rx="18" class="note-box" /><text class="body" x="244" y="589.0" text-anchor="middle">Load, validate, cache, and</text><text class="body" x="244" y="613.0" text-anchor="middle">compose policy contracts.</text><text class="small" x="244" y="635.0" text-anchor="middle">This surface remains SDK-owned</text><text class="small" x="244" y="655.0" text-anchor="middle">and deterministic.</text><rect x="448" y="336" width="168" height="88" rx="18" class="node-workflow" /><text class="box-title" x="532" y="380.0" text-anchor="middle">AIGC.open_session()</text><rect x="642" y="336" width="174" height="88" rx="18" class="node-workflow" /><text class="box-title" x="729" y="380.0" text-anchor="middle">GovernanceSession</text><rect x="842" y="336" width="188" height="88" rx="18" class="node-workflow" /><text class="box-title" x="936" y="368.5" text-anchor="middle">SessionPreCallResult</text><text class="box-sub" x="936" y="394.0" text-anchor="middle">workflow-bound split token</text><rect x="1054" y="336" width="122" height="88" rx="18" class="node-workflow" /><text class="box-title" x="1115" y="357.0" text-anchor="middle">Workflow DSL</text><text class="box-sub" x="1115" y="382.5" text-anchor="middle">sequence, budgets,</text><text class="box-sub" x="1115" y="405.5" text-anchor="middle">approvals</text><rect x="448" y="454" width="374" height="72" rx="18" class="note-box" /><text class="body" x="635" y="490.0" text-anchor="middle">Tracks steps, checkpoints, participants, and budgets.</text><rect x="842" y="446" width="334" height="94" rx="18" class="node-evidence" /><text class="box-title" x="1009" y="470.0" text-anchor="middle">Workflow artifact</text><text class="box-sub" x="1009" y="495.5" text-anchor="middle">COMPLETED | FAILED |</text><text class="box-sub" x="1009" y="518.5" text-anchor="middle">CANCELED | INCOMPLETE</text><rect x="448" y="620" width="168" height="88" rx="18" class="node-kernel" /><text class="box-title" x="532" y="664.0" text-anchor="middle">enforce_invocation()</text><rect x="642" y="620" width="168" height="88" rx="18" class="node-kernel" /><text class="box-title" x="726" y="664.0" text-anchor="middle">AIGC.enforce()</text><rect x="842" y="620" width="188" height="88" rx="18" class="node-kernel" /><text class="box-title" x="936" y="652.5" text-anchor="middle">split APIs</text><text class="box-sub" x="936" y="678.0" text-anchor="middle">pre_call / post_call</text><rect x="1048" y="620" width="128" height="88" rx="18" class="node-kernel" /><text class="box-title" x="1112" y="652.5" text-anchor="middle">ordered gates</text><text class="box-sub" x="1112" y="678.0" text-anchor="middle">auth -&gt; output -&gt; risk</text><rect x="448" y="736" width="728" height="96" rx="18" class="node-kernel" /><text class="body" x="812" y="772.0" text-anchor="middle">pre_authorization -&gt; guards -&gt; role -&gt; preconditions -&gt; tools -&gt; post_authorization</text><text class="body" x="812" y="796.0" text-anchor="middle">pre_output -&gt; schema -&gt; postconditions -&gt; post_output -&gt; risk</text><rect x="1246" y="336" width="242" height="88" rx="18" class="node-evidence" /><text class="box-title" x="1367" y="368.5" text-anchor="middle">Invocation artifact</text><text class="box-sub" x="1367" y="394.0" text-anchor="middle">PASS or FAIL per invocation attempt</text><rect x="1246" y="466" width="242" height="96" rx="18" class="node-evidence" /><text class="box-title" x="1367" y="502.5" text-anchor="middle">AuditSink + signing</text><text class="box-sub" x="1367" y="528.0" text-anchor="middle">JSONL, callback, custom sink, optional signer</text><rect x="1246" y="604" width="242" height="100" rx="18" class="node-ops" /><text class="box-title" x="1367" y="628.5" text-anchor="middle">AuditLineage /</text><text class="box-title" x="1367" y="656.5" text-anchor="middle">compliance export --lineage</text><text class="box-sub" x="1367" y="682.0" text-anchor="middle">stored-trail analysis</text><rect x="1242" y="736" width="250" height="124" rx="18" class="note-box" /><text class="body-plus" x="1367" y="764.5" text-anchor="middle">Workflow evidence stays separate</text><text class="body-plus" x="1367" y="789.5" text-anchor="middle">from invocation artifacts.</text><text class="small-plus" x="1367" y="812.5" text-anchor="middle">Correlation is additive. It does not</text><text class="small-plus" x="1367" y="833.5" text-anchor="middle">replace invocation evidence.</text><rect x="60" y="1028" width="1480" height="100" rx="24" class="ops-panel" /><text class="section-tag mono" x="84" y="1052">BETA ADOPTION + OPERATOR SURFACES</text><rect x="92" y="1060" width="238" height="46" rx="14" class="node-ops" /><text class="box-title" x="211" y="1083.0" text-anchor="middle">aigc workflow init</text><rect x="356" y="1060" width="238" height="46" rx="14" class="node-ops" /><text class="box-title" x="475" y="1083.0" text-anchor="middle">aigc workflow lint</text><rect x="620" y="1060" width="238" height="46" rx="14" class="node-ops" /><text class="box-title" x="739" y="1083.0" text-anchor="middle">aigc workflow doctor</text><rect x="888" y="1054" width="620" height="58" rx="18" class="note-box" /><text class="body" x="1198" y="1083.0" text-anchor="middle">Beta adopter flow + diagnosis around starter and workflow state.</text><path class="connector-soft" d="M243 186 V214 H532 V336" marker-end="url(#arrow-soft)" /><path class="connector" d="M378 375 H418 V380 H448" marker-end="url(#arrow)" /><path class="connector" d="M378 477 H404 V664 H448" marker-end="url(#arrow)" /><path class="connector" d="M808 544 V570" marker-end="url(#arrow)" /><path class="connector" d="M936 424 V620" marker-end="url(#arrow)" /><path class="connector" d="M1176 493 H1220 V514 H1246" marker-end="url(#arrow)" /><path class="connector" d="M1176 664 H1214 V380 H1246" marker-end="url(#arrow)" /><path class="connector" d="M1367 424 V466" marker-end="url(#arrow)" /><path class="connector" d="M1367 562 V604" marker-end="url(#arrow)" /><text class="footer-note-lg" x="60" y="1160.0" text-anchor="start">The host still performs provider and tool calls after AIGC authorizes a step or invocation.</text><text class="footer-note-lg" x="60" y="1188.0" text-anchor="start">The beta adds workflow evidence. It does not collapse AIGC into a hosted orchestrator.</text><text class="footer-small-lg" x="60" y="1207.5" text-anchor="start">Planned-only public items intentionally omitted: AgentIdentity, AgentCapabilityManifest,</text><text class="footer-small-lg" x="60" y="1228.5" text-anchor="start">public ValidatorHook, BedrockTraceAdapter, A2AAdapter, workflow trace/export.</text></svg>

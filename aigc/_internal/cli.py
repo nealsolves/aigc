@@ -4,7 +4,13 @@ Policy CLI for AIGC governance SDK.
 Provides:
 - ``aigc policy lint`` — YAML syntax and schema validation
 - ``aigc policy validate`` — full semantic validation including extends
-- ``aigc compliance export`` — compliance export of audit artifacts
+- ``aigc policy init`` — generate a governance policy scaffold
+- ``aigc compliance export`` — compliance export of invocation audit artifacts
+- ``aigc workflow init`` — generate a workflow starter scaffold
+- ``aigc workflow lint`` — statically lint governance targets
+- ``aigc workflow doctor`` — runtime/evidence diagnostics
+- ``aigc workflow trace`` — reconstruct workflow timelines from JSONL artifact files
+- ``aigc workflow export`` — export governed workflow evidence (operator or audit mode)
 """
 
 from __future__ import annotations

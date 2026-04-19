@@ -15,34 +15,38 @@ flowchart TB
     subgraph Host["HOST APPLICATION"]
         direction LR
         App["App / Agent / Orchestrator"]
-        Gov["@governed decorator\ndefault split / unified opt-out"]
-        Provider["Model Provider\nOpenAI · Anthropic · local"]
-
-        App -->|"decorated call"| Gov
-        Gov -->|"calls wrapped fn"| Provider
-        Provider -->|"model output"| Gov
+        Runtime["Provider / Tool / Transport Runtime"]
+        App -->|"host owns execution"| Runtime
     end
 
-    subgraph SDK["AIGC SDK v0.3.3"]
+    subgraph SDK["AIGC SDK v0.9.0 Beta (local develop)"]
         direction TB
 
-        subgraph Entry["INVOCATION BOUNDARY (UNIFIED + SPLIT)"]
+        subgraph Workflow["WORKFLOW GOVERNANCE LAYER"]
+            direction LR
+            W0["AIGC.open_session()"]
+            W1["GovernanceSession"]
+            W2["SessionPreCallResult\nworkflow-bound split token"]
+            W3["Workflow policy DSL\nsequence · budgets · approvals · participants"]
+            W4["Workflow artifact\nCOMPLETED · FAILED · CANCELED · INCOMPLETE"]
+        end
+
+        subgraph Entry["INVOCATION GOVERNANCE ENTRYPOINTS"]
             direction LR
             E1["enforce_invocation()"]
             E2["AIGC.enforce()"]
             E3["split APIs\nenforce_pre_call() / enforce_post_call()\nAIGC.enforce_pre_call() / enforce_post_call()"]
         end
 
-        subgraph Policy["POLICY LAYER"]
+        subgraph Policy["POLICY + LOADING"]
             direction LR
             PolicyFile["Policy YAML"]
             Loader["FilePolicyLoader /\nPolicyLoaderBase"]
             Cache["PolicyCache\nLRU · thread-safe"]
             Schema["JSON Schemas"]
-            Rules["Dates + Composition\neffective / expiration\nintersect · union · replace"]
         end
 
-        subgraph Core["DETERMINISTIC ENFORCEMENT CORE"]
+        subgraph Core["DETERMINISTIC INVOCATION KERNEL"]
             direction LR
             G0["pre_authorization\ncustom gates"]
             G1["Guard\nEvaluation"]
@@ -50,51 +54,48 @@ flowchart TB
             G3["Precondition\nValidation"]
             G4["Tool Constraint\nValidation"]
             G5["post_authorization\ncustom gates"]
-            %% * includes ProvenanceGate
-            G6["pre_output\ncustom + built-in gates*"]
+            G6["pre_output\ncustom + built-in gates"]
             G7["Output Schema\nValidation"]
             G8["Postcondition\nValidation"]
             G9["post_output\ncustom gates"]
             G10["Risk Scoring\nstrict · risk_scored · warn_only"]
         end
 
-        Prov["Artifact provenance v1.4\nsource_ids · derived_from_audit_checksums\ncompilation_source_hash"]
-        Artifact["Audit Artifact\nPASS or FAIL"]
+        InvArtifact["Invocation artifact\nPASS or FAIL\nworkflow-correlation metadata is additive"]
         Sign["ArtifactSigner / HMACSigner\noptional"]
         Sink["AuditSink\nJSONL · callback · custom"]
-        Telemetry["OpenTelemetry\nspans + gate events"]
     end
 
-    subgraph Ops["OPERATIONAL UTILITIES"]
+    subgraph Ops["BETA OPERATOR + ADOPTION SURFACES"]
         direction LR
-        Chain["AuditChain.append()\nopt-in · host-managed"]
-        Trail["Stored-trail analysis\naigc compliance export --lineage\nAuditLineage DAG traversal"]
-        Trend["RiskHistory\nadvisory score trajectory"]
+        Init["aigc workflow init"]
+        Lint["aigc workflow lint"]
+        Doctor["aigc workflow doctor"]
+        Trail["Stored-trail analysis\nAuditLineage / compliance export --lineage"]
     end
 
-    App -->|"direct"| E1
-    App -->|"instance"| E2
-    App -->|"split phases"| E3
-    Gov -->|"legacy unified opt-out"| E1
-    Gov -->|"default split mode"| E3
+    App -->|"invocation path"| E1
+    App -->|"instance path"| E2
+    App -->|"session path"| W0 --> W1
+    W1 -->|"authorizes step pre-call"| W2
+    W2 -->|"composes with split enforcement"| E3
+    App -->|"host performs call after approval"| Runtime
 
     E1 --> Loader
     E2 --> Cache --> Loader
     E3 --> Loader
     PolicyFile --> Loader
     Schema --> Loader
-    Loader --> Rules
-    Rules --> G0
-    G0 --> G1 --> G2 --> G3 --> G4 --> G5 --> G6 --> G7 --> G8 --> G9 --> G10 --> Artifact
-    Telemetry -.-> G0
-    Telemetry -.-> Artifact
+    Loader --> G0
+    G0 --> G1 --> G2 --> G3 --> G4 --> G5 --> G6 --> G7 --> G8 --> G9 --> G10 --> InvArtifact
 
-    Artifact -->|"includes provenance"| Prov
-    Artifact -->|"unsigned"| Sink
-    Artifact -->|"sign if configured"| Sign --> Sink
-    Artifact --> App
-
-    Artifact -.->|"optional chaining"| Chain
-    Sink -->|"stored trail"| Trail
-    Prov -.->|"parent checksums"| Trail
-    Artifact -.->|"risk metadata"| Trend
+    W3 -.-> W1
+    W1 -.->|"tracks steps, checkpoints, budgets"| W4
+    InvArtifact -.->|"correlates invocation checksums"| W4
+    InvArtifact -->|"unsigned"| Sink
+    InvArtifact -->|"sign if configured"| Sign --> Sink
+    W4 --> Sink
+    Sink --> Trail
+    Init -.-> W3
+    Lint -.-> W3
+    Doctor -.-> W4

@@ -1065,7 +1065,7 @@ _PR05_IMPLEMENTATION_STATUS_CONTENT = """\
 **Target Version:** `0.9.0` Beta
 **Active Branch:** `feat/v0.9-05-starters-and-migration`
 
-PR-01 through PR-06 are complete.
+PR-01 through PR-08 are complete.
 Starters and migration: in progress.
 """
 
@@ -1126,15 +1126,15 @@ def test_pr05_contract_rejects_wrong_active_branch(tmp_path, monkeypatch):
     monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
 
     bad_impl_status = _PR05_IMPLEMENTATION_STATUS_CONTENT.replace(
-        "PR-01 through PR-06 are complete.",
+        "PR-01 through PR-08 are complete.",
         "PR-04 is complete.",
     )
     _seed_pr05_contract_repo(tmp_path, implementation_status=bad_impl_status)
 
     errors = module.check_v090_pr05_contract()
 
-    assert any("PR-01 through PR-06 complete" in e for e in errors), (
-        f"Expected PR-06 complete row error, got: {errors}"
+    assert any("PR-01 through PR-08 complete" in e for e in errors), (
+        f"Expected PR-08 complete row error, got: {errors}"
     )
 
 

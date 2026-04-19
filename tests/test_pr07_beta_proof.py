@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from aigc import AIGC, CustomGateViolationError, ProvenanceGate
+from aigc import CustomGateViolationError
 
 
 # ---------------------------------------------------------------------------
@@ -44,13 +44,46 @@ def _generate_starter(profile: str, output_dir: Path) -> Path:
     return output_dir
 
 
-def _exec_workflow_module(starter_dir: Path, func_name: str):
-    """Load and execute the generated workflow_example.py, return the artifact."""
+def _load_workflow_module(starter_dir: Path):
+    """Load the generated workflow_example.py as an isolated module."""
     script = starter_dir / "workflow_example.py"
-    spec = importlib.util.spec_from_file_location("workflow_example", script)
+    spec = importlib.util.spec_from_file_location(
+        f"workflow_example_{starter_dir.name}",
+        script,
+    )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    return mod
+
+
+def _exec_workflow_module(starter_dir: Path, func_name: str):
+    """Load and execute the generated workflow_example.py, return the artifact."""
+    mod = _load_workflow_module(starter_dir)
     return getattr(mod, func_name)()
+
+
+def _break_regulated_starter(starter_dir: Path) -> str:
+    workflow_py = starter_dir / "workflow_example.py"
+    original_source = workflow_py.read_text(encoding="utf-8")
+    broken_source = original_source.replace(
+        '                    "source_ids": ["doc-001", "doc-002"],\n',
+        "",
+    ).replace(
+        '                    "source_ids": ["analysis-step-1"],\n',
+        "",
+    )
+    assert broken_source != original_source, "regulated starter failure edit did not apply"
+    workflow_py.write_text(broken_source, encoding="utf-8")
+    return original_source
+
+
+def _run_broken_regulated_workflow(starter_dir: Path):
+    mod = _load_workflow_module(starter_dir)
+    try:
+        getattr(mod, "run_regulated_workflow")()
+    except Exception as exc:  # noqa: BLE001
+        return getattr(mod, "LAST_WORKFLOW_ARTIFACT", None), exc
+    return getattr(mod, "LAST_WORKFLOW_ARTIFACT", None), None
 
 
 def _collect_imports(source: str) -> list[str]:
@@ -139,43 +172,12 @@ class TestStandardBetaProof:
 # ---------------------------------------------------------------------------
 
 class TestRegulatedBetaProof:
-
-    def _run_step_without_source_ids(self, policy_file: str):
-        """
-        Run one governed step with no provenance context.
-        Returns (artifact, exc_or_None).
-        ProvenanceGate fires at pre_output (inside enforce_step_post_call).
-        """
-        gate = ProvenanceGate(require_source_ids=True)
-        governance = AIGC(custom_gates=[gate])
-        caught_exc = None
-        session_ref = None
-
-        try:
-            with governance.open_session(policy_file=policy_file) as session:
-                session_ref = session
-                # pre_call succeeds - gate not yet invoked
-                pre = session.enforce_step_pre_call({
-                    "policy_file": policy_file,
-                    "input": {"prompt": "Analyze."},
-                    "output": {},
-                    "context": {"caller_id": "test"},   # no provenance.source_ids
-                    "model_provider": "anthropic",
-                    "model_identifier": "claude-sonnet-4-6",
-                    "role": "ai-assistant",
-                })
-                # post_call raises - ProvenanceGate fires at INSERTION_PRE_OUTPUT
-                session.enforce_step_post_call(pre, {"result": "output"})
-        except Exception as exc:
-            caught_exc = exc
-
-        return session_ref.workflow_artifact, caught_exc
-
     def test_missing_source_ids_raises_custom_gate_violation(self, tmp_path):
         d = tmp_path / "regulated"
         d.mkdir()
         _generate_starter("regulated-high-assurance", d)
-        _, exc = self._run_step_without_source_ids(str(d / "policy.yaml"))
+        _break_regulated_starter(d)
+        _, exc = _run_broken_regulated_workflow(d)
         assert isinstance(exc, CustomGateViolationError), (
             f"Expected CustomGateViolationError, got {type(exc).__name__}: {exc}"
         )
@@ -184,20 +186,24 @@ class TestRegulatedBetaProof:
         d = tmp_path / "regulated"
         d.mkdir()
         _generate_starter("regulated-high-assurance", d)
-        artifact, _ = self._run_step_without_source_ids(str(d / "policy.yaml"))
+        _break_regulated_starter(d)
+        artifact, _ = _run_broken_regulated_workflow(d)
         assert artifact["status"] == "FAILED"
 
     def test_missing_source_ids_failed_artifact_has_failure_summary(self, tmp_path):
         d = tmp_path / "regulated"
         d.mkdir()
         _generate_starter("regulated-high-assurance", d)
-        artifact, _ = self._run_step_without_source_ids(str(d / "policy.yaml"))
+        _break_regulated_starter(d)
+        artifact, _ = _run_broken_regulated_workflow(d)
         assert artifact["failure_summary"] is not None
 
     def test_doctor_on_regulated_starter_reports_workflow_source_required(self, tmp_path):
         d = tmp_path / "regulated"
         d.mkdir()
         _generate_starter("regulated-high-assurance", d)
+        _break_regulated_starter(d)
+        _run_broken_regulated_workflow(d)
 
         result = subprocess.run(
             [sys.executable, "-m", "aigc", "workflow", "doctor", str(d), "--json"],
@@ -216,6 +222,7 @@ class TestRegulatedBetaProof:
         d = tmp_path / "regulated"
         d.mkdir()
         _generate_starter("regulated-high-assurance", d)
+        _break_regulated_starter(d)
         result = subprocess.run(
             [sys.executable, "-m", "aigc", "workflow", "doctor", str(d)],
             capture_output=True, text=True,
@@ -225,11 +232,15 @@ class TestRegulatedBetaProof:
             f"Doctor exited {result.returncode}:\n{result.stderr}"
         )
 
-    def test_regulated_with_source_ids_present_reaches_completed(self, tmp_path):
+    def test_regulated_fixed_in_place_reaches_completed(self, tmp_path):
         d = tmp_path / "regulated"
         d.mkdir()
         _generate_starter("regulated-high-assurance", d)
-        # Run the unmodified generated script - it has source_ids in every step
+        original_source = _break_regulated_starter(d)
+        artifact, exc = _run_broken_regulated_workflow(d)
+        assert artifact["status"] == "FAILED"
+        assert isinstance(exc, CustomGateViolationError)
+        (d / "workflow_example.py").write_text(original_source, encoding="utf-8")
         artifact = _exec_workflow_module(d, "run_regulated_workflow")
         assert artifact["status"] == "COMPLETED"
 

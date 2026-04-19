@@ -7,6 +7,7 @@ All imports are from the public aigc API only (no aigc._internal).
 from __future__ import annotations
 
 import atexit
+import importlib.util
 import json
 import shutil
 import subprocess
@@ -20,26 +21,30 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 import aigc.presets as presets
-from aigc import AIGC, ProvenanceGate
+from aigc import AIGC
 
 router = APIRouter(prefix="/api/workflow/v090", tags=["workflow-v090"])
 
 # Per-run state keyed by run_id returned from the failure scenario.
 # Bounded to prevent unbounded temp-dir growth; evicted entries are cleaned up.
 _MAX_RUNS = 20
-_run_state: dict[str, dict] = {}   # run_id -> {"starter_dir": str, "artifact": dict}
+_run_state: dict[str, dict] = {}   # run_id -> {"starter_dir": str, "artifact": dict, "original_source": str}
 _POLICY_TMPDIR = tempfile.TemporaryDirectory(prefix="aigc_demo_policies_")
 _policy_cache: dict[str, str] = {}
 
 
-def _store_run(starter_dir: str, artifact: dict) -> str:
+def _store_run(starter_dir: str, artifact: dict, original_source: str) -> str:
     """Store per-run failure state; return a new opaque run_id."""
     run_id = uuid.uuid4().hex
     if len(_run_state) >= _MAX_RUNS:
         oldest_id = next(iter(_run_state))
         old = _run_state.pop(oldest_id)
         shutil.rmtree(old["starter_dir"], ignore_errors=True)
-    _run_state[run_id] = {"starter_dir": starter_dir, "artifact": artifact}
+    _run_state[run_id] = {
+        "starter_dir": starter_dir,
+        "artifact": artifact,
+        "original_source": original_source,
+    }
     return run_id
 
 
@@ -74,8 +79,72 @@ def _sim(prompt: str) -> dict:
     return {"result": f"Response to: {prompt[:60]}"}
 
 
+def _generate_starter_dir(profile: str) -> str:
+    starter_dir = tempfile.mkdtemp(
+        prefix=f"aigc_demo_{profile}_",
+        dir=_POLICY_TMPDIR.name,
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "aigc",
+            "workflow",
+            "init",
+            "--profile",
+            profile,
+            "--output-dir",
+            starter_dir,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"starter generation failed for {profile}: {result.stderr or result.stdout}"
+        )
+    return starter_dir
+
+
+def _load_workflow_module(starter_dir: str):
+    workflow_py = Path(starter_dir) / "workflow_example.py"
+    module_name = f"_aigc_demo_workflow_{uuid.uuid4().hex}"
+    spec = importlib.util.spec_from_file_location(module_name, workflow_py)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"could not load workflow module from {workflow_py}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _run_workflow_module(starter_dir: str, func_name: str) -> tuple[dict | None, str | None]:
+    mod = _load_workflow_module(starter_dir)
+    try:
+        artifact = getattr(mod, func_name)()
+        return artifact, None
+    except Exception as exc:  # noqa: BLE001
+        return getattr(mod, "LAST_WORKFLOW_ARTIFACT", None), str(exc)
+
+
+def _break_regulated_starter(starter_dir: str) -> str:
+    workflow_py = Path(starter_dir) / "workflow_example.py"
+    original_source = workflow_py.read_text(encoding="utf-8")
+    broken_source = original_source.replace(
+        '                    "source_ids": ["doc-001", "doc-002"],\n',
+        "",
+    ).replace(
+        '                    "source_ids": ["analysis-step-1"],\n',
+        "",
+    )
+    if broken_source == original_source:
+        raise RuntimeError("could not apply regulated starter failure edit")
+    workflow_py.write_text(broken_source, encoding="utf-8")
+    return original_source
+
+
 class WorkflowRunRequest(BaseModel):
     scenario: Literal["minimal", "standard", "failure", "regulated"]
+    run_id: str | None = None
 
 
 @router.post("/run")
@@ -129,75 +198,30 @@ def run_workflow(req: WorkflowRunRequest):
         return {"artifact": session.workflow_artifact, "error": None}
 
     elif req.scenario == "regulated":
-        # The "fixed" regulated scenario: provenance.source_ids are present.
-        # Proves the failure-and-fix path end to end — same ProvenanceGate policy,
-        # but with the required source_ids supplied (the fix applied).
-        policy_file = _get_policy_path("regulated")
-        gate = ProvenanceGate(require_source_ids=True)
-        governance = AIGC(custom_gates=[gate])
-        with governance.open_session(policy_file=policy_file) as session:
-            pre = session.enforce_step_pre_call({
-                "policy_file": policy_file,
-                "input": {"prompt": "Analyze document with provenance."},
-                "output": {},
-                "context": {
-                    "caller_id": "demo",
-                    "provenance": {"source_ids": ["doc-001", "policy-v3"]},
-                },
-                "model_provider": "anthropic",
-                "model_identifier": "claude-sonnet-4-6",
-                "role": "ai-assistant",
-            })
-            session.enforce_step_post_call(pre, _sim("Analyze document with provenance."))
-            session.complete()
-        return {"artifact": session.workflow_artifact, "error": None}
+        if req.run_id is not None and req.run_id in _run_state:
+            run = _run_state[req.run_id]
+            starter_dir = run["starter_dir"]
+            (Path(starter_dir) / "workflow_example.py").write_text(
+                run["original_source"],
+                encoding="utf-8",
+            )
+            artifact, error = _run_workflow_module(
+                starter_dir,
+                "run_regulated_workflow",
+            )
+            run["artifact"] = artifact or {}
+            return {"artifact": artifact, "error": error, "run_id": req.run_id}
+
+        starter_dir = _generate_starter_dir("regulated-high-assurance")
+        artifact, error = _run_workflow_module(starter_dir, "run_regulated_workflow")
+        return {"artifact": artifact, "error": error}
 
     else:  # failure
-        policy_file = _get_policy_path("regulated")
-        gate = ProvenanceGate(require_source_ids=True)
-        governance = AIGC(custom_gates=[gate])
-        caught_error = None
-        session_ref = None
-        try:
-            with governance.open_session(policy_file=policy_file) as session:
-                session_ref = session
-                pre = session.enforce_step_pre_call({
-                    "policy_file": policy_file,
-                    "input": {"prompt": "Analyze without provenance."},
-                    "output": {},
-                    "context": {"caller_id": "demo"},  # no provenance.source_ids
-                    "model_provider": "anthropic",
-                    "model_identifier": "claude-sonnet-4-6",
-                    "role": "ai-assistant",
-                })
-                # ProvenanceGate fires at pre_output in enforce_step_post_call:
-                session.enforce_step_post_call(pre, {"result": "output"})
-        except Exception as exc:
-            caught_error = str(exc)
-
-        artifact = session_ref.workflow_artifact if session_ref else {}
-
-        # Build a minimal starter directory so `aigc workflow doctor` can detect
-        # WORKFLOW_SOURCE_REQUIRED.  The doctor recognizes a valid starter directory
-        # by the presence of policy.yaml + workflow_example.py + README.md, then
-        # scans workflow_example.py for ProvenanceGate(require_source_ids=True).
-        starter_dir = tempfile.mkdtemp(
-            prefix="aigc_demo_starter_",
-            dir=_POLICY_TMPDIR.name,
-        )
-        Path(starter_dir, "policy.yaml").write_text(
-            Path(policy_file).read_text()
-        )
-        Path(starter_dir, "workflow_example.py").write_text(
-            "from aigc import AIGC, ProvenanceGate\n\n"
-            "gate = ProvenanceGate(require_source_ids=True)\n"
-            "governance = AIGC(custom_gates=[gate])\n"
-        )
-        Path(starter_dir, "README.md").write_text(
-            "# Regulated workflow demo starter\n"
-        )
-        run_id = _store_run(starter_dir, artifact)
-        return {"artifact": artifact, "error": caught_error, "run_id": run_id}
+        starter_dir = _generate_starter_dir("regulated-high-assurance")
+        original_source = _break_regulated_starter(starter_dir)
+        artifact, error = _run_workflow_module(starter_dir, "run_regulated_workflow")
+        run_id = _store_run(starter_dir, artifact or {}, original_source)
+        return {"artifact": artifact, "error": error, "run_id": run_id}
 
 
 @router.post("/compare")
@@ -251,9 +275,6 @@ def diagnose_last_failure(run_id: str | None = None):
         return {"findings": [], "source": "no_prior_failure"}
 
     starter_dir = run["starter_dir"]
-    # The doctor detects WORKFLOW_SOURCE_REQUIRED by scanning workflow_example.py
-    # for ProvenanceGate(require_source_ids=True) — it needs a directory, not an
-    # artifact file.  We created that directory when the failure scenario ran.
     result = subprocess.run(
         [sys.executable, "-m", "aigc", "workflow", "doctor",
          starter_dir, "--json"],

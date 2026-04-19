@@ -296,6 +296,7 @@ import aigc
 from aigc import ProvenanceGate
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+LAST_WORKFLOW_ARTIFACT = None
 
 
 def _simulate_model_call(prompt: str) -> dict:
@@ -305,55 +306,62 @@ def _simulate_model_call(prompt: str) -> dict:
 
 def run_regulated_workflow(policy_file: str | None = None) -> dict:
     """Run a 2-step source-required workflow. Returns the workflow artifact."""
+    global LAST_WORKFLOW_ARTIFACT
     if policy_file is None:
         policy_file = os.path.join(_SCRIPT_DIR, "policy.yaml")
     # ProvenanceGate requires context.provenance.source_ids in every invocation.
     gate = ProvenanceGate(require_source_ids=True)
     governance = aigc.AIGC(custom_gates=[gate])
+    session = None
 
-    with governance.open_session(policy_file=policy_file) as session:
-        # --- Step 1: Source-bound analysis ---
-        pre1 = session.enforce_step_pre_call({
-            "policy_file": policy_file,
-            "input": {"prompt": "Analyze these source documents."},
-            "output": {},
-            "context": {
-                "caller_id": "workflow-starter",
-                "provenance": {
-                    "source_ids": ["doc-001", "doc-002"],
+    try:
+        with governance.open_session(policy_file=policy_file) as session:
+            # --- Step 1: Source-bound analysis ---
+            pre1 = session.enforce_step_pre_call({
+                "policy_file": policy_file,
+                "input": {"prompt": "Analyze these source documents."},
+                "output": {},
+                "context": {
+                    "caller_id": "workflow-starter",
+                    "provenance": {
+                        "source_ids": ["doc-001", "doc-002"],
+                    },
                 },
-            },
-            "tool_calls": [
-                {"name": "document_reader", "call_id": "tc-1"},
-            ],
-            "model_provider": "anthropic",
-            "model_identifier": "claude-sonnet-4-6",
-            "role": "__AIGC_ROLE__",
-        })
-        output1 = _simulate_model_call("Analyze these source documents.")
-        session.enforce_step_post_call(pre1, output1)
+                "tool_calls": [
+                    {"name": "document_reader", "call_id": "tc-1"},
+                ],
+                "model_provider": "anthropic",
+                "model_identifier": "claude-sonnet-4-6",
+                "role": "__AIGC_ROLE__",
+            })
+            output1 = _simulate_model_call("Analyze these source documents.")
+            session.enforce_step_post_call(pre1, output1)
 
-        # --- Step 2: Source-bound summary ---
-        pre2 = session.enforce_step_pre_call({
-            "policy_file": policy_file,
-            "input": {"prompt": "Summarize the analysis."},
-            "output": {},
-            "context": {
-                "caller_id": "workflow-starter",
-                "provenance": {
-                    "source_ids": ["analysis-step-1"],
+            # --- Step 2: Source-bound summary ---
+            pre2 = session.enforce_step_pre_call({
+                "policy_file": policy_file,
+                "input": {"prompt": "Summarize the analysis."},
+                "output": {},
+                "context": {
+                    "caller_id": "workflow-starter",
+                    "provenance": {
+                        "source_ids": ["analysis-step-1"],
+                    },
                 },
-            },
-            "model_provider": "anthropic",
-            "model_identifier": "claude-sonnet-4-6",
-            "role": "__AIGC_ROLE__",
-        })
-        output2 = _simulate_model_call("Summarize the analysis.")
-        session.enforce_step_post_call(pre2, output2)
+                "model_provider": "anthropic",
+                "model_identifier": "claude-sonnet-4-6",
+                "role": "__AIGC_ROLE__",
+            })
+            output2 = _simulate_model_call("Summarize the analysis.")
+            session.enforce_step_post_call(pre2, output2)
 
-        session.complete()
+            session.complete()
+    except Exception:
+        LAST_WORKFLOW_ARTIFACT = session.workflow_artifact if session else None
+        raise
 
-    return session.workflow_artifact
+    LAST_WORKFLOW_ARTIFACT = session.workflow_artifact if session else None
+    return LAST_WORKFLOW_ARTIFACT
 
 
 if __name__ == "__main__":

@@ -29,10 +29,11 @@ The shipped runtime supports:
 The demo surface in this repo is a React frontend plus FastAPI backend that
 walks through the `v0.3.x` capabilities.
 
-The v0.9.0-beta workflow governance line is available on the
-`feat/v0.9-07-beta-proof` branch. It adds `AIGC.open_session()`,
-`GovernanceSession`, starter scaffolds, `aigc workflow init`, `aigc workflow lint`,
-and `aigc workflow doctor`. See [docs/reference/WORKFLOW_QUICKSTART.md](docs/reference/WORKFLOW_QUICKSTART.md)
+The source-only `v0.9.0` beta workflow governance line is available on local
+`develop`. It adds `AIGC.open_session()`, `GovernanceSession`, starter
+scaffolds, `aigc workflow init`, `aigc workflow lint`, and
+`aigc workflow doctor`. See
+[docs/reference/WORKFLOW_QUICKSTART.md](docs/reference/WORKFLOW_QUICKSTART.md)
 for the first-adopter path.
 
 ## Architecture Snapshot
@@ -254,8 +255,9 @@ Released `2026-04-10`.
 
 `0.3.3` extends AIGC's invocation-governance runtime with provenance,
 lineage, and risk-trend primitives that future workflow governance will build
-on. The currently shipped package remains `v0.3.3`. The upcoming unreleased v0.9.0-beta
-line will add `GovernanceSession`, `SessionPreCallResult`, and `AIGC.open_session(...)`.
+on. The currently shipped package remains `v0.3.3`. The source-only `v0.9.0`
+beta line on local `develop` adds `GovernanceSession`,
+`SessionPreCallResult`, and `AIGC.open_session(...)`.
 
 What shipped:
 

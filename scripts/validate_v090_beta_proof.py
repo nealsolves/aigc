@@ -90,6 +90,20 @@ def _run_workflow_in_venv(
     return json.loads(json_line)
 
 
+def _break_regulated_starter(workflow_py: Path) -> str:
+    original_source = workflow_py.read_text(encoding="utf-8")
+    broken_source = original_source.replace(
+        '                    "source_ids": ["doc-001", "doc-002"],\n',
+        "",
+    ).replace(
+        '                    "source_ids": ["analysis-step-1"],\n',
+        "",
+    )
+    assert broken_source != original_source, "regulated starter failure edit did not apply"
+    workflow_py.write_text(broken_source, encoding="utf-8")
+    return original_source
+
+
 def run_gate(name: str, fn) -> dict:
     start = time.time()
     error = None
@@ -206,6 +220,8 @@ def main() -> int:
 
     env = _venv_env(venv_dir)
     python = _venv_python(venv_dir)
+    regulated_original_source: str | None = None
+    regulated_dir = tmp_dir / "regulated"
 
     # ------------------------------------------------------------------
     # Gate 2: minimal quickstart
@@ -266,43 +282,19 @@ def main() -> int:
     # ProvenanceGate runs at INSERTION_PRE_OUTPUT (inside enforce_step_post_call).
     # ------------------------------------------------------------------
     def gate_failure():
-        d = tmp_dir / "regulated"
-        d.mkdir()
+        nonlocal regulated_original_source
+        regulated_dir.mkdir()
 
         r = _run([python, "-m", "aigc", "workflow", "init",
-                  "--profile", "regulated-high-assurance", "--output-dir", str(d)], env=env)
+                  "--profile", "regulated-high-assurance", "--output-dir", str(regulated_dir)], env=env)
         assert r.returncode == 0, f"aigc workflow init failed:\n{r.stderr}"
+        regulated_original_source = _break_regulated_starter(
+            regulated_dir / "workflow_example.py"
+        )
 
-        # Write a helper script that runs a governed step without source_ids.
-        # ProvenanceGate fires during enforce_step_post_call.
-        broken_script = tmp_dir / "run_broken.py"
-        policy_path = str(d / "policy.yaml").replace("\\", "/")
-        broken_script.write_text(f"""\
-import sys
-sys.path.insert(0, r"{REPO_ROOT}")
-import aigc
-from aigc import AIGC, ProvenanceGate
-
-policy_file = r"{policy_path}"
-gate = ProvenanceGate(require_source_ids=True)
-governance = AIGC(custom_gates=[gate])
-
-with governance.open_session(policy_file=policy_file) as session:
-    pre = session.enforce_step_pre_call({{
-        "policy_file": policy_file,
-        "input": {{"prompt": "test"}},
-        "output": {{}},
-        "context": {{"caller_id": "test"}},   # no provenance.source_ids
-        "model_provider": "anthropic",
-        "model_identifier": "claude-sonnet-4-6",
-        "role": "ai-assistant",
-    }})
-    # ProvenanceGate fires here:
-    session.enforce_step_post_call(pre, {{"result": "output"}})
-""")
-        r = _run([python, str(broken_script)], env=env)
+        r = _run([python, str(regulated_dir / "workflow_example.py")], env=env)
         assert r.returncode != 0, (
-            "Expected non-zero exit from broken script (failure path should raise), "
+            "Expected non-zero exit from broken regulated starter, "
             f"got returncode={r.returncode}"
         )
 
@@ -312,9 +304,8 @@ with governance.open_session(policy_file=policy_file) as session:
     # Gate 5: doctor diagnosis
     # ------------------------------------------------------------------
     def gate_diagnosis():
-        d = tmp_dir / "regulated"  # already generated in gate 4
         r = _run([python, "-m", "aigc", "workflow", "doctor",
-                  str(d), "--json"], env=env)
+                  str(regulated_dir), "--json"], env=env)
         assert r.returncode == 0, (
             f"aigc workflow doctor exited {r.returncode}:\n{r.stderr}"
         )
@@ -328,15 +319,21 @@ with governance.open_session(policy_file=policy_file) as session:
     gates.append(run_gate("doctor_diagnosis", gate_diagnosis))
 
     # ------------------------------------------------------------------
-    # Gate 6: regulated fix applied — unmodified script has source_ids -> COMPLETED
+    # Gate 6: regulated fix applied to the same starter directory -> COMPLETED
     # ------------------------------------------------------------------
     def gate_fix():
         nonlocal success_elapsed
-        d = tmp_dir / "regulated"
+        assert regulated_original_source is not None, (
+            "regulated starter source was not captured before the failure gate"
+        )
+        (regulated_dir / "workflow_example.py").write_text(
+            regulated_original_source,
+            encoding="utf-8",
+        )
         t0 = time.time()
 
         artifact = _run_workflow_in_venv(
-            python, env, d / "workflow_example.py", "run_regulated_workflow", tmp_dir
+            python, env, regulated_dir / "workflow_example.py", "run_regulated_workflow", tmp_dir
         )
 
         assert artifact["status"] == "COMPLETED", (

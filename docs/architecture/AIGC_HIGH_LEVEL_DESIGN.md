@@ -22,13 +22,12 @@ and emits evidence.
 
 Availability boundary: this document describes the intended `1.0.0` public
 surface. The currently shipped package remains `v0.3.3`. The upcoming unreleased
-v0.9.0-beta line will add `GovernanceSession`, `SessionPreCallResult`, and
-`AIGC.open_session(...)`. `AgentIdentity`, `AgentCapabilityManifest`,
-The upcoming unreleased v0.9.0-beta adds `aigc workflow init` and
-`aigc policy init`. `ValidatorHook`, `BedrockTraceAdapter`, `A2AAdapter`,
-`aigc workflow lint`, `aigc workflow doctor`, `aigc workflow trace`, and
-`aigc workflow export` remain planned-only and are not part of any currently
-released artifact.
+v0.9.0-beta line adds `GovernanceSession`, `SessionPreCallResult`,
+`AIGC.open_session(...)`, `aigc workflow init`, `aigc policy init`,
+`aigc workflow lint`, and `aigc workflow doctor`. `AgentIdentity`,
+`AgentCapabilityManifest`, `ValidatorHook`, `BedrockTraceAdapter`,
+`A2AAdapter`, `aigc workflow trace`, and `aigc workflow export` remain
+planned-only and are not part of the current beta public surface.
 
 Headline 1.0.0 capabilities:
 
@@ -459,9 +458,9 @@ workflow evidence mechanism in the 1.0.0 design.
 
 Operator tooling sits above emitted evidence:
 
-- `aigc workflow trace`
-- `aigc workflow export`
 - `aigc workflow lint`
+- `aigc workflow doctor`
+- later trace/export tooling
 
 ---
 
@@ -608,15 +607,17 @@ The shipped `0.3.3` public surface remains invocation-scoped.
 | `enforce_pre_call` / `enforce_post_call` | split invocation governance |
 | `PreCallResult` | single-use split handoff for invocation governance |
 
-Planned for v0.9.0-beta (not yet released) — not part of the `v0.3.3` artifact:
+Available in the source-only `v0.9.0` beta line — not part of the `v0.3.3` artifact:
 
 | Surface | Intended role |
 | ------- | ------------- |
 | `GovernanceSession` | workflow governance primitive |
 | `SessionPreCallResult` | workflow-scoped split handoff |
 | `AIGC.open_session(...)` | instance-scoped workflow entrypoint |
+| `aigc workflow init` / `aigc policy init` | starter and policy bootstrap surface |
+| `aigc workflow lint` / `aigc workflow doctor` | beta diagnostic surface |
 
-Planned for 1.0.0 (not in v0.9.0-beta) — not part of any currently released artifact:
+Planned for 1.0.0 or later (not in the current beta public surface):
 
 | Planned surface | Intended role in `1.0.0` |
 | --------------- | ------------------------ |
@@ -625,7 +626,7 @@ Planned for 1.0.0 (not in v0.9.0-beta) — not part of any currently released ar
 | `ValidatorHook` | workflow validator extension point |
 | `BedrockTraceAdapter` | optional Bedrock normalization adapter |
 | `A2AAdapter` | optional A2A normalization adapter |
-| `aigc policy init` and workflow CLI commands | starter generation plus operator inspection and export surface |
+| `aigc workflow trace` and `aigc workflow export` | operator inspection and export surface |
 
 ### 13.2 Stability Contract After `1.0.0` GA
 
@@ -670,8 +671,6 @@ Frozen CLI command inventory:
 - `aigc workflow init`
 - `aigc workflow lint`
 - `aigc workflow doctor`
-- `aigc workflow trace`
-- `aigc workflow export`
 
 Frozen scaffold profiles:
 

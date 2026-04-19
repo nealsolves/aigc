@@ -1,17 +1,17 @@
 # AIGC Workflow Governance — Quickstart (v0.9.0 Beta)
 
-> This is a beta surface. Install from source; it is not yet on PyPI.
+> This is a source-only beta surface. Install from local `develop`; it is not yet on PyPI.
 
 ## Prerequisites
 
 - Python 3.10 or later
-- AIGC installed in editable mode from the `feat/v0.9-07-beta-proof` branch.
-  Normal source installs require access to PyPI or an internal package mirror:
+- AIGC installed in editable mode from local `develop`. Normal source installs
+  require access to PyPI or an internal package mirror:
 
 ```bash
 git clone https://github.com/nealsolves/aigc
 cd aigc
-git checkout feat/v0.9-07-beta-proof
+git checkout develop
 pip install -e ".[dev]"
 ```
 

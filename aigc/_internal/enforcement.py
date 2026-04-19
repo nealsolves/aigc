@@ -25,7 +25,7 @@ import re
 import time as _time
 import types
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 if TYPE_CHECKING:
     from aigc._internal.session import GovernanceSession
@@ -2356,10 +2356,15 @@ class AIGC:
         self._policy_loader = policy_loader
         self._risk_config = risk_config
         self._policy_cache = PolicyCache()
+        self._validator_hooks: list[Any] = []
 
         # Validate custom gates at construction time
         for gate in self._custom_gates:
             validate_gate(gate)
+
+    def _set_validator_hooks(self, hooks: Sequence[Any] | None) -> None:
+        """Internal-only wiring point for session validator hooks."""
+        self._validator_hooks = list(hooks or [])
 
     @property
     def sink(self) -> Any | None:

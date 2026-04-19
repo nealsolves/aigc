@@ -17,8 +17,6 @@ EXPECTED_CLI_COMMANDS = [
     "aigc workflow init",
     "aigc workflow lint",
     "aigc workflow doctor",
-    "aigc workflow trace",
-    "aigc workflow export",
 ]
 EXPECTED_SCAFFOLD_PROFILES = [
     "minimal",
@@ -128,7 +126,7 @@ def test_v090_public_surface_includes_session_primitives():
         "AIGC instances must have open_session as a callable method"
     )
 
-    # PR-05+ surfaces — must not exist yet
+    # PR-08+ public additions not shipped in beta yet
     for name in (
         "AgentIdentity",
         "AgentCapabilityManifest",
@@ -136,7 +134,7 @@ def test_v090_public_surface_includes_session_primitives():
         "BedrockTraceAdapter",
         "A2AAdapter",
     ):
-        assert not hasattr(aigc, name), f"aigc.{name} should not ship until PR-05+"
+        assert not hasattr(aigc, name), f"aigc.{name} should not ship in v0.9.0 beta"
 
 
 def test_v090_cli_surface_has_workflow_and_policy_init_commands():
@@ -296,6 +294,29 @@ def test_v090_pr06_all_seven_reason_codes_importable():
     assert WorkflowUnsupportedBindingError("x").code == "WORKFLOW_UNSUPPORTED_BINDING"
     assert WorkflowSessionTokenInvalidError("x").code == "WORKFLOW_SESSION_TOKEN_INVALID"
     assert SessionStateError("x").code == "WORKFLOW_INVALID_TRANSITION"
+
+
+def test_v090_pr08_public_workflow_errors_exported():
+    """PR-08 workflow-step errors raised by public methods must be public imports."""
+    from aigc import (
+        WorkflowHandoffDeniedError,
+        WorkflowHookDeniedError,
+        WorkflowParticipantMismatchError,
+        WorkflowProtocolViolationError,
+        WorkflowRoleViolationError,
+        WorkflowSequenceViolationError,
+        WorkflowStepBudgetExceededError,
+        WorkflowTransitionDeniedError,
+    )
+
+    assert WorkflowParticipantMismatchError("x").code == "WORKFLOW_PARTICIPANT_MISMATCH"
+    assert WorkflowSequenceViolationError("x").code == "WORKFLOW_SEQUENCE_VIOLATION"
+    assert WorkflowTransitionDeniedError("x").code == "WORKFLOW_TRANSITION_DENIED"
+    assert WorkflowRoleViolationError("x").code == "WORKFLOW_ROLE_VIOLATION"
+    assert WorkflowProtocolViolationError("x").code == "WORKFLOW_PROTOCOL_VIOLATION"
+    assert WorkflowHandoffDeniedError("x").code == "WORKFLOW_HANDOFF_DENIED"
+    assert WorkflowStepBudgetExceededError("x").code == "WORKFLOW_STEP_BUDGET_EXCEEDED"
+    assert WorkflowHookDeniedError("x").code == "WORKFLOW_HOOK_DENIED"
 
 
 def test_v090_pr06_workflow_lint_cli_exits_cleanly_on_valid_policy(tmp_path):

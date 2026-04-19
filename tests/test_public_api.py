@@ -14,6 +14,14 @@ from aigc.errors import (
     PreconditionError,
     SchemaValidationError,
     ToolConstraintViolationError,
+    WorkflowHandoffDeniedError,
+    WorkflowHookDeniedError,
+    WorkflowParticipantMismatchError,
+    WorkflowProtocolViolationError,
+    WorkflowRoleViolationError,
+    WorkflowSequenceViolationError,
+    WorkflowStepBudgetExceededError,
+    WorkflowTransitionDeniedError,
 )
 from aigc.sinks import (
     AuditSink,
@@ -303,6 +311,23 @@ def test_pr06_workflow_errors_have_correct_codes():
     assert WorkflowToolBudgetExceededError("x").code == "WORKFLOW_TOOL_BUDGET_EXCEEDED"
     assert WorkflowUnsupportedBindingError("x").code == "WORKFLOW_UNSUPPORTED_BINDING"
     assert WorkflowSessionTokenInvalidError("x").code == "WORKFLOW_SESSION_TOKEN_INVALID"
+
+
+def test_pr08_public_workflow_errors_exported():
+    """Workflow-step errors raised by public session methods must be publicly importable."""
+    for cls in (
+        WorkflowParticipantMismatchError,
+        WorkflowSequenceViolationError,
+        WorkflowTransitionDeniedError,
+        WorkflowRoleViolationError,
+        WorkflowProtocolViolationError,
+        WorkflowHandoffDeniedError,
+        WorkflowStepBudgetExceededError,
+        WorkflowHookDeniedError,
+    ):
+        assert issubclass(cls, AIGCError), f"{cls.__name__} not subclass of AIGCError"
+        assert hasattr(aigc, cls.__name__), f"aigc.{cls.__name__} not exported"
+        assert cls.__name__ in aigc.__all__, f"{cls.__name__} missing from aigc.__all__"
 
 
 def test_all_list_completeness():

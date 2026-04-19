@@ -1,108 +1,61 @@
-# AIGC Operations Runbook (v0.9.0 Beta)
+# AIGC Operations Runbook (`v0.9.0` Beta)
 
-This runbook covers common operational tasks for the v0.9.0-beta line.
+This runbook covers the source-only `v0.9.0` beta workflow path on local
+`develop`.
 
-## Running the test suite
-
-Run all tests from the repository root:
+## Core Validation Commands
 
 ```bash
 python -m pytest
-```
-
-Run a specific test file:
-
-```bash
-python -m pytest tests/test_golden_replay_success.py
-```
-
-Run a specific test case:
-
-```bash
-python -m pytest tests/test_golden_replay_success.py::test_golden_success_produces_audit
-```
-
-Run with coverage:
-
-```bash
-python -m pytest --cov=aigc --cov-report=term-missing
-```
-
-Lint the Python source:
-
-```bash
 flake8 aigc
+python scripts/check_doc_parity.py
+pytest demo-app-api/tests -q
+npm --prefix demo-app-react test
+npm --prefix demo-app-react run build
 ```
 
-Validate all policy files against the JSON Schema:
+## Clean-Environment Beta Proof
 
-```bash
-python -c "
-import json, yaml, jsonschema
-from pathlib import Path
-schema = json.load(open('schemas/policy_dsl.schema.json'))
-for p in Path('policies').glob('*.yaml'):
-    jsonschema.validate(yaml.safe_load(open(p)), schema)
-    print(f'OK: {p}')
-"
-```
-
-## Running the demo
-
-The demo follows the quickstart flow documented in
-[WORKFLOW_QUICKSTART.md](WORKFLOW_QUICKSTART.md). The default demo path requires
-no external API keys or credentials:
-
-```bash
-aigc workflow init --profile minimal
-cd governance
-python workflow_example.py
-```
-
-Expected terminal output:
-
-```
-Status:  COMPLETED
-Steps:   2
-Session: <uuid>
-```
-
-For the failure-and-fix demo flow, use the regulated profile and follow the
-steps in [TROUBLESHOOTING.md](TROUBLESHOOTING.md#the-failure-and-fix-flow-regulated-profile).
-
-## Clean-environment validation
-
-To validate that the v0.9.0-beta installation is fully working in a clean
-environment, run the beta proof script:
+Run the stop-ship harness:
 
 ```bash
 python scripts/validate_v090_beta_proof.py
 ```
 
-This script exercises:
+The harness proves:
 
-1. Clean install from source (no cached state)
-2. The minimal starter generation and run
-3. The regulated profile failure-and-fix flow
-4. The `aigc workflow lint` and `aigc workflow doctor` commands
-5. All golden-replay tests
+1. fresh editable install in a new venv
+2. minimal starter -> `COMPLETED`
+3. standard starter -> `COMPLETED`
+4. regulated starter broken in place -> failure
+5. `aigc workflow doctor` on that same starter directory -> `WORKFLOW_SOURCE_REQUIRED`
+6. same starter fixed in place -> rerun -> `COMPLETED`
 
-The script exits 0 if all checks pass and 1 if any check fails. Run this
-before declaring the beta green.
+The harness does not claim to run `workflow lint` or the entire golden-replay
+suite. Those remain separate commands in the core validation set above.
 
-## What is NOT in v0.9.0-beta scope
+## Demo Validation
 
-The following features are planned for later releases and are **not available**
-in v0.9.0-beta:
+The workflow beta lab is backed by:
 
-- `aigc workflow trace` — workflow step trace visualization
-- `aigc workflow export` — audit export in operator and compliance formats
-- `BedrockTraceAdapter` — Bedrock trace normalization and alias-backed identity
-- `A2AAdapter` — Agent-to-Agent task envelope validation
-- `ValidatorHook` — custom postcondition validation plug-in
-- `register_validator` and `register_resolver` extension points
-- gRPC protocol binding support (explicitly out of scope)
+- `demo-app-api/workflow_routes.py`
+- `demo-app-react/src/labs/Lab11WorkflowLab.tsx`
 
-Do not attempt to import or invoke these surfaces in v0.9.0-beta. They are
-documented in [docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](../architecture/AIGC_HIGH_LEVEL_DESIGN.md)
-as planned-only additions.
+The failure-and-fix tab should:
+
+1. trigger a real broken regulated starter
+2. diagnose that same starter directory
+3. rerun the same starter after the fix is restored
+
+## Beta Scope Boundaries
+
+Not in the current beta surface:
+
+- `aigc workflow trace`
+- `aigc workflow export`
+- `AgentIdentity`
+- `AgentCapabilityManifest`
+- `ValidatorHook` as a public API
+- `BedrockTraceAdapter`
+- `A2AAdapter`
+- gRPC workflow transport support

@@ -1,9 +1,12 @@
 # Release Gates
 
-This file tracks the entry and exit gates for the `v0.9.0` beta train.
+This file tracks the release gates for the `v0.9.0` beta train.
 
 Do NOT open or merge a PR from `origin/develop` -> `origin/main` until
 `v0.9.0` is formally declared a GO.
+
+PR-07 is the mandatory stop-ship checkpoint. If the golden path fails there,
+no further public-surface work proceeds until the default path is repaired.
 
 ---
 
@@ -28,196 +31,50 @@ Do NOT open or merge a PR from `origin/develop` -> `origin/main` until
 
 ## PR-01 — Source-of-Truth Gate
 
-Branch:
-
-- `feat/v0.9-01-source-of-truth`
-
-Checklist:
-
-- [ ] `CLAUDE.md` and `docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md` are
-      present and treated as the canonical `v0.9.0` inputs
-- [ ] `docs/plans/v0.9.0_DOCS_ONLY_PR_PLAN.md` constrains PR-01 to docs-only
-      plus CI truth enforcement
-- [ ] `docs/dev/pr_context.md` reflects the `v0.9.0` PR table
-- [ ] `RELEASE_GATES.md` reflects the `v0.9.0` PR table and beta gates
-- [ ] `implementation_status.md` reflects the `v0.9.0` PR table and start
-      state
-- [ ] stale `v0.9.0` plan variants are marked as superseded or historical input
-- [ ] CI fails if more than one active `v0.9.0` implementation plan exists
-- [ ] CI fails if `CLAUDE.md`, `docs/dev/pr_context.md`, `RELEASE_GATES.md`,
-      and `implementation_status.md` disagree on branch names, PR numbering,
-      `PR-07` stop-ship, or the `origin/main` freeze
-- [ ] no runtime behavior changes land in PR-01
-- [ ] no schema behavior changes land in PR-01
-- [ ] no public API changes land in PR-01
-
----
-
-## PR-02 — Contract Freeze Gate
-
-Branch:
-
-- `feat/v0.9-02-contract-freeze`
-
-Checklist:
-
-- [ ] `docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md` and
-      `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md` freeze lifecycle states,
-      workflow artifact statuses, `SessionPreCallResult`, and
-      `AIGC.open_session(...)`
-- [ ] `README.md` and `docs/PUBLIC_INTEGRATION_CONTRACT.md` keep the shipped
-      `v0.3.3` surface honest while naming workflow surfaces as planned-only
-- [ ] `docs/dev/pr_context.md`, `RELEASE_GATES.md`, and
-      `implementation_status.md` align on the PR-02 branch, scope, and exit
-      criteria
-- [ ] CI fails on PR-02 contract drift across the canonical plan, HLD,
-      onboarding docs, and release packet
-- [ ] public-surface sentinel tests confirm no workflow runtime or workflow CLI
-      surface shipped early
-- [ ] protocol-boundary contract tests freeze Bedrock and A2A fail-closed
-      rules without runtime adapters
-- [ ] no workflow runtime, schema, CLI, demo, adapter, or version changes land
-      in PR-02
-
----
+- [x] one canonical implementation plan is active
+- [x] stale plan variants are marked superseded or historical
+- [x] `CLAUDE.md`, `docs/dev/pr_context.md`, `implementation_status.md`, and this file share one PR/branch map
+- [x] CI truth checks fail on release-packet drift
 
 ## PR-03 — Golden-Path Contract Freeze Gate
 
-Branch:
+- [x] the beta CLI inventory is frozen as `aigc policy init`, `aigc workflow init`, `aigc workflow lint`, and `aigc workflow doctor`
+- [x] scaffold profiles are frozen as `minimal`, `standard`, and `regulated-high-assurance`
+- [x] starter coverage is frozen as local multi-step review, approval checkpoint, source required, and tool budget
+- [x] public-import boundary rules are frozen across docs, starters, presets, and demo code
+- [x] first-adopter docs order is frozen
 
-- `feat/v0.9-03-golden-path-contract`
+## PR-06 — Doctor And Lint Gate
 
-Checklist:
+- [x] `aigc workflow lint` covers schema, transition references, unsupported bindings, budgets, starter integrity, and public-import safety
+- [x] `aigc workflow doctor` covers policy, starter, workflow-artifact, and audit-artifact diagnosis
+- [x] stable first-user reason codes and next actions exist for common failures
 
-- [ ] `docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md` and
-      `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md` freeze the golden-path CLI
-      command inventory, scaffold profiles, starter coverage, docs order, and
-      minimum first-user reason-code set
-- [ ] `README.md` and `docs/PUBLIC_INTEGRATION_CONTRACT.md` keep the shipped
-      `v0.3.3` surface honest while naming `aigc policy init` and
-      `aigc workflow ...` commands as planned-only
-- [ ] `docs/dev/pr_context.md`, `RELEASE_GATES.md`, and
-      `implementation_status.md` align on the PR-03 branch, scope, and exit
-      criteria
-- [ ] CI fails on PR-03 contract drift across the canonical plan, HLD,
-      onboarding docs, and release packet
-- [ ] staged CLI sentinel tests prove the current shipped CLI still exposes no
-      `workflow` or `policy init` commands while freezing the future command
-      names in docs
-- [ ] public-import boundary tests confirm maintained onboarding examples and
-      demo code use public `aigc` imports only
-- [ ] no workflow runtime, starter-generation, shipped CLI, schema, adapter,
-      demo-behavior, or version changes land in PR-03
+## PR-07 — Beta Proof Gate
 
----
-
-## PR-07 — Quickstart, Demo, and Beta Proof Gate
-
-Branch:
-
-- `feat/v0.9-07-beta-proof`
-
-Checklist:
-
-- [x] `docs/dev/pr_context.md` and `implementation_status.md` are aligned to PR-07
-- [x] `docs/reference/WORKFLOW_QUICKSTART.md` exists and covers minimal starter to COMPLETED
-- [x] `docs/reference/TROUBLESHOOTING.md` exists and covers doctor/lint guidance
-- [x] `docs/reference/STARTER_INDEX.md` and `docs/reference/STARTER_RECIPES.md` exist
-- [x] `docs/reference/WORKFLOW_CLI.md` exists and covers policy init, workflow init, workflow lint, workflow doctor only (not trace/export)
-- [x] `docs/PUBLIC_INTEGRATION_CONTRACT.md` v0.9.0 section updated from planned-only to beta
-- [x] `docs/reference/SUPPORTED_ENVIRONMENTS.md` exists
-- [x] `docs/reference/OPERATIONS_RUNBOOK.md` exists
-- [x] `tests/test_pr07_beta_proof.py` passes: minimal → COMPLETED, standard → COMPLETED, regulated failure path
-- [x] `scripts/validate_v090_beta_proof.py` runs end-to-end in a clean venv within 15 minutes
-- [x] `demo-app-api/workflow_routes.py` router imported in `demo-app-api/main.py`
-- [x] `demo-app-react/src/labs/Lab11WorkflowLab.tsx` exists with 4 tabs (at `labs/` path, not `WorkflowLab/`)
-- [x] no `aigc._internal` imports in any doc, example, demo, or starter
-- [x] Full test suite passes: `python -m pytest -v`, `flake8 aigc`, `python scripts/check_doc_parity.py`, `pytest demo-app-api/tests -q`, `npm --prefix demo-app-react test`, `npm --prefix demo-app-react run build`
-
----
-
-## Capability Gates
-
-### PR-02 — Contract Freeze
-
-- [ ] session lifecycle states are frozen and tested
-- [ ] workflow artifact status values are frozen and tested
-- [ ] `SessionPreCallResult` semantics are frozen and tested
-- [ ] `AIGC.open_session(...)` is the workflow entrypoint contract
-- [ ] Bedrock and A2A boundary tests fail closed
-
-### PR-03 — Golden-Path Contract Freeze
-
-- [ ] golden-path CLI surface is frozen
-- [ ] scaffold profiles are frozen
-- [ ] starter coverage is frozen
-- [ ] public-import-only rules are frozen
-- [ ] docs order for first adopters is frozen
-- [ ] first-failure reason-code coverage is frozen
-
-### PR-04 — Minimal Working Session Flow
-
-- [ ] `GovernanceSession` lifecycle is implemented end to end
-- [ ] `SessionPreCallResult` is single-use and session-bound
-- [ ] a local `2`-step or `3`-step workflow completes with correlated evidence
-- [ ] the host remains responsible for orchestration and provider calls
-
-### PR-05 — Starters, Presets, and Migration Helpers
-
-- [ ] `aigc workflow init` ships starter scaffolds
-- [ ] `aigc policy init` ships starter policies
-- [ ] starter examples run on the PR-04 session flow
-- [ ] invocation-only migration path is documented and smoke-tested
-
-### PR-06 — Doctor, Lint, and Plain-English Diagnostics
-
-- [ ] `aigc workflow lint` covers schema, transitions, bindings, budgets,
-      starter integrity, and public-import safety
-- [ ] `aigc workflow doctor` covers runtime and evidence diagnosis
-- [ ] stable reason codes and next-action guidance exist for common failures
-
-### PR-07 — Quickstart, Demo, and Beta Proof
-
-- [x] PR-07 is the mandatory stop-ship checkpoint
-- [x] clean-environment quickstart succeeds within the `15` minute target
-- [x] at least one intentional failure-and-fix flow passes end to end
+- [x] clean-environment docs-to-working-app validation exists
+- [x] minimal starter reaches `COMPLETED`
+- [x] standard starter reaches `COMPLETED`
+- [x] at least one intentional failure-and-fix path is validated end to end
+- [x] the broken asset diagnosed by `workflow doctor` is the same generated starter that was broken and later rerun
+- [x] demo failure diagnosis uses the real broken starter directory rather than synthetic backend fixtures
 - [x] the default adopter path succeeds without Bedrock or A2A
-- [x] no internal-code reading is required on the default path
-- [x] no fake backend behavior exists in the demo
+- [x] no maintained public docs, demos, or starters import `aigc._internal`
 
-### PR-08 — Workflow Engine Hardening
+## PR-08 — Engine Hardening Gate
 
-- [x] restrictive composition is enforced and widening merges fail validation
-- [x] approvals, budgets, transitions, and handoffs behave deterministically
-- [x] validator hooks have typed contracts, bounded timeouts, and auditable
-      provenance
+- [x] restrictive composition rejects widening workflow merges
+- [x] approvals, budgets, transitions, handoffs, participants, roles, and protocol constraints behave deterministically
+- [x] validator hooks are wired internally through ordinary session creation and remain internal-only in the beta contract
+- [x] workflow-step exceptions raised by public session methods are catchable through `aigc` and `aigc.errors`
+- [x] failed Phase B attempts clean up session tokens deterministically
 
-### PR-09 — Trace, Export, CLI, and Operator Polish
+## Deferred To PR-09 And Later
 
-- [ ] `aigc workflow trace` reconstructs workflow timelines correctly
-- [ ] `aigc workflow export` supports operator and audit modes
-- [ ] sink failures surface explicitly without weakening required fail-closed
-      paths
-
-### PR-10a — Bedrock Adapter
-
-- [ ] alias-backed identity is required for governed participant binding
-- [ ] missing required trace fails closed
-- [ ] ambiguous identity fails closed
-
-### PR-10b — A2A Adapter
-
-- [ ] only supported `1.0` JSON-RPC and HTTP+JSON bindings are accepted
-- [ ] normative `TASK_STATE_*` wire values are accepted
-- [ ] shorthand task-state values are rejected
-- [ ] unsupported gRPC transport fails with a typed protocol violation
-
-### PR-11 — Public API Freeze and Beta Release
-
-- [ ] public API snapshot tests pass
-- [ ] workflow CLI help text and JSON shapes are frozen
-- [ ] export portability and integrity verification pass
-- [ ] the release remains explicitly labeled Beta
+- [ ] `aigc workflow trace`
+- [ ] `aigc workflow export`
+- [ ] operator-facing export portability and timeline reconstruction
+- [ ] optional Bedrock and A2A adapter tracks
 
 ---
 
@@ -225,32 +82,25 @@ Checklist:
 
 `v0.9.0` beta readiness is blocked until all of the following are true:
 
-- [ ] clean-environment docs-to-working-app success exists for the default path
-- [ ] quickstart completes within the `15` minute target budget
-- [ ] at least two public-import-only starter examples reach PASS
-- [ ] at least one failure-and-fix path is validated end to end
-- [ ] `workflow doctor` and `workflow lint` explain that failure clearly
-- [ ] no internal-code reading is required
-- [ ] no advanced manifest authoring is mandatory on the default path
-- [ ] workflow trace visibility and evidence visibility exist on the default
-      path
-- [ ] the default adopter path succeeds without Bedrock or A2A
-
----
+- [x] clean-environment docs-to-working-app success exists for the default path
+- [x] quickstart completes within the `15` minute target budget
+- [x] at least two public-import-only starter examples reach PASS
+- [x] at least one failure-and-fix path is validated end to end
+- [x] `workflow doctor` and `workflow lint` explain that failure clearly
+- [x] no internal-code reading is required
+- [x] no advanced manifest authoring is mandatory on the default path
+- [x] workflow or invocation evidence visibility exists on the default path
+- [x] the default adopter path succeeds without Bedrock or A2A
 
 ## `v0.9.0` Beta Release Gate
 
 `v0.9.0` beta ships only if all of the following are true:
 
 - [ ] PR-01 through PR-10 work is merged to `origin/develop`
-- [ ] Bucket 1 build-time evidence is collected and reviewed
-- [ ] locked decisions are published and test-backed
-- [ ] the golden-path contract is frozen before later surface expansion
-- [ ] quickstart, starters, migration, diagnostics, exports, and adapters all
-      pass their required tests
-- [ ] approval checkpoints, validator hooks, and budgets fail closed
-- [ ] Bedrock identity rules and A2A wire-contract rules are test-backed
-- [ ] package smoke passes for base install and optional extras
+- [x] the golden-path contract is frozen before later public-surface expansion
+- [x] quickstart, starters, migration, diagnostics, beta proof, and engine hardening are test-backed on local `develop`
+- [ ] PR-09 operator polish lands
+- [ ] optional adapter work lands
 - [ ] `feat/v0.9-11-beta-freeze` lands
 - [ ] `release/v0.9.0` is cut from the PR-11 result
 - [ ] only then is the `origin/develop` -> `origin/main` PR opened

@@ -137,9 +137,10 @@ export default function Lab11WorkflowLab() {
   }
 
   const applyFixAndRerun = async () => {
-    // Re-run the regulated scenario WITH provenance.source_ids present (the fix),
-    // proving the original failure path is repaired — not switching to a different workflow.
-    const res = await callApi('/api/workflow/v090/run', { scenario: 'regulated' })
+    const res = await callApi('/api/workflow/v090/run', {
+      scenario: 'regulated',
+      run_id: lastFailureRunId ?? undefined,
+    })
     if (res) {
       setFixResult(res)
       if (res.artifact) setLastArtifact(res.artifact)

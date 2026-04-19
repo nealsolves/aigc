@@ -165,8 +165,11 @@ class GovernanceSession:
         # Approval checkpoint records — populated by pause()/resume()
         self._approval_records: list[dict[str, Any]] = []
 
-        # ValidatorHooks evaluated at each enforce_step_pre_call (internal contract)
-        self._validator_hooks: list[Any] = []
+        # ValidatorHooks evaluated at each enforce_step_pre_call (internal-only
+        # contract wired from the owning AIGC instance).
+        self._validator_hooks: list[Any] = list(
+            getattr(self._aigc, "_validator_hooks", ())
+        )
         # Evidence records for the workflow artifact
         self._validator_hook_evidence: list[dict[str, Any]] = []
 
@@ -979,8 +982,16 @@ class GovernanceSession:
                 },
             )
 
-        # Phase B FIRST — output validation
-        inv_artifact = self._aigc.enforce_post_call(entry["inner"], output)
+        try:
+            # Phase B FIRST — output validation
+            inv_artifact = self._aigc.enforce_post_call(entry["inner"], output)
+        except Exception:
+            # A session token is single-use once Phase B has been attempted,
+            # even if the inner invocation token failed before artifact emission.
+            object.__setattr__(session_result, "_consumed", True)
+            self._consumed_token_ids.add(session_result._token_id)
+            self._pending_results.pop(session_result._token_id, None)
+            raise
 
         # Validation succeeded — NOW mark consumed
         object.__setattr__(session_result, "_consumed", True)

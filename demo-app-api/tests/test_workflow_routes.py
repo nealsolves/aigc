@@ -50,6 +50,29 @@ def test_workflow_failure_starter_dir_uses_managed_tempdir():
     starter_dir = workflow_routes._run_state[run_id]["starter_dir"]
     assert Path(starter_dir).is_dir()
     assert Path(starter_dir).parent == Path(workflow_routes._POLICY_TMPDIR.name)
+    assert (Path(starter_dir) / "policy.yaml").is_file()
+    assert (Path(starter_dir) / "workflow_example.py").is_file()
+    assert (Path(starter_dir) / "README.md").is_file()
+
+
+def test_workflow_fix_rerun_restores_and_reuses_same_starter_dir():
+    import workflow_routes
+
+    fail_r = client.post("/api/workflow/v090/run", json={"scenario": "failure"})
+    assert fail_r.status_code == 200
+    run_id = fail_r.json()["run_id"]
+    starter_dir = workflow_routes._run_state[run_id]["starter_dir"]
+
+    fix_r = client.post(
+        "/api/workflow/v090/run",
+        json={"scenario": "regulated", "run_id": run_id},
+    )
+    assert fix_r.status_code == 200
+    data = fix_r.json()
+    assert data["artifact"]["status"] == "COMPLETED"
+    assert data["error"] is None
+    assert data["run_id"] == run_id
+    assert workflow_routes._run_state[run_id]["starter_dir"] == starter_dir
 
 
 def test_workflow_compare():

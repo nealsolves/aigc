@@ -1882,8 +1882,8 @@ def check_v090_pr05_contract() -> list[str]:
         errors,
         "implementation_status.md",
         texts["implementation_status.md"],
-        ["PR-01 through PR-06 are complete", "Starters and migration"],
-        "PR-01 through PR-06 complete + starters row",
+        ["PR-01 through PR-08 are complete", "Starters and migration"],
+        "PR-01 through PR-08 complete + starters row",
         error_prefix=pfx,
     )
 
@@ -1894,7 +1894,7 @@ def check_v090_pr05_contract() -> list[str]:
 # Check M: v0.9.0 PR-07 first-adopter docs and beta proof
 # ---------------------------------------------------------------------------
 
-_PR07_ACTIVE_BRANCH = "feat/v0.9-07-beta-proof"
+_PR07_ACTIVE_BRANCH = "develop"
 
 _PR07_FIRST_ADOPTER_DOCS = [
     "docs/reference/WORKFLOW_QUICKSTART.md",

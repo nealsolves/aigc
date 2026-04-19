@@ -205,6 +205,59 @@ class TestLintPolicy:
         findings = lint_policy(p)
         assert any(f["code"] == "POLICY_SCHEMA_VALIDATION_ERROR" for f in findings)
 
+    def test_required_sequence_longer_than_max_steps_returns_budget_finding(self, tmp_path):
+        content = (
+            MINIMAL_VALID_POLICY
+            + "workflow:\n"
+            + "  max_steps: 1\n"
+            + "  required_sequence:\n"
+            + "    - step-a\n"
+            + "    - step-b\n"
+        )
+        p = _write(tmp_path, "budget.yaml", content)
+        findings = lint_policy(p)
+        assert any(f["code"] == "WORKFLOW_STEP_BUDGET_EXCEEDED" for f in findings)
+
+    def test_allowed_transitions_unknown_step_returns_transition_finding(self, tmp_path):
+        content = (
+            MINIMAL_VALID_POLICY
+            + "workflow:\n"
+            + "  required_sequence:\n"
+            + "    - step-a\n"
+            + "    - step-b\n"
+            + "  allowed_transitions:\n"
+            + "    step-a: [step-c]\n"
+        )
+        p = _write(tmp_path, "transitions.yaml", content)
+        findings = lint_policy(p)
+        assert any(f["code"] == "WORKFLOW_INVALID_TRANSITION" for f in findings)
+
+    def test_handoffs_unknown_participant_returns_transition_finding(self, tmp_path):
+        content = (
+            MINIMAL_VALID_POLICY
+            + "workflow:\n"
+            + "  participants:\n"
+            + "    - id: agent-a\n"
+            + "  handoffs:\n"
+            + "    - from: agent-a\n"
+            + "      to: agent-b\n"
+        )
+        p = _write(tmp_path, "handoffs.yaml", content)
+        findings = lint_policy(p)
+        assert any(f["code"] == "WORKFLOW_INVALID_TRANSITION" for f in findings)
+
+    def test_unsupported_protocol_reference_returns_binding_finding(self, tmp_path):
+        content = (
+            MINIMAL_VALID_POLICY
+            + "workflow:\n"
+            + "  participants:\n"
+            + "    - id: agent-a\n"
+            + "      protocols: [grpc]\n"
+        )
+        p = _write(tmp_path, "binding.yaml", content)
+        findings = lint_policy(p)
+        assert any(f["code"] == "WORKFLOW_UNSUPPORTED_BINDING" for f in findings)
+
     def test_finding_has_required_keys(self, tmp_path):
         p = _write(tmp_path, "bad.yaml", "roles: [unclosed")
         findings = lint_policy(p)

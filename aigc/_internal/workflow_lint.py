@@ -39,6 +39,7 @@ from aigc._internal.policy_loader import SCHEMAS_DIR
 _POLICY_SCHEMA: dict | None = None
 _WORKFLOW_SCHEMA: dict | None = None
 _AUDIT_SCHEMA: dict | None = None
+_UNSUPPORTED_PROTOCOLS = frozenset({"grpc", "websocket", "soap"})
 
 
 def _policy_schema() -> dict:
@@ -226,6 +227,95 @@ def lint_policy(path: str, *, target_kind: str = "policy") -> list[dict]:
             findings.append(_finding(
                 "POLICY_SCHEMA_VALIDATION_ERROR",
                 f"output_schema is not a valid JSON Schema Draft 7: {exc}",
+                target_kind,
+                str(p),
+            ))
+
+    workflow = policy.get("workflow") or {}
+    if isinstance(workflow, dict):
+        required_sequence = workflow.get("required_sequence") or []
+        if (
+            isinstance(required_sequence, list)
+            and isinstance(workflow.get("max_steps"), int)
+            and len(required_sequence) > workflow["max_steps"]
+        ):
+            findings.append(_finding(
+                "WORKFLOW_STEP_BUDGET_EXCEEDED",
+                "workflow.required_sequence length exceeds workflow.max_steps; "
+                "the declared sequence cannot complete within the configured budget.",
+                target_kind,
+                str(p),
+            ))
+
+        declared_steps = {
+            step_id for step_id in required_sequence if isinstance(step_id, str)
+        }
+        allowed_transitions = workflow.get("allowed_transitions") or {}
+        if isinstance(allowed_transitions, dict) and declared_steps:
+            for from_step, to_steps in allowed_transitions.items():
+                if from_step not in declared_steps:
+                    findings.append(_finding(
+                        "WORKFLOW_INVALID_TRANSITION",
+                        f"allowed_transitions references unknown from-step {from_step!r}; "
+                        "declare it in workflow.required_sequence.",
+                        target_kind,
+                        str(p),
+                    ))
+                if not isinstance(to_steps, list):
+                    continue
+                for to_step in to_steps:
+                    if isinstance(to_step, str) and to_step not in declared_steps:
+                        findings.append(_finding(
+                            "WORKFLOW_INVALID_TRANSITION",
+                            f"allowed_transitions references unknown to-step {to_step!r}; "
+                            "declare it in workflow.required_sequence.",
+                            target_kind,
+                            str(p),
+                        ))
+
+        participants = workflow.get("participants") or []
+        participant_ids = {
+            participant.get("id")
+            for participant in participants
+            if isinstance(participant, dict) and isinstance(participant.get("id"), str)
+        }
+        handoffs = workflow.get("handoffs") or []
+        if participant_ids and isinstance(handoffs, list):
+            for handoff in handoffs:
+                if not isinstance(handoff, dict):
+                    continue
+                for endpoint_key in ("from", "to"):
+                    endpoint = handoff.get(endpoint_key)
+                    if isinstance(endpoint, str) and endpoint not in participant_ids:
+                        findings.append(_finding(
+                            "WORKFLOW_INVALID_TRANSITION",
+                            f"handoffs entry references unknown participant {endpoint!r}; "
+                            "declare it in workflow.participants.",
+                            target_kind,
+                            str(p),
+                        ))
+
+        protocol_constraints = workflow.get("protocol_constraints") or {}
+        unsupported_protocols = set()
+        if isinstance(protocol_constraints, dict):
+            unsupported_protocols.update(
+                protocol
+                for protocol in protocol_constraints
+                if isinstance(protocol, str) and protocol.lower() in _UNSUPPORTED_PROTOCOLS
+            )
+        if isinstance(participants, list):
+            for participant in participants:
+                if not isinstance(participant, dict):
+                    continue
+                for protocol in participant.get("protocols") or []:
+                    if isinstance(protocol, str) and protocol.lower() in _UNSUPPORTED_PROTOCOLS:
+                        unsupported_protocols.add(protocol)
+        if unsupported_protocols:
+            findings.append(_finding(
+                "WORKFLOW_UNSUPPORTED_BINDING",
+                "workflow policy references unsupported protocols: "
+                f"{sorted(unsupported_protocols)}. Only local, bedrock, and a2a "
+                "workflow protocol constraints are supported in v0.9.0.",
                 target_kind,
                 str(p),
             ))

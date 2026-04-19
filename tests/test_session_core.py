@@ -100,20 +100,33 @@ def test_forged_wrapper_rejected():
 # Token consume-order correctness
 # ---------------------------------------------------------------------------
 
-def test_token_not_consumed_on_output_validation_failure():
-    """Non-serializable output: token stays in _pending_results, _consumed is False."""
+def test_token_consumed_on_non_serializable_output_failure():
+    """Any attempted session post-call consumes the session token, even on failure."""
     a = _aigc()
     with a.open_session() as session:
         token = session.enforce_step_pre_call(dict(_BASE_INV))
         non_serializable = {"value": float("inf")}
         with pytest.raises(Exception):  # InvocationValidationError or similar
             session.enforce_step_post_call(token, non_serializable)
-        # Token must still be available (unconsumed)
-        assert not token._consumed
-        assert token._token_id in session._pending_results
-        # Clean up — use valid output now
-        session.enforce_step_post_call(token, dict(_GOOD_OUTPUT))
-        session.complete()
+        assert token._consumed
+        assert token._token_id not in session._pending_results
+        with pytest.raises(InvocationValidationError, match="Token already consumed"):
+            session.enforce_step_post_call(token, dict(_GOOD_OUTPUT))
+        session.cancel()
+
+
+def test_token_consumed_on_schema_validation_failure():
+    """Schema-validation failures also clear pending session state deterministically."""
+    a = _aigc()
+    with a.open_session() as session:
+        token = session.enforce_step_pre_call(dict(_BASE_INV))
+        with pytest.raises(Exception):  # SchemaValidationError
+            session.enforce_step_post_call(token, {"result": "answer"})
+        assert token._consumed
+        assert token._token_id not in session._pending_results
+        with pytest.raises(InvocationValidationError, match="Token already consumed"):
+            session.enforce_step_post_call(token, dict(_GOOD_OUTPUT))
+        session.cancel()
 
 
 def test_token_consumed_on_success():

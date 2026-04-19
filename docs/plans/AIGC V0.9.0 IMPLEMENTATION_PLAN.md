@@ -34,7 +34,7 @@ The target experience is direct:
 - choose `minimal` or `standard`
 - drop the generated assets into a simple local `2`-step or `3`-step host-owned workflow
 - get a first PASS quickly
-- inspect workflow trace and evidence
+- inspect workflow artifacts and correlated invocation evidence
 - hit one understandable failure on purpose
 - use `workflow doctor` or `workflow lint`
 - fix the issue
@@ -62,7 +62,7 @@ The default path is local workflow first. Presets and starter scaffolds come fir
 3. Choose a `minimal` or `standard` starter.
 4. Drop AIGC into a simple local `2`-step or `3`-step workflow in a host-owned app.
 5. Run the workflow successfully.
-6. Inspect the workflow trace and workflow or invocation evidence.
+6. Inspect workflow artifacts and correlated invocation evidence.
 7. Intentionally trigger a common failure.
 8. Use `aigc workflow doctor` or `aigc workflow lint` to understand the issue.
 9. Fix the issue using public docs and starter guidance.
@@ -99,7 +99,7 @@ Default-path rules:
 
 ### Scope and ownership
 
-- `v0.9.0` includes workflow governance, workflow evidence, validator hooks, approval checkpoints, workflow CLI commands, starter scaffolds, thin presets, migration assets, and optional Bedrock and A2A adapters.
+- `v0.9.0` includes workflow governance, workflow evidence, approval checkpoints, internal validator-hook support, workflow starter and diagnostic CLI commands, starter scaffolds, thin presets, migration assets, and optional later-track adapter planning.
 - `v0.9.0` does not include a hosted orchestrator, queue runner, transport layer, credential broker, runtime platform, remote session manager, or model-serving subsystem.
 - The host owns orchestration, transport, retries, credentials, business state, tool execution, and provider SDK usage.
 - AIGC owns policy loading, ordered governance checks, workflow constraints, evidence correlation, optional adapter normalization, and audit artifacts.
@@ -111,8 +111,7 @@ Default-path rules:
 - Workflow adoption remains instance-scoped through `AIGC.open_session(...)`.
 - `v0.9.0` does not introduce a new module-level `open_session(...)` public API.
 - The frozen golden-path CLI inventory is `aigc policy init`,
-  `aigc workflow init`, `aigc workflow lint`, `aigc workflow doctor`,
-  `aigc workflow trace`, and `aigc workflow export`.
+  `aigc workflow init`, `aigc workflow lint`, and `aigc workflow doctor`.
 - `GovernanceSession`, `SessionPreCallResult`, and `AIGC.open_session(...)`
   are frozen as planned-only contract surfaces before runtime work lands.
   PR-02 documents and tests them; it does not ship placeholder runtime stubs.
@@ -218,8 +217,6 @@ Frozen CLI command inventory:
 - `aigc workflow init`
 - `aigc workflow lint`
 - `aigc workflow doctor`
-- `aigc workflow trace`
-- `aigc workflow export`
 
 Frozen scaffold profiles:
 
@@ -383,7 +380,7 @@ Two isolated adopter validations are not enough for `1.0.0` promotion.
 - Branch: `feat/v0.9-03-golden-path-contract`
 - Goal: freeze the first-adopter surface before later features compete for attention.
 - Implement:
-  - freeze the default CLI surface for `policy init`, `workflow init`, `workflow lint`, `workflow doctor`, `workflow trace`, and `workflow export`
+  - freeze the default CLI surface for `policy init`, `workflow init`, `workflow lint`, and `workflow doctor`
   - freeze scaffold profiles: `minimal`, `standard`, `regulated-high-assurance`
   - freeze starter coverage for local multi-step review, approval checkpoint, source-required, and tool-budget flows
   - freeze the rule that hand-authored workflow DSL is advanced mode and not required for the default path
@@ -494,7 +491,7 @@ Two isolated adopter validations are not enough for `1.0.0` promotion.
   - freeze restrictive composition behavior and reject widening merges
   - add deterministic workflow failure reasons aligned with `workflow doctor`
   - add auditable approval checkpoints with pause and resume semantics
-  - add typed `ValidatorHook` contracts with timeout, bounded retry, stale-result handling, and provenance
+  - add typed internal `ValidatorHook` contracts with timeout, bounded retry, stale-result handling, provenance, and ordinary session wiring
 - Tests:
   - state-machine tests
   - restrictive-composition tests
@@ -585,7 +582,7 @@ Stop-ship requirements:
 - no internal-code reading required
 - no mandatory hand-authoring of advanced manifests for the default path
 - public-import-only validation across examples, starter packs, presets, docs snippets, and demo code
-- workflow trace visibility and workflow or invocation evidence visibility on the default path
+- workflow or invocation evidence visibility on the default path
 - The default adopter path must succeed without Bedrock or A2A.
 
 If any of these fail, beta readiness is blocked and no additional public-surface freeze should proceed until the default path is repaired.
@@ -642,8 +639,7 @@ Required demo flows:
 - one `start here` flow that follows the quickstart
 - one intentional failure-and-fix flow using `workflow doctor` or `workflow lint`
 - one governed-versus-ungoverned comparison
-- one workflow trace view
-- one audit and export visibility flow
+- one evidence view based on workflow artifacts and correlated invocation checksums
 - no fake backend behavior
 
 ## Release Gates for `v0.9.0` Beta

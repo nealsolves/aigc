@@ -294,16 +294,12 @@ _GOOD_OUTPUT = {"result": "answer", "confidence": 0.95}
 
 
 def _make_session(aigc_instance, hooks):
-    """Construct a GovernanceSession with hooks via the internal path."""
-    from aigc._internal.session import GovernanceSession
-    session = GovernanceSession(
-        aigc_instance,
-        str(uuid.uuid4()),
-        POLICY,
-        None,
+    """Construct a session via the public factory with internal hook wiring."""
+    aigc_instance._set_validator_hooks(hooks)
+    return aigc_instance.open_session(
+        session_id=str(uuid.uuid4()),
+        policy_file=POLICY,
     )
-    session._validator_hooks = list(hooks)
-    return session
 
 
 def test_allow_hook_permits_step():

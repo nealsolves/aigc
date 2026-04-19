@@ -453,21 +453,39 @@ def test_child_cannot_drop_required_sequence_via_replace():
 
 
 def test_child_cannot_drop_allowed_transitions_via_replace():
-    """Child cannot drop allowed_transitions key under replace strategy — disables enforcement."""
+    """Child cannot drop allowed_transitions key (null/absent) — gate would go inactive."""
     with pytest.raises(PolicyValidationError, match="clears allowed_transitions"):
         load_policy("tests/test_policies/composition_p4_drop_allowed_transitions_replace.yaml")
 
 
+def test_child_can_narrow_allowed_transitions_to_empty_dict():
+    """{} means 'no transitions permitted' — gate stays active (deny-all), not a drop."""
+    policy = load_policy("tests/test_policies/composition_p4_narrow_transitions_to_empty.yaml")
+    assert policy["workflow"]["allowed_transitions"] == {}
+
+
 def test_child_cannot_drop_allowed_agent_roles_via_replace():
-    """Child cannot drop allowed_agent_roles key under replace strategy — disables enforcement."""
+    """Child cannot drop allowed_agent_roles key (null/absent) — gate would go inactive."""
     with pytest.raises(PolicyValidationError, match="clears allowed_agent_roles"):
         load_policy("tests/test_policies/composition_p4_drop_allowed_agent_roles_replace.yaml")
 
 
+def test_child_can_narrow_allowed_agent_roles_to_empty_list():
+    """[] means 'no agent role permitted' — gate stays active (deny-all), not a drop."""
+    policy = load_policy("tests/test_policies/composition_p4_narrow_agent_roles_to_empty.yaml")
+    assert policy["workflow"]["allowed_agent_roles"] == []
+
+
 def test_child_cannot_drop_handoffs_via_replace():
-    """Child cannot drop handoffs key under replace strategy — disables enforcement."""
+    """Child cannot drop handoffs key (null/absent) — gate would go inactive."""
     with pytest.raises(PolicyValidationError, match="clears all handoffs"):
         load_policy("tests/test_policies/composition_p4_drop_handoffs_replace.yaml")
+
+
+def test_child_can_narrow_handoffs_to_empty_list():
+    """[] means 'no handoffs permitted' — gate stays active (deny-all), not a drop."""
+    policy = load_policy("tests/test_policies/composition_p4_narrow_handoffs_to_empty.yaml")
+    assert policy["workflow"]["handoffs"] == []
 
 
 def test_child_can_narrow_escalation_threshold():

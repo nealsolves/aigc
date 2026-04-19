@@ -420,7 +420,9 @@ def _validate_composition_restriction(
     base_trans = base_wf.get("allowed_transitions") or {}
     child_trans = child_wf.get("allowed_transitions") or {}
     merged_trans = merged_wf.get("allowed_transitions") or {}
-    if base_trans and not merged_trans:
+    # {} means "no transitions permitted" (gate active, deny-all) — a valid narrowing.
+    # Only reject a true drop: key absent or null in the merged result.
+    if base_trans and merged_wf.get("allowed_transitions") is None:
         raise PolicyValidationError(
             "Composition escalation: child policy clears allowed_transitions declared in base, "
             "disabling transition enforcement",
@@ -448,7 +450,9 @@ def _validate_composition_restriction(
     base_agent_roles = set(base_wf.get("allowed_agent_roles") or [])
     child_agent_roles = set(child_wf.get("allowed_agent_roles") or [])
     merged_agent_roles = set(merged_wf.get("allowed_agent_roles") or [])
-    if base_agent_roles and not merged_agent_roles:
+    # [] means "no agent role permitted" (gate active, deny-all) — a valid fail-closed narrowing.
+    # Only reject a true drop: key absent or null in the merged result.
+    if base_agent_roles and merged_wf.get("allowed_agent_roles") is None:
         raise PolicyValidationError(
             "Composition escalation: child policy clears allowed_agent_roles declared in base, "
             "disabling agent role enforcement",
@@ -467,7 +471,9 @@ def _validate_composition_restriction(
     base_handoffs = {(h["from"], h["to"]) for h in (base_wf.get("handoffs") or [])}
     child_handoffs = {(h["from"], h["to"]) for h in (child_wf.get("handoffs") or [])}
     merged_handoffs = {(h["from"], h["to"]) for h in (merged_wf.get("handoffs") or [])}
-    if base_handoffs and not merged_handoffs:
+    # [] means "no handoffs permitted" (gate active, deny-all) — a valid fail-closed narrowing.
+    # Only reject a true drop: key absent or null in the merged result.
+    if base_handoffs and merged_wf.get("handoffs") is None:
         raise PolicyValidationError(
             "Composition escalation: child policy clears all handoffs declared in base, "
             "disabling handoff enforcement",

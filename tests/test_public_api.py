@@ -14,6 +14,14 @@ from aigc.errors import (
     PreconditionError,
     SchemaValidationError,
     ToolConstraintViolationError,
+    WorkflowHandoffDeniedError,
+    WorkflowHookDeniedError,
+    WorkflowParticipantMismatchError,
+    WorkflowProtocolViolationError,
+    WorkflowRoleViolationError,
+    WorkflowSequenceViolationError,
+    WorkflowStepBudgetExceededError,
+    WorkflowTransitionDeniedError,
 )
 from aigc.sinks import (
     AuditSink,
@@ -24,6 +32,15 @@ from aigc.sinks import (
     set_audit_sink,
     set_sink_failure_mode,
 )
+
+
+def test_sink_classes_and_functions_exported():
+    """Sink classes and management functions are importable from aigc.sinks."""
+    assert AuditSink is not None
+    assert CallbackAuditSink is not None
+    assert JsonFileAuditSink is not None
+    assert callable(get_audit_sink)
+    assert callable(set_audit_sink)
 
 
 def test_public_api_imports():
@@ -246,6 +263,80 @@ def test_split_enforcement_top_level_hasattr():
         "enforce_post_call_async",
     ):
         assert hasattr(aigc, name), f"aigc.{name} not exported"
+
+
+def test_pr06_workflow_error_classes_exported():
+    """All PR-06 frozen reason-code error classes are importable from aigc."""
+    from aigc import (
+        WorkflowApprovalRequiredError,
+        WorkflowSourceRequiredError,
+        WorkflowToolBudgetExceededError,
+        WorkflowUnsupportedBindingError,
+        WorkflowSessionTokenInvalidError,
+    )
+    from aigc import AIGCError, GovernanceViolationError
+
+    assert WorkflowApprovalRequiredError is not None
+    assert issubclass(WorkflowApprovalRequiredError, GovernanceViolationError)
+
+    assert WorkflowSourceRequiredError is not None
+    assert issubclass(WorkflowSourceRequiredError, GovernanceViolationError)
+
+    assert WorkflowToolBudgetExceededError is not None
+    assert issubclass(WorkflowToolBudgetExceededError, GovernanceViolationError)
+
+    assert WorkflowUnsupportedBindingError is not None
+    assert issubclass(WorkflowUnsupportedBindingError, GovernanceViolationError)
+
+    assert WorkflowSessionTokenInvalidError is not None
+    assert issubclass(WorkflowSessionTokenInvalidError, AIGCError)
+    assert not issubclass(WorkflowSessionTokenInvalidError, GovernanceViolationError)
+
+
+def test_pr06_workflow_errors_in_all():
+    """PR-06 error classes are in aigc.__all__."""
+    import aigc
+    for name in (
+        "WorkflowApprovalRequiredError",
+        "WorkflowSourceRequiredError",
+        "WorkflowToolBudgetExceededError",
+        "WorkflowUnsupportedBindingError",
+        "WorkflowSessionTokenInvalidError",
+    ):
+        assert name in aigc.__all__, f"{name} missing from aigc.__all__"
+
+
+def test_pr06_workflow_errors_have_correct_codes():
+    """Each PR-06 error class carries the frozen reason code."""
+    from aigc import (
+        WorkflowApprovalRequiredError,
+        WorkflowSourceRequiredError,
+        WorkflowToolBudgetExceededError,
+        WorkflowUnsupportedBindingError,
+        WorkflowSessionTokenInvalidError,
+    )
+    assert WorkflowApprovalRequiredError("x").code == "WORKFLOW_APPROVAL_REQUIRED"
+    assert WorkflowSourceRequiredError("x").code == "WORKFLOW_SOURCE_REQUIRED"
+    assert WorkflowToolBudgetExceededError("x").code == "WORKFLOW_TOOL_BUDGET_EXCEEDED"
+    assert WorkflowUnsupportedBindingError("x").code == "WORKFLOW_UNSUPPORTED_BINDING"
+    assert WorkflowSessionTokenInvalidError("x").code == "WORKFLOW_SESSION_TOKEN_INVALID"
+
+
+def test_pr08_public_workflow_errors_exported():
+    """Workflow-step errors raised by public session methods must be publicly importable."""
+    for cls in (
+        WorkflowParticipantMismatchError,
+        WorkflowSequenceViolationError,
+        WorkflowTransitionDeniedError,
+        WorkflowRoleViolationError,
+        WorkflowProtocolViolationError,
+        WorkflowHandoffDeniedError,
+        WorkflowStepBudgetExceededError,
+        WorkflowHookDeniedError,
+    ):
+        assert issubclass(cls, AIGCError), f"{cls.__name__} not subclass of AIGCError"
+        assert hasattr(aigc, cls.__name__), f"aigc.{cls.__name__} not exported"
+        assert cls.__name__ in aigc.__all__, f"{cls.__name__} missing from aigc.__all__"
 
 
 def test_all_list_completeness():

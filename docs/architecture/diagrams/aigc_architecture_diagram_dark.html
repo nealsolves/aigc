@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIGC v0.3.3 Architecture</title>
+<title>AIGC v0.9.0 Beta Architecture</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
@@ -51,6 +51,14 @@
     margin-bottom: 54px;
     font-weight: 500;
     letter-spacing: 0.04em;
+  }
+
+  .page-subtitle code,
+  .section-desc code {
+    color: var(--accent);
+    background: var(--code-bg);
+    padding: 2px 8px;
+    border-radius: 8px;
   }
 
   .diagram-section {
@@ -198,8 +206,8 @@
 <body>
 <div class="page">
 
-  <div class="page-title">AIGC v0.3.3</div>
-  <div class="page-subtitle">Runtime Architecture Diagrams</div>
+  <div class="page-title">AIGC v0.9.0 Beta</div>
+  <div class="page-subtitle">Local <code>develop</code> Architecture Diagrams</div>
 
   <!-- COMPONENT VIEW -->
   <div class="diagram-section">
@@ -208,11 +216,11 @@
       <span class="section-title">Component View</span>
     </div>
     <p class="section-desc">
-      How the host application, SDK enforcement core, workflow-aware provenance surfaces, and operational utilities connect at runtime.
+      How the local <code>develop</code> beta surface fits together: workflow governance wraps the existing invocation kernel, and invocation plus workflow evidence remain separate outputs.
     </p>
     <div class="diagram-container">
-      <object type="image/svg+xml" data="aigc_architecture_component.svg?v=20260413v033k">
-        <img src="aigc_architecture_component.svg?v=20260413v033k" alt="AIGC Component View"/>
+      <object type="image/svg+xml" data="aigc_architecture_component.svg?v=20260419v090a">
+        <img src="aigc_architecture_component.svg?v=20260419v090a" alt="AIGC Component View"/>
       </object>
     </div>
   </div>
@@ -224,11 +232,11 @@
       <span class="section-title">Enforcement Pipeline</span>
     </div>
     <p class="section-desc">
-      The sequential gate order for the core enforcement pipeline, including the v0.3.3 workflow-aware surfaces that hang off pre_output, emitted provenance, and downstream trail analysis.
+      The sequential path for workflow-composed enforcement in the beta line: session pre-call, unchanged invocation gate order, step post-call correlation, then workflow finalization.
     </p>
     <div class="diagram-container">
-      <object type="image/svg+xml" data="aigc_architecture_pipeline.svg?v=20260413v033d">
-        <img src="aigc_architecture_pipeline.svg?v=20260413v033d" alt="AIGC Enforcement Pipeline"/>
+      <object type="image/svg+xml" data="aigc_architecture_pipeline.svg?v=20260419v090a">
+        <img src="aigc_architecture_pipeline.svg?v=20260419v090a" alt="AIGC Enforcement Pipeline"/>
       </object>
     </div>
   </div>
@@ -241,49 +249,41 @@
     </div>
     <div class="notes-grid">
       <div class="note-card">
-        <div class="note-label">Decorator Modes</div>
-        <p><code>@governed</code> defaults to split enforcement since v0.3.3. Phase A runs before the wrapped function executes and Phase B runs after it returns. Pass <code>pre_call_enforcement=False</code> for legacy unified mode (deprecated).</p>
+        <div class="note-label">Beta Scope</div>
+        <p>These diagrams describe the source-only <code>v0.9.0</code> beta surface on local <code>develop</code>. The installable package remains <code>v0.3.3</code>.</p>
       </div>
       <div class="note-card">
-        <div class="note-label">Phase A / Phase B</div>
-        <p>Split mode moves the model call boundary between <code>post_authorization</code> and <code>pre_output</code>. Unified mode still evaluates the same ordered gates in one enforcement call.</p>
+        <div class="note-label">Workflow Layer</div>
+        <p><code>AIGC.open_session()</code>, <code>GovernanceSession</code>, and <code>SessionPreCallResult</code> are the real beta additions shown here. They wrap the invocation kernel; they do not replace it.</p>
       </div>
       <div class="note-card">
-        <div class="note-label">ProvenanceGate</div>
-        <p><code>ProvenanceGate</code> is a built-in gate registered at <code>pre_output</code>. It blocks output when <code>context.provenance.source_ids</code> is missing or empty.</p>
+        <div class="note-label">Kernel Invariant</div>
+        <p>The ordered invocation gates stay intact in the beta line. Workflow governance constrains when a step may run, then the same authorization and output-side checks still execute.</p>
       </div>
       <div class="note-card">
-        <div class="note-label">Artifact Provenance</div>
-        <p>Every PASS or FAIL artifact can carry v1.4 provenance fields: <code>source_ids</code>, <code>derived_from_audit_checksums</code>, and <code>compilation_source_hash</code>.</p>
+        <div class="note-label">Separate Evidence</div>
+        <p>Invocation artifacts remain one per invocation attempt. Workflow artifacts are separate session outputs, with invocation-correlation metadata added rather than replacing the invocation contract.</p>
       </div>
       <div class="note-card">
-        <div class="note-label">Audit Chain</div>
-        <p><code>AuditChain</code> is not part of the automatic enforcement pipeline. It is an opt-in utility the host applies to artifacts after enforcement.</p>
+        <div class="note-label">Beta CLI</div>
+        <p>The diagrams include the shipped beta adoption surface: <code>aigc workflow init</code>, <code>aigc workflow lint</code>, and <code>aigc workflow doctor</code>.</p>
       </div>
       <div class="note-card">
-        <div class="note-label">Lineage Analysis</div>
-        <p><code>AuditLineage</code> reconstructs parent and child relationships from stored audit trails, and <code>aigc compliance export --lineage</code> exposes that analysis offline.</p>
+        <div class="note-label">Planned-Only Exclusions</div>
+        <p><code>AgentIdentity</code>, <code>AgentCapabilityManifest</code>, public <code>ValidatorHook</code>, <code>BedrockTraceAdapter</code>, <code>A2AAdapter</code>, and <code>workflow trace/export</code> stay out of these beta diagrams.</p>
       </div>
       <div class="note-card">
-        <div class="note-label">Pre-Pipeline Failures</div>
-        <p>Pre-pipeline failures produce schema-valid FAIL artifacts with <code>policy_version: "unknown"</code>, but bypass the core gate sequence.</p>
+        <div class="note-label">Session Token Boundary</div>
+        <p><code>SessionPreCallResult</code> is workflow-bound. It must be completed by the owning <code>GovernanceSession</code>, not by the module-level <code>enforce_post_call()</code> path.</p>
       </div>
       <div class="note-card">
-        <div class="note-label">Risk History</div>
-        <p><code>RiskHistory</code> is an advisory utility over emitted risk scores. It classifies trend direction over time and does not alter gate order or blocking semantics.</p>
-      </div>
-      <div class="note-card">
-        <div class="note-label">Signing Semantics</div>
-        <p>If signing is configured, the same audit artifact is signed before sink emission and before it is returned to the caller. PASS and FAIL artifacts can both carry signatures.</p>
-      </div>
-      <div class="note-card">
-        <div class="note-label">Async + Instance APIs</div>
-        <p><code>enforce_invocation_async()</code>, <code>enforce_pre_call_async()</code>, <code>enforce_post_call_async()</code>, and the matching <code>AIGC</code> instance methods ship in the v0.3.3 runtime.</p>
+        <div class="note-label">Ownership Boundary</div>
+        <p>The host still owns orchestration, provider SDKs, transport, retries, credentials, and tool execution. AIGC governs, blocks, and emits evidence.</p>
       </div>
     </div>
   </div>
 
-  <div class="watermark">AIGC v0.3.3 · github.com/nealsolves/aigc · MIT License</div>
+  <div class="watermark">AIGC v0.9.0 Beta · local develop · github.com/nealsolves/aigc · MIT License</div>
 
 </div>
 </body>

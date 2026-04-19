@@ -1,0 +1,7 @@
+policy_version: "1.0"
+roles:
+  - planner
+workflow:
+  handoffs:
+    - from: agent-1
+      to: agent-2

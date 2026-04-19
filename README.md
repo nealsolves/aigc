@@ -14,10 +14,10 @@ Governance in AIGC is runtime enforcement, not documentation and not prompting.
 - Package: `pip install aigc-sdk`
 - Import: `import aigc`
 - Current release: `v0.3.3` on `2026-04-10`
-- Current release scope: workflow-aware governance, audit schema `v1.4`,
-  `AuditLineage`, `ProvenanceGate`, `RiskHistory`, `@governed` defaults to
-  split enforcement
-- Verification baseline: `966 tests`, coverage above the `90%` CI gate
+- Current release scope: invocation governance plus workflow-aware provenance
+  and lineage groundwork, audit schema `v1.4`, `AuditLineage`,
+  `ProvenanceGate`, `RiskHistory`, `@governed` defaults to split enforcement
+- Verification baseline: `1372 tests`, coverage above the `90%` CI gate
 
 ## Why This Repo Exists
 
@@ -49,6 +49,41 @@ Since v0.3.3, split enforcement is the default — Phase A runs before the model
 call, Phase B validates output after. Pass `pre_call_enforcement=False` for the
 legacy unified mode (deprecated).
 
+The source-only `v0.9.0` beta line on local `develop` adds workflow governance
+built around `AIGC.open_session(...)`, `GovernanceSession`,
+`SessionPreCallResult`, `aigc workflow init`, `aigc policy init`,
+`aigc workflow lint`, and `aigc workflow doctor`. No external API keys are
+required for the default adopter path. The currently shipped PyPI package
+remains `v0.3.3`. Optional Bedrock/A2A adapters and
+`aigc workflow trace` / `aigc workflow export` remain later PRs. The
+target-state architecture is captured in
+`docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
+
+## Workflow Governance (v0.9.0 Beta)
+
+Workflow governance is available in the source-only `v0.9.0` beta line on
+local `develop`. No external API keys are required. Install from source, then:
+
+```bash
+aigc workflow init --profile minimal
+cd governance
+python workflow_example.py
+# Status:  COMPLETED
+# Steps:   2
+# Session: <uuid>
+```
+
+**First-adopter docs (read in this order):**
+
+1. [Workflow Quickstart](docs/reference/WORKFLOW_QUICKSTART.md)
+2. [Migration Guide](docs/migration.md)
+3. [Troubleshooting](docs/reference/TROUBLESHOOTING.md)
+4. [Starter Recipes](docs/reference/STARTER_RECIPES.md)
+5. [Workflow CLI Reference](docs/reference/WORKFLOW_CLI.md)
+6. [Public API Contract](docs/PUBLIC_INTEGRATION_CONTRACT.md)
+7. [Supported Environments](docs/reference/SUPPORTED_ENVIRONMENTS.md)
+8. [Operations Runbook](docs/reference/OPERATIONS_RUNBOOK.md)
+
 ## Release Narrative
 
 This is the versioned story of the repo's current state and how it evolved
@@ -62,7 +97,7 @@ release by release.
 | `0.3.0` | 2026-03-15 | Governance hardening: risk scoring, artifact signing, audit chain utility, pluggable `PolicyLoader`, policy dates, telemetry, policy testing, compliance export, custom gate isolation and metadata preservation |
 | `0.3.1` | 2026-04-04 | Demo parity release: React demo and FastAPI backend became the maintained hands-on surface for all 7 labs |
 | `0.3.2` | 2026-04-05 | Split enforcement release: `enforce_pre_call()` / `enforce_post_call()`, `PreCallResult`, split decorator mode, audit schema `v1.3`, and post-release security hardening from the 2026-04-05 audit |
-| `0.3.3` | `2026-04-10` | Workflow-aware governance: audit schema `v1.4` provenance metadata, `AuditLineage` DAG reconstruction, `ProvenanceGate` built-in enforcement gate, `RiskHistory` risk trend tracking, `@governed` defaults to `pre_call_enforcement=True` (split enforcement is the standard execution model) |
+| `0.3.3` | `2026-04-10` | Workflow-aware provenance and lineage groundwork: audit schema `v1.4` provenance metadata, `AuditLineage` DAG reconstruction, `ProvenanceGate` built-in enforcement gate, `RiskHistory` risk trend tracking, `@governed` defaults to `pre_call_enforcement=True` (split enforcement is the standard execution model) |
 
 For the full change log, use [CHANGELOG.md](CHANGELOG.md).
 
@@ -77,12 +112,18 @@ Editable install from source:
 ```bash
 python3 -m venv aigc-env
 source aigc-env/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-pip install --no-build-isolation -e '.[dev]'
+pip install -e '.[dev]'
 ```
 
-The `--no-build-isolation` flag keeps editable installs working in
-network-restricted environments by reusing already-installed build tools.
+This standard source install expects access to PyPI or an internal package
+mirror so pip can resolve `setuptools`, `PyYAML`, `jsonschema`, and their
+transitive dependencies.
+
+For restricted-network PR-07 proof runs, use
+`python scripts/validate_v090_beta_proof.py` instead. That harness creates a
+fresh venv with `system_site_packages=True` and installs this checkout with
+`pip install --no-deps --no-build-isolation -e .` so it reuses the current
+interpreter's installed Python packages without contacting an index.
 
 ## Quick Start
 
@@ -163,6 +204,10 @@ The maintained demo is a React frontend plus FastAPI backend:
   loaders and policy dates, custom gates, and compliance export
 - Purpose: hands-on orientation to the runtime that shipped in `v0.3.x`
 
+The repo also contains a local-only workflow beta lab in
+`demo-app-react/src/labs/Lab11WorkflowLab.tsx` plus matching
+`demo-app-api/workflow_routes.py` routes for the PR-07 failure-and-fix path.
+
 ## CLI Surface
 
 The `aigc` console script exposes three practical commands:
@@ -175,6 +220,12 @@ The `aigc` console script exposes three practical commands:
   include DAG-level lineage analysis (node counts, duplicate detection,
   root/leaf/orphan lists, cycle detection)
 
+The source-only `v0.9.0` beta line adds `aigc workflow init`,
+`aigc policy init`, `aigc workflow lint`, and `aigc workflow doctor`.
+`aigc workflow trace` and `aigc workflow export` are planned for PR-09 and are
+not yet available. The current PyPI release (`v0.3.3`) CLI surface is
+unchanged.
+
 ## Repo Guide
 
 If you are new to the repo, start here:
@@ -182,7 +233,7 @@ If you are new to the repo, start here:
 | Document | Why it matters |
 | -------- | -------------- |
 | [PROJECT.md](PROJECT.md) | Best repo-level orientation: architecture diagram, repo map, and release-by-release narrative |
-| [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | Authoritative runtime design and invariants |
+| [Architecture Design](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | Target-state `1.0.0` architecture contract and invariants |
 | [Integration Guide](docs/INTEGRATION_GUIDE.md) | Host integration patterns, split-mode guidance, and compliance checklist |
 | [Policy DSL Spec](policies/policy_dsl_spec.md) | Full policy format reference |
 | [Cookbook](docs/USAGE.md) | Task-oriented recipes for common integration patterns |

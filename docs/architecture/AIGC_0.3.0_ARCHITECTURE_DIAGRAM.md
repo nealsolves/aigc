@@ -3,9 +3,9 @@
 This document is a historical snapshot of the runtime architecture that shipped
 in `v0.3.0`.
 
-For the current release architecture, use the `v0.3.2` assets under
+For the current shipped runtime architecture, use the `v0.3.2` assets under
 `docs/architecture/diagrams/` together with
-`docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
+`docs/architecture/ENFORCEMENT_PIPELINE.md` and `docs/AIGC_FRAMEWORK.md`.
 
 It intentionally excludes roadmap-only concepts that are discussed elsewhere
 but are not importable SDK features in `0.3.0`, including

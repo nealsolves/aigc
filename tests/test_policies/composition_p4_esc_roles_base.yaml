@@ -1,0 +1,18 @@
+policy_version: "1.0"
+roles:
+  - planner
+  - reviewer
+pre_conditions:
+  required:
+    role_declared:
+      type: boolean
+    schema_exists:
+      type: boolean
+post_conditions:
+  required:
+    - result
+workflow:
+  max_steps: 10
+  escalation:
+    require_approval_for_roles:
+      - reviewer

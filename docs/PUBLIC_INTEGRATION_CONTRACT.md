@@ -4,6 +4,39 @@ This document is the primary onboarding reference for integrating AIGC into your
 It contains a minimal hello-world example, a realistic production integration, the available
 extension points, and a troubleshooting/FAQ section.
 
+It describes the current public runtime surface for the shipped `v0.3.3`
+package and CLI plus the source-only `v0.9.0` beta workflow surface that lives
+on local `develop`. The target-state `1.0.0` architecture contract, including
+later adapters and exports, is captured separately in
+[docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](architecture/AIGC_HIGH_LEVEL_DESIGN.md).
+
+The following surfaces are available in the source-only `v0.9.0` beta line and
+are not part of the installable `v0.3.3` artifact: `AIGC.open_session(...)`,
+`GovernanceSession`, and `SessionPreCallResult`. This is beta, not yet stable.
+There is no module-level `open_session()` convenience — workflow adoption is
+always instance-scoped through `AIGC.open_session(...)`.
+
+See [docs/reference/WORKFLOW_QUICKSTART.md](reference/WORKFLOW_QUICKSTART.md)
+for the fastest path to a working workflow with these surfaces.
+
+Also available in the source-only `v0.9.0` beta line: `aigc workflow init`,
+`aigc policy init`, `aigc workflow lint`, `aigc workflow doctor`,
+`aigc.presets.MinimalPreset`, `aigc.presets.StandardPreset`,
+`aigc.presets.RegulatedHighAssurancePreset`, `WorkflowStarterIntegrityError`,
+and `docs/migration.md` (migration guide from invocation-only to workflow
+governance). This is beta, not yet stable.
+
+The following surfaces remain planned-only beyond `v0.9.0` beta and are not
+part of the `v0.3.3` artifact or the current beta public surface:
+`AgentIdentity`, `AgentCapabilityManifest`, `ValidatorHook`,
+`BedrockTraceAdapter`, `A2AAdapter`, `aigc workflow trace`, and
+`aigc workflow export`. Do not build integrations against those names until
+they ship through the public package exports, instance API, CLI surface, and
+contract tests.
+
+All public examples, starter packs, presets, demo code, and docs snippets
+must use public `aigc` imports only and must not depend on `aigc._internal`.
+
 ---
 
 ## 1. Hello AIGC — Minimal Runnable Example

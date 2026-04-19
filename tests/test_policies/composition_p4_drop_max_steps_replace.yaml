@@ -1,0 +1,12 @@
+extends: composition_p4_base.yaml
+composition_strategy: replace
+policy_version: "1.0"
+roles:
+  - planner
+workflow:
+  max_total_tool_calls: 50
+  escalation:
+    require_approval_after_steps: 5
+  protocol_constraints:
+    local:
+      min_version: "1.0"

@@ -17,6 +17,11 @@ the minimum governance architecture for a production AI system.
 This document is intentionally evolutionary. Each section starts with the base
 capability and then shows how later releases extended it.
 
+For the target-state `1.0.0` architecture contract, see
+[docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](architecture/AIGC_HIGH_LEVEL_DESIGN.md).
+That document defines the intended workflow-governance architecture; this one
+remains the evolutionary framework narrative for the shipped release line.
+
 ---
 
 ## 1. Contract: Policy-as-Code
@@ -84,7 +89,7 @@ The key architectural point is that split enforcement preserves the same
 effective policy across both phases. Phase B does not reload or reinterpret the
 policy from scratch. It continues from the contract resolved in Phase A.
 
-#### `v0.3.3`: workflow-aware contract
+#### `v0.3.3`: workflow-aware provenance groundwork
 
 `v0.3.3` adds provenance fields to the audit artifact (`audit schema v1.4`),
 enabling the contract to express cross-invocation derivation relationships. The

@@ -9,6 +9,13 @@ Validates that documentation stays synchronized with implementation:
   E. Archive hygiene (headers, no active->archive references)
   F. Gate-ID consistency (canonical gate IDs in gates_evaluated examples)
   G. Parity-set docs exist and are non-empty
+  H. Implementation-truth consistency
+  I. Semantic behavioral claims
+  J. v0.9.0 plan truth
+  K. v0.9.0 release truth
+  L. v0.9.0 PR-02 contract freeze truth
+  M. v0.9.0 PR-07 first-adopter docs and beta proof
+  N. Demo backend public-import boundary
 
 Usage:
     python scripts/check_doc_parity.py
@@ -32,6 +39,47 @@ from jsonschema import Draft7Validator, ValidationError
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MANIFEST_PATH = REPO_ROOT / "doc_parity_manifest.yaml"
 
+_REQUIRED_PARITY_DOCS = [
+    "README.md",
+    "PROJECT.md",
+    "CHANGELOG.md",
+    "docs/AIGC_FRAMEWORK.md",
+    "docs/INTEGRATION_GUIDE.md",
+    "docs/PUBLIC_INTEGRATION_CONTRACT.md",
+    "docs/architecture/ARCHITECTURAL_INVARIANTS.md",
+    "docs/architecture/ENFORCEMENT_PIPELINE.md",
+]
+
+_REQUIRED_BOUNDARY_DOCS = [
+    "docs/PUBLIC_INTEGRATION_CONTRACT.md",
+]
+
+_REQUIRED_TARGET_STATE_DOCS = [
+    "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md",
+]
+
+_CURRENT_RUNTIME_SEMVER_RE = re.compile(r"\b(\d+\.\d+\.\d+)\b")
+_CURRENT_RUNTIME_CONTEXT_MARKERS = (
+    "current release",
+    "current runtime",
+    "current public runtime surface",
+    "runtime baseline",
+    "shipped",
+    "installable",
+    "since",
+    "starting in",
+    "new in",
+)
+_TARGET_STATE_CONTEXT_MARKERS = (
+    "target-state",
+    "target state",
+    "planned",
+    "planned-only",
+    "version:",
+    "status:",
+    "ga",
+)
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -39,7 +87,13 @@ MANIFEST_PATH = REPO_ROOT / "doc_parity_manifest.yaml"
 
 def load_manifest() -> dict:
     with open(MANIFEST_PATH, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"doc_parity_manifest.yaml is empty or invalid "
+            f"(expected a mapping, got {type(data).__name__})"
+        )
+    return data
 
 
 def is_internal_doc(path: str, internal_patterns: list[str]) -> bool:
@@ -79,6 +133,64 @@ def collect_md_files() -> list[Path]:
     return sorted(result)
 
 
+def get_manifest_doc_list(
+    manifest: dict,
+    key: str,
+    label: str,
+    required_docs: list[str] | None = None,
+) -> tuple[list[str], list[str]]:
+    """Return a manifest-backed doc list plus validation errors."""
+    errors: list[str] = []
+    value = manifest.get(key)
+
+    if value is None:
+        errors.append(f"[{label}] manifest missing required '{key}' list")
+        return [], errors
+    if not isinstance(value, list):
+        errors.append(f"[{label}] manifest '{key}' must be a list")
+        return [], errors
+    if not value:
+        errors.append(f"[{label}] manifest '{key}' must not be empty")
+        return [], errors
+
+    docs: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            errors.append(
+                f"[{label}] manifest '{key}' must contain only non-empty strings"
+            )
+            continue
+        docs.append(item)
+
+    missing_required = [
+        rel for rel in (required_docs or []) if rel not in docs
+    ]
+    if missing_required:
+        errors.append(
+            f"[{label}] manifest '{key}' missing required doc(s): "
+            + ", ".join(missing_required)
+        )
+
+    return docs, errors
+
+
+def extract_current_runtime_version_refs(text: str) -> set[str]:
+    """Extract version references that describe the shipped runtime."""
+    refs = set(re.findall(r"\bv(\d+\.\d+\.\d+)\b", text))
+
+    for line in text.splitlines():
+        if not _CURRENT_RUNTIME_SEMVER_RE.search(line):
+            continue
+
+        lower = line.lower()
+        if any(marker in lower for marker in _TARGET_STATE_CONTEXT_MARKERS):
+            continue
+        if any(marker in lower for marker in _CURRENT_RUNTIME_CONTEXT_MARKERS):
+            refs.update(_CURRENT_RUNTIME_SEMVER_RE.findall(line))
+
+    return refs
+
+
 # ---------------------------------------------------------------------------
 # Check A: Current-state parity
 # ---------------------------------------------------------------------------
@@ -90,7 +202,7 @@ def check_current_state_parity(manifest: dict) -> list[str]:
     test_count = str(manifest["test_count"])
     audit_ver = manifest["audit_schema_version"]
 
-    parity_docs = manifest["parity_docs"]
+    parity_docs = manifest.get("parity_docs", [])
 
     for rel in parity_docs:
         path = REPO_ROOT / rel
@@ -99,14 +211,14 @@ def check_current_state_parity(manifest: dict) -> list[str]:
             continue
         text = path.read_text(encoding="utf-8")
 
-        # Version check — only flag if the doc mentions an SDK version
-        # that differs from manifest. We look for "v0.x.y" patterns
-        # (the project convention for SDK version references).
-        # This excludes document-metadata versions like "Version: 1.0.0".
-        sdk_version_refs = re.findall(r"\bv(\d+\.\d+\.\d+)\b", text)
+        # Version check — only flag if the doc mentions a shipped-runtime
+        # version that differs from the manifest. This accepts either `v0.x.y`
+        # or bare `0.x.y` when the surrounding line clearly describes the
+        # current runtime rather than a target-state contract.
+        sdk_version_refs = extract_current_runtime_version_refs(text)
         if sdk_version_refs and version not in sdk_version_refs:
             errors.append(
-                f"[current-state] {rel}: mentions version(s) "
+                f"[current-state] {rel}: mentions current-runtime version(s) "
                 f"{set('v' + v for v in sdk_version_refs)} but manifest "
                 f"expects 'v{version}'"
             )
@@ -391,7 +503,7 @@ def check_gate_id_consistency(manifest: dict) -> list[str]:
         "tool_validation": "tool_constraint_validation",
     }
 
-    for rel in manifest["parity_docs"]:
+    for rel in manifest.get("parity_docs", []):
         path = REPO_ROOT / rel
         if not path.exists():
             continue
@@ -420,9 +532,14 @@ def check_gate_id_consistency(manifest: dict) -> list[str]:
 
 def check_parity_docs_exist(manifest: dict) -> list[str]:
     """Ensure all parity-set docs exist and are non-empty."""
-    errors: list[str] = []
+    parity_docs, errors = get_manifest_doc_list(
+        manifest,
+        "parity_docs",
+        "parity-set",
+        required_docs=_REQUIRED_PARITY_DOCS,
+    )
 
-    for rel in manifest["parity_docs"]:
+    for rel in parity_docs:
         path = REPO_ROOT / rel
         if not path.exists():
             errors.append(f"[parity-set] {rel}: file does not exist")
@@ -433,7 +550,153 @@ def check_parity_docs_exist(manifest: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Check H: Implementation-truth consistency
+# Check H: Runtime onboarding boundary docs
+# ---------------------------------------------------------------------------
+
+_BOUNDARY_DOC_WARNING_RE = re.compile(
+    r"(planned-only|planned only).*(not part of the installable|do not yet "
+    r"export|not part of the shipped)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_BETA_RELEASED_RE = re.compile(
+    r"(v0\.9\.0-beta|v0\.9\.0 beta).*(available|shipped|released)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_BOUNDARY_DOC_DO_NOT_USE_RE = re.compile(
+    r"do\s+not\s+build\s+(?:current\s+)?integrations|"
+    r"not safe for current integrations|"
+    r"do\s+not\s+use .* current integrations",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def check_availability_boundary_docs(manifest: dict) -> list[str]:
+    """Ensure onboarding docs warn against planned-only surfaces."""
+    boundary_docs, errors = get_manifest_doc_list(
+        manifest,
+        "availability_boundary_docs",
+        "boundary-doc",
+        required_docs=_REQUIRED_BOUNDARY_DOCS,
+    )
+
+    for rel in boundary_docs:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            errors.append(f"[boundary-doc] {rel}: file does not exist")
+            continue
+        if path.stat().st_size == 0:
+            errors.append(f"[boundary-doc] {rel}: file is empty")
+            continue
+
+        text = path.read_text(encoding="utf-8")
+
+        if "GovernanceSession" not in text or "aigc workflow" not in text:
+            errors.append(
+                f"[boundary-doc] {rel}: must name planned-only workflow "
+                "surfaces such as GovernanceSession and aigc workflow commands"
+            )
+
+        if not _BOUNDARY_DOC_WARNING_RE.search(text) and not _BETA_RELEASED_RE.search(text):
+            errors.append(
+                f"[boundary-doc] {rel}: missing explicit planned-only / not "
+                "shipped availability warning, or beta-available statement"
+            )
+
+        if not _BOUNDARY_DOC_DO_NOT_USE_RE.search(text):
+            errors.append(
+                f"[boundary-doc] {rel}: missing explicit 'do not build current "
+                "integrations against these names' warning"
+            )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check I: Target-state contract coverage
+# ---------------------------------------------------------------------------
+
+_TARGET_STATE_STATUS_RE = re.compile(
+    r"Status:\s*Target-State Design",
+    re.IGNORECASE,
+)
+
+_TARGET_STATE_BOUNDARY_RE = re.compile(
+    r"Availability boundary:.*?(?:do not yet export|planned-only|not part of "
+    r"the installable)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_TARGET_STATE_PLANNED_SURFACE_RE = re.compile(
+    r"Planned-only additions.*?not exported by `0\.3\.3`.*?not available\s+"
+    r"in the `0\.3\.3` CLI",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_TARGET_STATE_STABILITY_GUARD_RE = re.compile(
+    r"`?1\.x`?\s+stability promise.*?does not apply to the shipped\s+"
+    r"`0\.3\.3`\s+artifact.*?activates only after `1\.0\.0` formally ships",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def check_target_state_docs(manifest: dict) -> list[str]:
+    """Ensure target-state docs are explicit future-contract docs."""
+    target_docs, errors = get_manifest_doc_list(
+        manifest,
+        "target_state_docs",
+        "target-state",
+        required_docs=_REQUIRED_TARGET_STATE_DOCS,
+    )
+    parity_docs = set(manifest.get("parity_docs", []))
+
+    for rel in target_docs:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            errors.append(f"[target-state] {rel}: file does not exist")
+            continue
+        if path.stat().st_size == 0:
+            errors.append(f"[target-state] {rel}: file is empty")
+            continue
+        if rel in parity_docs:
+            errors.append(
+                f"[target-state] {rel}: appears in both target_state_docs and "
+                "parity_docs"
+            )
+
+        text = path.read_text(encoding="utf-8")
+        header = "\n".join(text.splitlines()[:25])
+
+        if not _TARGET_STATE_STATUS_RE.search(header):
+            errors.append(
+                f"[target-state] {rel}: missing 'Status: Target-State Design' "
+                "marker near the top of the document"
+            )
+
+        if not _TARGET_STATE_BOUNDARY_RE.search(text):
+            errors.append(
+                f"[target-state] {rel}: missing an explicit availability "
+                "boundary for planned-only surfaces"
+            )
+
+        if not _TARGET_STATE_PLANNED_SURFACE_RE.search(text):
+            errors.append(
+                f"[target-state] {rel}: missing an explicit planned-only "
+                "workflow API fence for the `0.3.3` public surface"
+            )
+
+        if not _TARGET_STATE_STABILITY_GUARD_RE.search(text):
+            errors.append(
+                f"[target-state] {rel}: missing a guard that delays the `1.x` "
+                "stability promise until `1.0.0` GA"
+            )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check J: Implementation-truth consistency
 # ---------------------------------------------------------------------------
 
 def check_implementation_truth(manifest: dict) -> list[str]:
@@ -557,7 +820,7 @@ def check_implementation_truth(manifest: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Check I: Semantic behavioral claims
+# Check K: Semantic behavioral claims
 # ---------------------------------------------------------------------------
 
 _RISK_SCORED_BLOCKING_RE = re.compile(
@@ -644,6 +907,1101 @@ def check_semantic_claims() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Check J: v0.9.0 plan truth
+# ---------------------------------------------------------------------------
+
+_V090_CANONICAL_PLAN = "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md"
+_V090_HISTORICAL_PLANS = [
+    "docs/plans/0.9.0 plan backup.md",
+    "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN_DRAFT.md",
+    "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN_DRAFT_ORIG.md",
+    "docs/plans/AIGC_v0.9.0_IMPLEMENTATION_PLAN_UPDATED.md",
+]
+_V090_ALL_EXPECTED_PLANS = [_V090_CANONICAL_PLAN, *_V090_HISTORICAL_PLANS]
+_SUPERSEDED_PLAN_RE = re.compile(r"superseded|historical input only", re.I)
+
+
+def _read_header(rel: str, max_lines: int = 25) -> str:
+    path = REPO_ROOT / rel
+    if not path.exists():
+        return ""
+    return "\n".join(path.read_text(encoding="utf-8").splitlines()[:max_lines])
+
+
+def _read_text(rel: str) -> str:
+    path = REPO_ROOT / rel
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
+def check_v090_plan_truth() -> list[str]:
+    """Ensure there is exactly one active v0.9.0 implementation plan."""
+    errors: list[str] = []
+    plans_dir = REPO_ROOT / "docs" / "plans"
+
+    if not plans_dir.exists():
+        return ["[v0.9.0-plan] docs/plans directory does not exist"]
+
+    discovered = []
+    for path in plans_dir.glob("*.md"):
+        lower_name = path.name.lower()
+        if "0.9.0" not in lower_name:
+            continue
+        if "implementation_plan" in lower_name or lower_name == "0.9.0 plan backup.md":
+            discovered.append(str(path.relative_to(REPO_ROOT)))
+    discovered = sorted(discovered)
+
+    expected = set(_V090_ALL_EXPECTED_PLANS)
+    extras = sorted(set(discovered) - expected)
+    for rel in extras:
+        errors.append(
+            f"[v0.9.0-plan] unexpected v0.9.0 implementation-plan candidate: {rel}"
+        )
+
+    for rel in _V090_ALL_EXPECTED_PLANS:
+        if not (REPO_ROOT / rel).exists():
+            errors.append(f"[v0.9.0-plan] missing expected file: {rel}")
+
+    active_candidates: list[str] = []
+    for rel in _V090_ALL_EXPECTED_PLANS:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            continue
+        header = _read_header(rel)
+        is_historical = bool(_SUPERSEDED_PLAN_RE.search(header))
+
+        if rel == _V090_CANONICAL_PLAN:
+            if is_historical:
+                errors.append(
+                    f"[v0.9.0-plan] canonical plan is marked historical: {rel}"
+                )
+            if "canonical implementation plan" not in header.lower():
+                errors.append(
+                    f"[v0.9.0-plan] canonical plan header does not declare "
+                    f"canonical status: {rel}"
+                )
+        else:
+            if not is_historical:
+                errors.append(
+                    f"[v0.9.0-plan] stale plan is not marked superseded: {rel}"
+                )
+            if _V090_CANONICAL_PLAN not in header:
+                errors.append(
+                    f"[v0.9.0-plan] stale plan header does not point to the "
+                    f"canonical file: {rel}"
+                )
+
+        if not is_historical:
+            active_candidates.append(rel)
+
+    if active_candidates != [_V090_CANONICAL_PLAN]:
+        errors.append(
+            f"[v0.9.0-plan] expected exactly one active plan "
+            f"({_V090_CANONICAL_PLAN}); found {active_candidates}"
+        )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check K: v0.9.0 release truth
+# ---------------------------------------------------------------------------
+
+_V090_RELEASE_FILES = [
+    "CLAUDE.md",
+    "docs/dev/pr_context.md",
+    "RELEASE_GATES.md",
+    "implementation_status.md",
+]
+_PR_TABLE_ROW_RE = re.compile(r"^\|\s*(PR-\d+[a-z]?)\s*\|\s*(.+?)\s*\|", re.MULTILINE)
+_BRANCH_CODE_RE = re.compile(r"`([^`]+)`")
+_STOP_SHIP_RE = re.compile(r"PR-07[\s\S]{0,240}stop-ship|stop-ship[\s\S]{0,240}PR-07", re.I)
+_GO_RE = re.compile(r"formally declared (?:a )?GO", re.I)
+_FREEZE_KEYWORDS_RE = re.compile(r"\b(?:until|only then|only after)\b", re.I)
+_LIST_ITEM_RE = re.compile(r"^(?:[-*+] |\d+\.\s)")
+
+
+def _extract_pr_branch_map(text: str) -> list[tuple[str, tuple[str, ...]]]:
+    result: list[tuple[str, tuple[str, ...]]] = []
+    for pr_id, branch_cell in _PR_TABLE_ROW_RE.findall(text):
+        branches = tuple(_BRANCH_CODE_RE.findall(branch_cell))
+        if branches:
+            result.append((pr_id, branches))
+    return result
+
+
+def _compare_pr_branch_maps(
+    rel: str,
+    expected: list[tuple[str, tuple[str, ...]]],
+    actual: list[tuple[str, tuple[str, ...]]],
+) -> list[str]:
+    errors: list[str] = []
+    expected_dict = dict(expected)
+    actual_dict = dict(actual)
+
+    for pr_id, expected_branches in expected:
+        actual_branches = actual_dict.get(pr_id)
+        if actual_branches is None:
+            errors.append(
+                f"[v0.9.0-release] {rel}: missing PR table row for {pr_id}"
+            )
+            continue
+        if actual_branches != expected_branches:
+            errors.append(
+                f"[v0.9.0-release] {rel}: {pr_id} row maps to "
+                f"{list(actual_branches)} but CLAUDE.md maps it to "
+                f"{list(expected_branches)}"
+            )
+
+    for pr_id in actual_dict:
+        if pr_id not in expected_dict:
+            errors.append(
+                f"[v0.9.0-release] {rel}: unexpected PR table row {pr_id}"
+            )
+
+    actual_order = [pr_id for pr_id, _ in actual]
+    expected_order = [pr_id for pr_id, _ in expected]
+    if actual_order and actual_order != expected_order:
+        errors.append(
+            f"[v0.9.0-release] {rel}: PR table order {actual_order} does not "
+            f"match CLAUDE.md order {expected_order}"
+        )
+
+    return errors
+
+
+def _iter_rule_segments(text: str) -> list[str]:
+    """Split text into normalized paragraphs and list-item rules."""
+    segments: list[str] = []
+    current: list[str] = []
+
+    def flush() -> None:
+        if current:
+            segments.append(" ".join(current))
+            current.clear()
+
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            flush()
+            continue
+        if stripped.startswith("|"):
+            flush()
+            continue
+        if _LIST_ITEM_RE.match(stripped):
+            flush()
+            current.append(stripped)
+            continue
+        current.append(stripped)
+
+    flush()
+    return segments
+
+
+def _has_freeze_go_coupling(text: str) -> bool:
+    """True when one rule statement couples the freeze directly to formal GO."""
+    for segment in _iter_rule_segments(text):
+        normalized = re.sub(r"\s+", " ", segment)
+        if "origin/develop" not in normalized or "origin/main" not in normalized:
+            continue
+        if not _GO_RE.search(normalized):
+            continue
+        if not _FREEZE_KEYWORDS_RE.search(normalized):
+            continue
+        return True
+    return False
+
+
+def check_v090_release_truth() -> list[str]:
+    """Ensure release-truth docs agree on v0.9.0 sequencing rules."""
+    errors: list[str] = []
+    claude_path = REPO_ROOT / "CLAUDE.md"
+
+    if not claude_path.exists():
+        return ["[v0.9.0-release] CLAUDE.md does not exist"]
+
+    claude_text = claude_path.read_text(encoding="utf-8")
+    pr_map = _extract_pr_branch_map(claude_text)
+
+    if not pr_map:
+        return ["[v0.9.0-release] could not parse v0.9.0 PR table from CLAUDE.md"]
+
+    for rel in _V090_RELEASE_FILES:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            errors.append(f"[v0.9.0-release] missing required file: {rel}")
+            continue
+
+        text = path.read_text(encoding="utf-8")
+        actual_pr_map = _extract_pr_branch_map(text)
+        if not actual_pr_map:
+            errors.append(
+                f"[v0.9.0-release] {rel}: could not parse a v0.9.0 PR table"
+            )
+        else:
+            errors.extend(_compare_pr_branch_maps(rel, pr_map, actual_pr_map))
+
+        if not _STOP_SHIP_RE.search(text):
+            errors.append(
+                f"[v0.9.0-release] {rel}: missing explicit PR-07 stop-ship rule"
+            )
+
+        if not _has_freeze_go_coupling(text):
+            errors.append(
+                f"[v0.9.0-release] {rel}: missing explicit origin/main freeze "
+                f"language tied to formal GO"
+            )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check L: v0.9.0 PR-02 contract freeze truth
+# ---------------------------------------------------------------------------
+
+_V090_PR02_ACTIVE_BRANCH = "feat/v0.9-02-contract-freeze"
+_V090_PLAN_REL = "docs/plans/AIGC V0.9.0 IMPLEMENTATION_PLAN.md"
+_V090_HLD_REL = "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md"
+_V090_PUBLIC_CONTRACT_REL = "docs/PUBLIC_INTEGRATION_CONTRACT.md"
+_V090_PR_CONTEXT_REL = "docs/dev/pr_context.md"
+_V090_EXPECTED_SESSION_STATES = [
+    "OPEN",
+    "PAUSED",
+    "FAILED",
+    "COMPLETED",
+    "CANCELED",
+    "FINALIZED",
+]
+_V090_EXPECTED_WORKFLOW_STATUSES = [
+    "COMPLETED",
+    "FAILED",
+    "CANCELED",
+    "INCOMPLETE",
+]
+
+
+def _normalize_inline_markdown(text: str) -> str:
+    return re.sub(r"\s+", " ", text.replace("`", "")).strip()
+
+
+def _extract_bullets_after_label(text: str, label: str) -> list[str] | None:
+    idx = text.find(label)
+    if idx == -1:
+        return None
+
+    items: list[str] = []
+    started = False
+    for raw_line in text[idx + len(label):].splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            if started:
+                break
+            continue
+        if stripped.startswith("- "):
+            items.append(_normalize_inline_markdown(stripped[2:]))
+            started = True
+            continue
+        if started:
+            break
+
+    return items if items else None
+
+
+def _extract_numbered_items_after_label(text: str, label: str) -> list[str] | None:
+    idx = text.find(label)
+    if idx == -1:
+        return None
+
+    items: list[str] = []
+    started = False
+    for raw_line in text[idx + len(label):].splitlines():
+        stripped = raw_line.strip()
+        # Deliberately match _extract_bullets_after_label(): once list parsing
+        # has started, a blank line terminates the list instead of being
+        # skipped. Keep numbered lists contiguous in contract docs.
+        if not stripped:
+            if started:
+                break
+            continue
+        match = re.match(r"^\d+\.\s+(.*)$", stripped)
+        if match:
+            items.append(_normalize_inline_markdown(match.group(1)))
+            started = True
+            continue
+        if started:
+            break
+
+    return items if items else None
+
+
+def _require_all(
+    errors: list[str],
+    rel: str,
+    text: str,
+    required: list[str],
+    label: str,
+    error_prefix: str = "[v0.9.0-pr02]",
+) -> None:
+    normalized_text = re.sub(r"\s+", " ", text)
+    for needle in required:
+        normalized_needle = re.sub(r"\s+", " ", needle)
+        if normalized_needle not in normalized_text:
+            errors.append(f"{error_prefix} {rel}: missing {label}: {needle}")
+
+
+def _check_exact_list(
+    errors: list[str],
+    rel: str,
+    text: str,
+    label: str,
+    expected: list[str],
+    name: str,
+    error_prefix: str = "[v0.9.0-pr02]",
+) -> None:
+    actual = _extract_bullets_after_label(text, label)
+    if actual is None:
+        errors.append(f"{error_prefix} {rel}: could not find {name} list")
+        return
+    if actual != expected:
+        errors.append(
+            f"{error_prefix} {rel}: {name} list {actual} does not match "
+            f"expected {expected}"
+        )
+
+
+def _check_exact_numbered_list(
+    errors: list[str],
+    rel: str,
+    text: str,
+    label: str,
+    expected: list[str],
+    name: str,
+) -> None:
+    actual = _extract_numbered_items_after_label(text, label)
+    if actual is None:
+        errors.append(f"[v0.9.0-pr03] {rel}: could not find {name} list")
+        return
+    if actual != expected:
+        errors.append(
+            f"[v0.9.0-pr03] {rel}: {name} list {actual} does not match "
+            f"expected {expected}"
+        )
+
+
+def check_v090_pr02_contract() -> list[str]:
+    """Ensure PR-02 freezes the intended workflow contract without shipping it."""
+    errors: list[str] = []
+
+    required_files = [
+        _V090_PLAN_REL,
+        _V090_HLD_REL,
+        "README.md",
+        _V090_PUBLIC_CONTRACT_REL,
+        _V090_PR_CONTEXT_REL,
+        "RELEASE_GATES.md",
+        "implementation_status.md",
+    ]
+    texts: dict[str, str] = {}
+    for rel in required_files:
+        text = _read_text(rel)
+        if not text:
+            errors.append(f"[v0.9.0-pr02] missing required file: {rel}")
+            continue
+        texts[rel] = text
+
+    if errors:
+        return errors
+
+    _check_exact_list(
+        errors,
+        _V090_PLAN_REL,
+        texts[_V090_PLAN_REL],
+        "Canonical session lifecycle states:",
+        _V090_EXPECTED_SESSION_STATES,
+        "session lifecycle states",
+    )
+    _check_exact_list(
+        errors,
+        _V090_HLD_REL,
+        texts[_V090_HLD_REL],
+        "Canonical lifecycle states:",
+        _V090_EXPECTED_SESSION_STATES,
+        "session lifecycle states",
+    )
+    _check_exact_list(
+        errors,
+        _V090_PLAN_REL,
+        texts[_V090_PLAN_REL],
+        "Canonical workflow artifact `status` values:",
+        _V090_EXPECTED_WORKFLOW_STATUSES,
+        "workflow artifact statuses",
+    )
+    _check_exact_list(
+        errors,
+        _V090_HLD_REL,
+        texts[_V090_HLD_REL],
+        "Canonical serialized workflow artifact `status` values:",
+        _V090_EXPECTED_WORKFLOW_STATUSES,
+        "workflow artifact statuses",
+    )
+
+    _require_all(
+        errors,
+        _V090_PLAN_REL,
+        texts[_V090_PLAN_REL],
+        [
+            "- `FINALIZED` is a lifecycle state only and is never serialized as an artifact status.",
+            "- `finalize()` from `OPEN` or `PAUSED` is allowed and emits `INCOMPLETE`.",
+            "- `v0.9.0` does not introduce a new module-level `open_session(...)` public API.",
+            "PR-02 documents and tests them; it does not ship placeholder runtime stubs.",
+            "- A wrapped token cannot be completed through module-level `enforce_post_call(...)`; it must be completed through the owning `GovernanceSession`.",
+            "- Session completion validates both underlying invocation integrity and workflow-step binding before post-call enforcement proceeds.",
+            "- Governed Bedrock handoffs require alias-backed participant identity.",
+            "- Descriptive names such as `collaboratorName` are descriptive evidence only and cannot be the sole binding key for governed authorization.",
+            "- gRPC is out of scope for `v0.9.0` normalization and must fail with a typed protocol violation.",
+            "- Compatibility is validated from `supportedInterfaces[].protocolVersion`, not descriptive Agent Card version text.",
+            "- Wire task states must validate as normative ProtoJSON `TASK_STATE_*` values.",
+            "- Informal or shorthand task-state names are rejected at the boundary.",
+        ],
+        "frozen plan contract",
+    )
+    _require_all(
+        errors,
+        _V090_HLD_REL,
+        texts[_V090_HLD_REL],
+        [
+            "`SessionPreCallResult`",
+            "`AIGC.open_session(...)`\nis not part of the installable runtime yet.",
+            "The target design does not add a module-level `open_session(...)` convenience.",
+            "| `OPEN` or `PAUSED` finalized without terminal completion | `INCOMPLETE` |",
+            "- alias-backed collaborator identity is required for governed participant\n  binding; `collaboratorName` alone is descriptive evidence only",
+            "- when policy requires trace, Bedrock trace is mandatory and missing trace\n  fails closed",
+            "- `GRPC`",
+            "- compatibility is validated from `supportedInterfaces[].protocolVersion`, not\n  descriptive Agent Card version text",
+            "- non-normative or shorthand task-state names are rejected at the boundary",
+        ],
+        "frozen HLD contract",
+    )
+    _require_all(
+        errors,
+        "README.md",
+        texts["README.md"],
+        [
+            "`AIGC.open_session(...)`",
+            "`GovernanceSession`",
+            "`SessionPreCallResult`",
+            "not\npart of the shipped `v0.3.3` runtime or CLI",
+        ],
+        "planned-only README boundary",
+    )
+    _require_all(
+        errors,
+        _V090_PUBLIC_CONTRACT_REL,
+        texts[_V090_PUBLIC_CONTRACT_REL],
+        [
+            "`AIGC.open_session(...)`",
+            "`SessionPreCallResult`",
+            "There is no current\nmodule-level `open_session()` convenience in the shipped package.",
+        ],
+        "planned-only public integration boundary",
+    )
+    _require_all(
+        errors,
+        _V090_PR_CONTEXT_REL,
+        texts[_V090_PR_CONTEXT_REL],
+        [
+            f"Active branch: `{_V090_PR02_ACTIVE_BRANCH}`",
+            "- docs, CI, and sentinel tests only",
+            "- PR-02 is docs, CI, and sentinel tests only. Workflow runtime implementation\n  starts in PR-04.",
+        ],
+        "PR-02 branch and scope",
+    )
+    _require_all(
+        errors,
+        "RELEASE_GATES.md",
+        texts["RELEASE_GATES.md"],
+        [
+            "## PR-02 — Contract Freeze Gate",
+            "- [ ] public-surface sentinel tests confirm no workflow runtime or workflow CLI\n      surface shipped early",
+            "- [ ] protocol-boundary contract tests freeze Bedrock and A2A fail-closed\n      rules without runtime adapters",
+        ],
+        "PR-02 release gate",
+    )
+    _require_all(
+        errors,
+        "implementation_status.md",
+        texts["implementation_status.md"],
+        [
+            f"**Active Branch:** `{_V090_PR02_ACTIVE_BRANCH}`",
+            "- PR-02 is contract freeze only. It updates docs, CI, and sentinel tests only.",
+            "- Workflow runtime implementation begins in PR-04.",
+            "## PR-02 Deliverables",
+        ],
+        "PR-02 implementation status",
+    )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check M: v0.9.0 PR-03 golden-path contract truth
+# ---------------------------------------------------------------------------
+
+_V090_PR03_ACTIVE_BRANCH = "feat/v0.9-03-golden-path-contract"
+_V090_PR04_ACTIVE_BRANCH = "feat/v0.9-04-minimal-session-flow"
+_V090_PR05_ACTIVE_BRANCH = "feat/v0.9-05-starters-and-migration"
+_V090_PR05_PUBLIC_CONTRACT_REL = "docs/PUBLIC_INTEGRATION_CONTRACT.md"
+_V090_PROJECT_MD_REL = "PROJECT.md"
+_V090_ENFORCEMENT_PIPELINE_REL = "docs/architecture/ENFORCEMENT_PIPELINE.md"
+_V090_PR03_EXPECTED_CLI_COMMANDS = [
+    "aigc policy init",
+    "aigc workflow init",
+    "aigc workflow lint",
+    "aigc workflow doctor",
+    "aigc workflow trace",
+    "aigc workflow export",
+]
+_V090_PR03_EXPECTED_SCAFFOLD_PROFILES = [
+    "minimal",
+    "standard",
+    "regulated-high-assurance",
+]
+_V090_PR03_EXPECTED_STARTER_COVERAGE = [
+    "local multi-step review",
+    "approval checkpoint",
+    "source required",
+    "tool budget",
+]
+_V090_PR03_EXPECTED_REASON_CODES = [
+    "WORKFLOW_INVALID_TRANSITION",
+    "WORKFLOW_APPROVAL_REQUIRED",
+    "WORKFLOW_SOURCE_REQUIRED",
+    "WORKFLOW_TOOL_BUDGET_EXCEEDED",
+    "WORKFLOW_UNSUPPORTED_BINDING",
+    "WORKFLOW_SESSION_TOKEN_INVALID",
+    "WORKFLOW_STARTER_INTEGRITY_ERROR",
+]
+_V090_PR03_EXPECTED_DOCS_ORDER = [
+    "workflow quickstart",
+    "migration from invocation-only to workflow",
+    "troubleshooting and workflow doctor / workflow lint guide",
+    "starter recipes and starter index",
+    "workflow CLI guide",
+    "public API boundary and integration contract",
+    "supported environments",
+    "operations runbook",
+    "adapter docs as advanced follow-on material",
+]
+
+
+def check_v090_pr03_contract() -> list[str]:
+    """Ensure PR-03 freezes the first-adopter contract without shipping it."""
+    errors: list[str] = []
+
+    required_files = [
+        _V090_PLAN_REL,
+        _V090_HLD_REL,
+        "README.md",
+        _V090_PUBLIC_CONTRACT_REL,
+        _V090_PR_CONTEXT_REL,
+        "RELEASE_GATES.md",
+        "implementation_status.md",
+    ]
+    texts: dict[str, str] = {}
+    for rel in required_files:
+        text = _read_text(rel)
+        if not text:
+            errors.append(f"[v0.9.0-pr03] missing required file: {rel}")
+            continue
+        texts[rel] = text
+
+    if errors:
+        return errors
+
+    for rel in (_V090_PLAN_REL, _V090_HLD_REL):
+        text = texts[rel]
+        _check_exact_list(
+            errors,
+            rel,
+            text,
+            "Frozen CLI command inventory:",
+            _V090_PR03_EXPECTED_CLI_COMMANDS,
+            "CLI command inventory",
+            error_prefix="[v0.9.0-pr03]",
+        )
+        _check_exact_list(
+            errors,
+            rel,
+            text,
+            "Frozen scaffold profiles:",
+            _V090_PR03_EXPECTED_SCAFFOLD_PROFILES,
+            "scaffold profiles",
+            error_prefix="[v0.9.0-pr03]",
+        )
+        _check_exact_list(
+            errors,
+            rel,
+            text,
+            "Required starter coverage:",
+            _V090_PR03_EXPECTED_STARTER_COVERAGE,
+            "starter coverage",
+            error_prefix="[v0.9.0-pr03]",
+        )
+        _check_exact_list(
+            errors,
+            rel,
+            text,
+            "Frozen first-user diagnostic reason codes:",
+            _V090_PR03_EXPECTED_REASON_CODES,
+            "first-user reason codes",
+            error_prefix="[v0.9.0-pr03]",
+        )
+        _check_exact_numbered_list(
+            errors,
+            rel,
+            text,
+            "Frozen first-adopter docs order:",
+            _V090_PR03_EXPECTED_DOCS_ORDER,
+            "first-adopter docs order",
+        )
+
+    _require_all(
+        errors,
+        _V090_PLAN_REL,
+        texts[_V090_PLAN_REL],
+        [
+            "- Hand-authored workflow DSL remains supported but is advanced mode.",
+            "- Public examples, quickstarts, starter assets, presets, recipes, and demo code must use only public APIs and must never import from `aigc._internal`.",
+        ],
+        "frozen plan golden-path rules",
+        error_prefix="[v0.9.0-pr03]",
+    )
+    _require_all(
+        errors,
+        _V090_HLD_REL,
+        texts[_V090_HLD_REL],
+        [
+            "- hand-authored workflow DSL remains supported as advanced mode and is not required for the default path",
+            "- public quickstarts, starter packs, presets, demo code, and docs snippets must use public `aigc` imports only and must not depend on `aigc._internal`",
+            "`aigc policy init`",
+        ],
+        "frozen HLD golden-path rules",
+        error_prefix="[v0.9.0-pr03]",
+    )
+    _require_all(
+        errors,
+        "README.md",
+        texts["README.md"],
+        [
+            "`aigc policy init`",
+            "`aigc workflow init`",
+            "`aigc workflow lint`",
+            "`aigc workflow doctor`",
+            "`aigc workflow trace`",
+            "`aigc workflow export`",
+            "none of those workflow surfaces are part of the shipped `v0.3.3` runtime or CLI",
+        ],
+        "planned-only README CLI boundary",
+        error_prefix="[v0.9.0-pr03]",
+    )
+    _require_all(
+        errors,
+        _V090_PUBLIC_CONTRACT_REL,
+        texts[_V090_PUBLIC_CONTRACT_REL],
+        [
+            "`aigc policy init`",
+            "`aigc workflow ...` commands",
+            "must use public `aigc` imports only and must not depend on `aigc._internal`",
+        ],
+        "planned-only public integration boundary",
+        error_prefix="[v0.9.0-pr03]",
+    )
+    _require_all(
+        errors,
+        _V090_PR_CONTEXT_REL,
+        texts[_V090_PR_CONTEXT_REL],
+        [
+            f"Active branch: `{_V090_PR03_ACTIVE_BRANCH}`",
+            "- docs, CI, sentinel tests, and public-import hygiene only",
+            "- The frozen golden-path CLI inventory is `aigc policy init`,",
+            "- PR-03 is docs, CI, sentinel tests, and public-import hygiene only. Workflow\n  runtime implementation still starts in PR-04.",
+        ],
+        "PR-03 branch and scope",
+        error_prefix="[v0.9.0-pr03]",
+    )
+    _require_all(
+        errors,
+        "RELEASE_GATES.md",
+        texts["RELEASE_GATES.md"],
+        [
+            "## PR-03 — Golden-Path Contract Freeze Gate",
+            "- [ ] staged CLI sentinel tests prove the current shipped CLI still exposes no\n      `workflow` or `policy init` commands while freezing the future command\n      names in docs",
+            "- [ ] public-import boundary tests confirm maintained onboarding examples and\n      demo code use public `aigc` imports only",
+        ],
+        "PR-03 release gate",
+        error_prefix="[v0.9.0-pr03]",
+    )
+    _require_all(
+        errors,
+        "implementation_status.md",
+        texts["implementation_status.md"],
+        [
+            f"**Active Branch:** `{_V090_PR03_ACTIVE_BRANCH}`",
+            "- PR-03 is golden-path contract freeze only. It updates docs, CI, sentinel\n  tests, and public-import hygiene only.",
+            "## PR-03 Deliverables",
+        ],
+        "PR-03 implementation status",
+        error_prefix="[v0.9.0-pr03]",
+    )
+
+    return errors
+
+
+def check_v090_pr04_contract() -> list[str]:
+    """Verify PR-04 doc state: session surfaces described as upcoming v0.9.0-beta, not shipped."""
+    errors: list[str] = []
+
+    required_files = [
+        _V090_PLAN_REL,
+        _V090_HLD_REL,
+        "README.md",
+        _V090_PUBLIC_CONTRACT_REL,
+        _V090_PR_CONTEXT_REL,
+        "RELEASE_GATES.md",
+        "implementation_status.md",
+        _V090_PROJECT_MD_REL,
+        _V090_ENFORCEMENT_PIPELINE_REL,
+    ]
+    texts: dict[str, str] = {}
+    for rel in required_files:
+        text = _read_text(rel)
+        if not text:
+            errors.append(f"[v0.9.0-pr04] missing required file: {rel}")
+            continue
+        texts[rel] = text
+
+    if errors:
+        return errors
+
+    pfx = "[v0.9.0-pr04]"
+
+    # -- Active branch --
+    _require_all(
+        errors,
+        _V090_PR_CONTEXT_REL,
+        texts[_V090_PR_CONTEXT_REL],
+        [f"Active branch: `{_V090_PR04_ACTIVE_BRANCH}`"],
+        "PR-04 active branch",
+        error_prefix=pfx,
+    )
+    _require_all(
+        errors,
+        "implementation_status.md",
+        texts["implementation_status.md"],
+        [f"**Active Branch:** `{_V090_PR04_ACTIVE_BRANCH}`"],
+        "PR-04 active branch",
+        error_prefix=pfx,
+    )
+
+    # -- README: positive assertion that surfaces are described as upcoming v0.9.0-beta --
+    _require_all(
+        errors,
+        "README.md",
+        texts["README.md"],
+        ["upcoming unreleased v0.9.0-beta"],
+        "upcoming v0.9.0-beta wording (positive assertion required — absence of old wording is not sufficient)",
+        error_prefix=pfx,
+    )
+    # README: old planned-only language must be gone
+    for forbidden in [
+        "none of those workflow surfaces are part of the shipped `v0.3.3` runtime or CLI",
+    ]:
+        normalized = re.sub(r"\s+", " ", texts["README.md"])
+        if re.sub(r"\s+", " ", forbidden) in normalized:
+            errors.append(
+                f"{pfx} README.md: must not contain old planned-only language: {forbidden!r}"
+            )
+
+    # -- PUBLIC_INTEGRATION_CONTRACT: v0.9.0-beta paragraph present, old listing gone --
+    _require_all(
+        errors,
+        _V090_PUBLIC_CONTRACT_REL,
+        texts[_V090_PUBLIC_CONTRACT_REL],
+        ["planned for the upcoming unreleased v0.9.0-beta line"],
+        "v0.9.0-beta planned paragraph (positive assertion required)",
+        error_prefix=pfx,
+    )
+    for forbidden in [
+        "not part of the installable `v0.3.3` artifact today",
+    ]:
+        normalized = re.sub(r"\s+", " ", texts[_V090_PUBLIC_CONTRACT_REL])
+        if re.sub(r"\s+", " ", forbidden) in normalized:
+            errors.append(
+                f"{pfx} {_V090_PUBLIC_CONTRACT_REL}: must not retain old planned-only listing: {forbidden!r}"
+            )
+
+    # -- HLD: "Planned for v0.9.0-beta (not yet released)" row set present, old unqualified table gone --
+    _require_all(
+        errors,
+        _V090_HLD_REL,
+        texts[_V090_HLD_REL],
+        ["Planned for v0.9.0-beta (not yet released)"],
+        "HLD v0.9.0-beta planned row set (positive assertion required)",
+        error_prefix=pfx,
+    )
+    for forbidden in [
+        "Planned-only additions for `1.0.0` — not exported by `0.3.3`",
+    ]:
+        normalized = re.sub(r"\s+", " ", texts[_V090_HLD_REL])
+        if re.sub(r"\s+", " ", forbidden) in normalized:
+            errors.append(
+                f"{pfx} {_V090_HLD_REL}: must not retain old unqualified planned-only table header: {forbidden!r}"
+            )
+
+    # -- PROJECT.md: upcoming v0.9.0-beta wording present, old stale phrase gone --
+    _require_all(
+        errors,
+        _V090_PROJECT_MD_REL,
+        texts[_V090_PROJECT_MD_REL],
+        ["upcoming unreleased v0.9.0-beta"],
+        "PROJECT.md upcoming v0.9.0-beta wording (positive assertion required)",
+        error_prefix=pfx,
+    )
+    for forbidden in [
+        "does not yet ship the planned `GovernanceSession` workflow runtime",
+    ]:
+        normalized = re.sub(r"\s+", " ", texts[_V090_PROJECT_MD_REL])
+        if re.sub(r"\s+", " ", forbidden) in normalized:
+            errors.append(
+                f"{pfx} {_V090_PROJECT_MD_REL}: must not contain stale phrase: {forbidden!r}"
+            )
+
+    # -- ENFORCEMENT_PIPELINE.md: upcoming v0.9.0-beta wording present, old phrases gone --
+    _require_all(
+        errors,
+        _V090_ENFORCEMENT_PIPELINE_REL,
+        texts[_V090_ENFORCEMENT_PIPELINE_REL],
+        ["upcoming unreleased v0.9.0-beta"],
+        "ENFORCEMENT_PIPELINE.md upcoming v0.9.0-beta wording (positive assertion required)",
+        error_prefix=pfx,
+    )
+    for forbidden in [
+        "future session model",
+        "not a shipped `GovernanceSession` workflow runtime",
+    ]:
+        normalized = re.sub(r"\s+", " ", texts[_V090_ENFORCEMENT_PIPELINE_REL])
+        if re.sub(r"\s+", " ", forbidden) in normalized:
+            errors.append(
+                f"{pfx} {_V090_ENFORCEMENT_PIPELINE_REL}: must not contain old unqualified phrase: {forbidden!r}"
+            )
+
+    return errors
+
+
+def check_v090_pr05_contract() -> list[str]:
+    """Verify PR-05 deliverables remain present: starters-and-migration surfaces are shipped."""
+    errors: list[str] = []
+
+    required_files = [
+        _V090_PR05_PUBLIC_CONTRACT_REL,
+        "README.md",
+        _V090_HLD_REL,
+        "implementation_status.md",
+    ]
+    texts: dict[str, str] = {}
+    for rel in required_files:
+        text = _read_text(rel)
+        if not text:
+            errors.append(f"[v0.9.0-pr05] missing required file: {rel}")
+            continue
+        texts[rel] = text
+
+    if errors:
+        return errors
+
+    pfx = "[v0.9.0-pr05]"
+
+    # -- PUBLIC_INTEGRATION_CONTRACT: PR-05 surfaces present, CLI entries removed from beyond-beta --
+    _require_all(
+        errors,
+        _V090_PR05_PUBLIC_CONTRACT_REL,
+        texts[_V090_PR05_PUBLIC_CONTRACT_REL],
+        ["aigc workflow init", "aigc policy init", "MinimalPreset"],
+        "PR-05 surfaces in PUBLIC_INTEGRATION_CONTRACT",
+        error_prefix=pfx,
+    )
+    # CLI commands must no longer appear in the "beyond v0.9.0-beta" beyond-listing
+    for forbidden in ["aigc policy init`, and `aigc workflow ...", "aigc workflow ...`\ncommands"]:
+        normalized = re.sub(r"\s+", " ", texts[_V090_PR05_PUBLIC_CONTRACT_REL])
+        if re.sub(r"\s+", " ", forbidden) in normalized:
+            errors.append(
+                f"{pfx} {_V090_PR05_PUBLIC_CONTRACT_REL}: "
+                f"must not retain CLI commands in beyond-beta listing: {forbidden!r}"
+            )
+
+    # -- README.md: both shipped CLI commands present; planned-only listing updated --
+    _require_all(
+        errors,
+        "README.md",
+        texts["README.md"],
+        ["aigc workflow init", "aigc policy init"],
+        "PR-05 shipped CLI commands in README (positive assertion required)",
+        error_prefix=pfx,
+    )
+    for forbidden in [
+        "aigc policy init`, `aigc workflow init`",
+    ]:
+        normalized_readme = re.sub(r"\s+", " ", texts["README.md"])
+        if re.sub(r"\s+", " ", forbidden) in normalized_readme:
+            errors.append(
+                f"{pfx} README.md: planned-only sentence not updated: {forbidden!r}"
+            )
+
+    # -- AIGC_HIGH_LEVEL_DESIGN.md: both shipped commands present; planned-only sentence updated --
+    _require_all(
+        errors,
+        _V090_HLD_REL,
+        texts[_V090_HLD_REL],
+        ["aigc workflow init", "aigc policy init"],
+        "PR-05 shipped CLI commands in HLD (positive assertion required)",
+        error_prefix=pfx,
+    )
+    # The old planned-only sentence (whitespace-normalized): check it is gone
+    normalized_hld = re.sub(r"\s+", " ", texts[_V090_HLD_REL])
+    for forbidden in [
+        "`aigc policy init`, and `aigc workflow ...` commands remain planned-only",
+    ]:
+        if re.sub(r"\s+", " ", forbidden) in normalized_hld:
+            errors.append(
+                f"{pfx} {_V090_HLD_REL}: planned-only sentence not updated: {forbidden!r}"
+            )
+
+    # -- implementation_status.md: PR-05 complete and starters row present --
+    _require_all(
+        errors,
+        "implementation_status.md",
+        texts["implementation_status.md"],
+        ["PR-01 through PR-08 are complete", "Starters and migration"],
+        "PR-01 through PR-08 complete + starters row",
+        error_prefix=pfx,
+    )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check M: v0.9.0 PR-07 first-adopter docs and beta proof
+# ---------------------------------------------------------------------------
+
+_PR07_ACTIVE_BRANCH = "develop"
+
+_PR07_FIRST_ADOPTER_DOCS = [
+    "docs/reference/WORKFLOW_QUICKSTART.md",
+    "docs/migration.md",
+    "docs/reference/TROUBLESHOOTING.md",
+    "docs/reference/STARTER_INDEX.md",
+    "docs/reference/STARTER_RECIPES.md",
+    "docs/reference/WORKFLOW_CLI.md",
+    "docs/PUBLIC_INTEGRATION_CONTRACT.md",
+    "docs/reference/SUPPORTED_ENVIRONMENTS.md",
+    "docs/reference/OPERATIONS_RUNBOOK.md",
+]
+
+_PR07_QUICKSTART_ANCHORS = [
+    "aigc workflow init --profile minimal",
+    "python workflow_example.py",
+    "Status:  COMPLETED",
+    "AIGC.open_session",
+    "enforce_step_pre_call",
+]
+
+_PR07_CLI_FORBIDDEN_RE = re.compile(
+    r"^#{1,3}\s+`aigc workflow (trace|export)`",
+    re.MULTILINE,
+)
+
+
+def check_v090_pr07_contract(manifest: dict) -> list[str]:
+    """Ensure PR-07 first-adopter docs exist and meet content anchors."""
+    errors: list[str] = []
+    pfx = "[v0.9.0-pr07]"
+
+    # Active branch in release-truth docs
+    for rel in ("docs/dev/pr_context.md", "implementation_status.md"):
+        content = _read_text(rel)
+        if not content:
+            errors.append(f"{pfx} {rel}: file missing or empty")
+            continue
+        if _PR07_ACTIVE_BRANCH not in content:
+            errors.append(
+                f"{pfx} {rel}: missing active branch string '{_PR07_ACTIVE_BRANCH}'"
+            )
+
+    # RELEASE_GATES.md has PR-07 gate section
+    gates_content = _read_text("RELEASE_GATES.md")
+    if "PR-07" not in gates_content:
+        errors.append(f"{pfx} RELEASE_GATES.md: missing PR-07 gate section")
+
+    # All first-adopter docs exist and are non-empty
+    for rel in _PR07_FIRST_ADOPTER_DOCS:
+        p = REPO_ROOT / rel
+        if not p.exists():
+            errors.append(f"{pfx} Missing required first-adopter doc: {rel}")
+        elif p.stat().st_size == 0:
+            errors.append(f"{pfx} Empty first-adopter doc: {rel}")
+
+    # Quickstart content anchors
+    qs = REPO_ROOT / "docs/reference/WORKFLOW_QUICKSTART.md"
+    if qs.exists():
+        qs_text = qs.read_text(encoding="utf-8")
+        for anchor in _PR07_QUICKSTART_ANCHORS:
+            if anchor not in qs_text:
+                errors.append(
+                    f"{pfx} WORKFLOW_QUICKSTART.md: missing required anchor '{anchor}'"
+                )
+
+    # WORKFLOW_CLI.md must not document trace or export as section headers
+    cli_doc = REPO_ROOT / "docs/reference/WORKFLOW_CLI.md"
+    if cli_doc.exists():
+        cli_text = cli_doc.read_text(encoding="utf-8")
+        if _PR07_CLI_FORBIDDEN_RE.search(cli_text):
+            errors.append(
+                f"{pfx} WORKFLOW_CLI.md: must not document 'aigc workflow trace' or "
+                "'aigc workflow export' as commands in PR-07"
+            )
+
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check N: Demo backend public-import boundary
+# ---------------------------------------------------------------------------
+
+
+def check_demo_backend_import_boundary(_manifest: dict) -> list[str]:
+    """Ensure demo-app-api/workflow_routes.py uses only public aigc imports."""
+    errors: list[str] = []
+    pfx = "[demo-boundary]"
+    target = REPO_ROOT / "demo-app-api" / "workflow_routes.py"
+    if not target.exists():
+        errors.append(f"{pfx} demo-app-api/workflow_routes.py does not exist")
+        return errors
+    source = target.read_text(encoding="utf-8")
+    for i, line in enumerate(source.splitlines(), 1):
+        # Skip comment lines
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        if _INTERNAL_IMPORT_RE.search(line):
+            errors.append(
+                f"{pfx} demo-app-api/workflow_routes.py:{i}: "
+                f"contains aigc._internal import"
+            )
+    return errors
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -664,6 +2022,11 @@ def main() -> int:
         ("G. Parity-set docs exist", lambda: check_parity_docs_exist(manifest)),
         ("H. Implementation-truth consistency", lambda: check_implementation_truth(manifest)),
         ("I. Semantic behavioral claims", check_semantic_claims),
+        ("J. v0.9.0 plan truth", check_v090_plan_truth),
+        ("K. v0.9.0 release truth", check_v090_release_truth),
+        ("L. v0.9.0 PR-05 starters-and-migration contract truth", check_v090_pr05_contract),
+        ("M. v0.9.0 PR-07 first-adopter docs and beta proof", lambda: check_v090_pr07_contract(manifest)),
+        ("N. Demo backend public-import boundary", lambda: check_demo_backend_import_boundary(manifest)),
     ]
 
     for name, check_fn in checks:

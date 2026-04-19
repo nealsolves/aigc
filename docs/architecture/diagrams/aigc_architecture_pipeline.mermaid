@@ -12,7 +12,8 @@
   }
 }}%%
 flowchart LR
-    Start(["Invocation\nor Phase A"])
+    Open(["Open session\nor direct invocation"])
+    SessionPre["Workflow step pre-call\nAIGC.open_session() -> GovernanceSession"]
     Load["Validation +\npolicy load"]
     PreAuth["Custom gates\npre_authorization"]
     Guards["Guard\nevaluation"]
@@ -20,19 +21,18 @@ flowchart LR
     Preconditions["Precondition\nvalidation"]
     Tools["Tool constraint\nvalidation"]
     PostAuth["Custom gates\npost_authorization"]
-    PreOutput["Custom gates\npre_output"]
+    Boundary{{"Host executes provider / tool call\nsplit + session paths only"}}
+    PreOutput["Custom + built-in gates\npre_output"]
     SchemaV["Output schema\nvalidation"]
     Postconditions["Postcondition\nvalidation"]
     PostOutput["Custom gates\npost_output"]
     Risk["Risk\nscoring"]
-    Audit(["PASS / FAIL\naudit artifact"])
-    Boundary{{"Model call boundary\nsplit mode only"}}
-    ProvGate["Built-in example\nProvenanceGate at pre_output\nblocks missing context.provenance.source_ids"]
-    Provenance["Audit provenance v1.4\nsource_ids · derived_from_audit_checksums\ncompilation_source_hash"]
-    Lineage["Downstream analysis\nAuditLineage / compliance export --lineage"]
-    Trend["Advisory only\nRiskHistory over emitted risk scores"]
+    InvArtifact(["Invocation artifact\nPASS / FAIL"])
+    SessionPost["GovernanceSession.enforce_step_post_call()\nupdates step state / budgets / approvals"]
+    Finalize["Session finalize\nterminal or auto-finalized"]
+    WorkflowArtifact(["Workflow artifact\nCOMPLETED / FAILED / CANCELED / INCOMPLETE"])
+    BetaCli["workflow init / lint / doctor\nbootstrap + diagnose"]
 
-    Start --> Load --> PreAuth --> Guards --> Role --> Preconditions --> Tools --> PostAuth --> Boundary --> PreOutput --> SchemaV --> Postconditions --> PostOutput --> Risk --> Audit
-    PreOutput -.-> ProvGate
-    Audit -.-> Provenance -.-> Lineage
-    Risk -.-> Trend
+    Open --> SessionPre --> Load --> PreAuth --> Guards --> Role --> Preconditions --> Tools --> PostAuth --> Boundary --> PreOutput --> SchemaV --> Postconditions --> PostOutput --> Risk --> InvArtifact --> SessionPost --> Finalize --> WorkflowArtifact
+    BetaCli -.-> SessionPre
+    BetaCli -.-> WorkflowArtifact

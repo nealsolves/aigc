@@ -12,8 +12,9 @@ architecture, and release context.
 
 AIGC is a Python SDK that enforces governance at the AI invocation boundary.
 The current release is `v0.3.3` (`2026-04-10`).
-`v0.3.3` delivers workflow-aware governance: audit schema `v1.4`, `AuditLineage`,
-`ProvenanceGate`, `RiskHistory`, and split enforcement as the `@governed` default.
+`v0.3.3` delivers workflow-aware provenance and lineage groundwork: audit
+schema `v1.4`, `AuditLineage`, `ProvenanceGate`, `RiskHistory`, and split
+enforcement as the `@governed` default.
 
 The shipped runtime supports:
 
@@ -28,17 +29,27 @@ The shipped runtime supports:
 The demo surface in this repo is a React frontend plus FastAPI backend that
 walks through the `v0.3.x` capabilities.
 
+The source-only `v0.9.0` beta workflow governance line is available on local
+`develop`. It adds `AIGC.open_session()`, `GovernanceSession`, starter
+scaffolds, `aigc workflow init`, `aigc workflow lint`, and
+`aigc workflow doctor`. See
+[docs/reference/WORKFLOW_QUICKSTART.md](docs/reference/WORKFLOW_QUICKSTART.md)
+for the first-adopter path.
+
 ## Architecture Snapshot
 
 ![AIGC Runtime Architecture](docs/architecture/diagrams/aigc_architecture_component_light.svg)
 
-Current architecture assets:
+Current-runtime architecture assets:
 
 - Component view:
   [docs/architecture/diagrams/aigc_architecture_component_light.svg](docs/architecture/diagrams/aigc_architecture_component_light.svg)
 - Pipeline view:
   [docs/architecture/diagrams/aigc_architecture_pipeline_light.svg](docs/architecture/diagrams/aigc_architecture_pipeline_light.svg)
-- Authoritative design narrative:
+
+Target-state / roadmap assets:
+
+- `1.0.0` target-state architecture contract:
   [docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md)
 
 ### How to read the diagram
@@ -51,6 +62,10 @@ Current architecture assets:
   output-side checks without changing gate order.
 - Audit sinks, signing, telemetry, and audit chaining are supporting layers
   around the enforcement core, not replacements for it.
+
+The high-level design document now serves a different purpose from this file:
+it captures the target-state `1.0.0` architecture contract. `PROJECT.md`
+remains the repo guide for the currently shipped runtime and release history.
 
 ### Runtime flow
 
@@ -98,6 +113,14 @@ aigc/
 │   ├── architecture/               High-level design, diagrams, threat model
 │   ├── design/                     Release design specs
 │   ├── decisions/                  ADRs for important design choices
+│   ├── reference/                  First-adopter workflow docs (v0.9.0-beta)
+│   │   ├── WORKFLOW_QUICKSTART.md  Start here for workflow governance
+│   │   ├── TROUBLESHOOTING.md      Doctor/lint guidance and reason codes
+│   │   ├── STARTER_INDEX.md        Profile index with links to recipes
+│   │   ├── STARTER_RECIPES.md      Per-profile commands and customization
+│   │   ├── WORKFLOW_CLI.md         CLI reference for shipped commands
+│   │   ├── SUPPORTED_ENVIRONMENTS.md  Python/OS matrix and requirements
+│   │   └── OPERATIONS_RUNBOOK.md   Test suite and validation commands
 ├── CHANGELOG.md                    User-facing release history
 ├── README.md                       First-stop overview and quick start
 └── PROJECT.md                      This repo guide
@@ -226,11 +249,15 @@ What hardened immediately after release:
 This release preserves the original gate ordering and unified-mode behavior
 while allowing hosts to block before token spend.
 
-### `0.3.3` — Governed agentic workflows
+### `0.3.3` — Workflow-aware provenance and lineage groundwork
 
 Released `2026-04-10`.
 
-`0.3.3` extends AIGC from invocation governance to workflow governance.
+`0.3.3` extends AIGC's invocation-governance runtime with provenance,
+lineage, and risk-trend primitives that future workflow governance will build
+on. The currently shipped package remains `v0.3.3`. The source-only `v0.9.0`
+beta line on local `develop` adds `GovernanceSession`,
+`SessionPreCallResult`, and `AIGC.open_session(...)`.
 
 What shipped:
 
@@ -257,10 +284,13 @@ Use the docs in this order if you are orienting yourself quickly:
 | [README.md](README.md) | First pass: what AIGC is, the current runtime surface, and how to install and call it |
 | [PROJECT.md](PROJECT.md) | Repo map, architecture snapshot, and release history |
 | [docs/USAGE.md](docs/USAGE.md) | Cookbook for common integration patterns and extension recipes |
-| [docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | Deep design and invariants |
+| [docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md](docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md) | Target-state `1.0.0` architecture contract and invariants |
 | [docs/INTEGRATION_GUIDE.md](docs/INTEGRATION_GUIDE.md) | Host integration patterns and split-mode behavior |
 | [policies/policy_dsl_spec.md](policies/policy_dsl_spec.md) | Policy authoring reference |
 | [CHANGELOG.md](CHANGELOG.md) | Detailed release notes and patch-level history |
+
+For v0.9.0-beta workflow governance, read the first-adopter docs in the
+order listed in the [README.md workflow section](README.md#workflow-governance-v090-beta).
 
 ## Notes for Repo Readers
 

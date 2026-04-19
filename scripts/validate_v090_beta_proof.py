@@ -1,0 +1,353 @@
+#!/usr/bin/env python3
+"""
+PR-07 clean-environment proof harness.
+
+Creates a fresh venv, installs the repo in editable mode, and runs the
+full quickstart journey end to end. In restricted-network environments the
+venv reuses the current interpreter's installed site-packages so the build
+backend and runtime dependencies are available without contacting an index.
+Exits 0 when all gates PASS within budget, exits 1 otherwise.
+
+Writes a JSON summary to stdout.
+
+Usage:
+    python scripts/validate_v090_beta_proof.py
+"""
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+import venv
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).parent.parent.resolve()
+BUDGET_SECONDS = 900  # 15-minute budget for the three success paths combined
+
+
+# ---------------------------------------------------------------------------
+# helpers
+# ---------------------------------------------------------------------------
+
+def _venv_python(venv_dir: Path) -> str:
+    bin_dir = venv_dir / ("Scripts" if sys.platform == "win32" else "bin")
+    suffix = ".exe" if sys.platform == "win32" else ""
+    return str(bin_dir / f"python{suffix}")
+
+
+def _venv_env(venv_dir: Path) -> dict:
+    env = os.environ.copy()
+    bin_dir = venv_dir / ("Scripts" if sys.platform == "win32" else "bin")
+    env["VIRTUAL_ENV"] = str(venv_dir)
+    env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
+    env.pop("PYTHONHOME", None)
+    return env
+
+
+def _run(cmd: list[str], env: dict | None = None, cwd: Path | None = None,
+         capture: bool = True) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        cmd,
+        capture_output=capture,
+        text=True,
+        env=env or os.environ.copy(),
+        cwd=str(cwd or REPO_ROOT),
+    )
+
+
+def _run_workflow_in_venv(
+    python: str, env: dict, workflow_py: Path, func_name: str, tmp_dir: Path
+) -> dict:
+    """Run a workflow function inside the venv Python; return the artifact dict.
+
+    Writes a thin runner script that imports the generated workflow_example.py,
+    calls ``func_name()``, and prints the artifact as JSON.  Executing the runner
+    via a subprocess ensures imports are resolved against the venv installation,
+    not the parent interpreter — which is the point of the clean-env proof.
+    """
+    runner = tmp_dir / f"_runner_{func_name}.py"
+    runner.write_text(
+        "import sys, json, importlib.util\n"
+        f"spec = importlib.util.spec_from_file_location('wf', {str(workflow_py)!r})\n"
+        "mod = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(mod)\n"
+        f"artifact = mod.{func_name}()\n"
+        "print(json.dumps(artifact))\n"
+    )
+    r = _run([python, str(runner)], env=env)
+    assert r.returncode == 0, (
+        f"Workflow runner for {func_name!r} exited {r.returncode}:\n{r.stderr}"
+    )
+    # Take the last non-empty line — workflow templates may print progress lines
+    # to stdout (e.g. approval simulation), so only the final json.dumps line is
+    # safe to parse as the artifact.
+    json_line = next(
+        (l for l in reversed(r.stdout.splitlines()) if l.strip()), ""
+    )
+    return json.loads(json_line)
+
+
+def _break_regulated_starter(workflow_py: Path) -> str:
+    original_source = workflow_py.read_text(encoding="utf-8")
+    broken_source = original_source.replace(
+        '                    "source_ids": ["doc-001", "doc-002"],\n',
+        "",
+    ).replace(
+        '                    "source_ids": ["analysis-step-1"],\n',
+        "",
+    )
+    assert broken_source != original_source, "regulated starter failure edit did not apply"
+    workflow_py.write_text(broken_source, encoding="utf-8")
+    return original_source
+
+
+def run_gate(name: str, fn) -> dict:
+    start = time.time()
+    error = None
+    passed = False
+    try:
+        fn()
+        passed = True
+    except AssertionError as exc:
+        error = str(exc)
+    except Exception as exc:
+        error = f"{type(exc).__name__}: {exc}"
+    elapsed = round(time.time() - start, 2)
+    status = "PASS" if passed else "FAIL"
+    print(f"  [{status}] {name} ({elapsed}s)" + (f" — {error}" if error else ""),
+          flush=True)
+    return {"gate": name, "passed": passed, "elapsed_s": elapsed, "error": error}
+
+
+def _emit_summary(gates: list[dict], success_elapsed: float) -> int:
+    print()
+    all_passed = all(g["passed"] for g in gates)
+    within_budget = success_elapsed <= BUDGET_SECONDS
+    summary = {
+        "summary": "PASS" if (all_passed and within_budget) else "FAIL",
+        "all_gates_passed": all_passed,
+        "total_success_path_elapsed_s": round(success_elapsed, 2),
+        "within_budget": within_budget,
+        "budget_seconds": BUDGET_SECONDS,
+        "gates": gates,
+    }
+    print(json.dumps(summary, indent=2))
+
+    if not within_budget:
+        print(
+            f"\nWARNING: success paths took {success_elapsed:.1f}s "
+            f"(budget: {BUDGET_SECONDS}s)",
+            file=sys.stderr,
+        )
+
+    return 0 if (all_passed and within_budget) else 1
+
+
+# ---------------------------------------------------------------------------
+# main
+# ---------------------------------------------------------------------------
+
+def main() -> int:
+    tmp_dir = Path(tempfile.mkdtemp(prefix="aigc_beta_proof_"))
+    venv_dir = tmp_dir / "venv"
+    gates: list[dict] = []
+    success_elapsed = 0.0
+
+    print(f"PR-07 clean-environment proof harness", flush=True)
+    print(f"Working dir: {tmp_dir}", flush=True)
+    print(f"Repo root:   {REPO_ROOT}", flush=True)
+    print()
+
+    # ------------------------------------------------------------------
+    # Gate 1: create venv and install
+    #
+    # Restricted-network proof path:
+    #   1. Create a fresh venv that reuses the current interpreter's
+    #      site-packages so setuptools / PyYAML / jsonschema stay available
+    #      without any index access.
+    #   2. Install the repo editable with --no-deps --no-build-isolation so
+    #      pip does not try to resolve or download anything.
+    #   3. Verify the imported aigc module resolves to this checkout, not to
+    #      a host-installed copy.
+    # ------------------------------------------------------------------
+    def gate_install():
+        print("  Creating virtual environment...", end="", flush=True)
+        venv.create(
+            str(venv_dir),
+            with_pip=True,
+            clear=True,
+            system_site_packages=True,
+        )
+        print(" done", flush=True)
+        python = _venv_python(venv_dir)
+        env = _venv_env(venv_dir)
+
+        print("  Installing package in editable mode...", end="", flush=True)
+        r = _run([python, "-m", "pip", "install", "--no-deps",
+                  "--no-build-isolation",
+                  "-e", str(REPO_ROOT), "-q"], env=env)
+        assert r.returncode == 0, f"pip install failed:\n{r.stderr}"
+        print(" done", flush=True)
+
+        probe = _run(
+            [
+                python,
+                "-c",
+                "import aigc; from pathlib import Path; "
+                "print(Path(aigc.__file__).resolve())",
+            ],
+            env=env,
+        )
+        assert probe.returncode == 0, (
+            "post-install import probe failed:\n"
+            f"{probe.stderr}"
+        )
+        imported = Path(probe.stdout.strip())
+        expected = (REPO_ROOT / "aigc" / "__init__.py").resolve()
+        assert imported == expected, (
+            "editable install did not import from the current checkout:\n"
+            f"expected {expected}\n"
+            f"got      {imported}"
+        )
+
+    install_gate = run_gate("venv_install", gate_install)
+    gates.append(install_gate)
+    if not install_gate["passed"]:
+        return _emit_summary(gates, success_elapsed)
+
+    env = _venv_env(venv_dir)
+    python = _venv_python(venv_dir)
+    regulated_original_source: str | None = None
+    regulated_dir = tmp_dir / "regulated"
+
+    # ------------------------------------------------------------------
+    # Gate 2: minimal quickstart
+    # ------------------------------------------------------------------
+    def gate_minimal():
+        nonlocal success_elapsed
+        d = tmp_dir / "minimal"
+        d.mkdir()
+        t0 = time.time()
+
+        r = _run([python, "-m", "aigc", "workflow", "init",
+                  "--profile", "minimal", "--output-dir", str(d)], env=env)
+        assert r.returncode == 0, f"aigc workflow init failed:\n{r.stderr}"
+
+        artifact = _run_workflow_in_venv(
+            python, env, d / "workflow_example.py", "run_minimal_workflow", tmp_dir
+        )
+
+        assert artifact["status"] == "COMPLETED", (
+            f"Expected COMPLETED, got {artifact['status']}"
+        )
+        assert len(artifact["steps"]) == 2, (
+            f"Expected 2 steps, got {len(artifact['steps'])}"
+        )
+        success_elapsed += time.time() - t0
+
+    gates.append(run_gate("minimal_quickstart", gate_minimal))
+
+    # ------------------------------------------------------------------
+    # Gate 3: standard quickstart
+    # ------------------------------------------------------------------
+    def gate_standard():
+        nonlocal success_elapsed
+        d = tmp_dir / "standard"
+        d.mkdir()
+        t0 = time.time()
+
+        r = _run([python, "-m", "aigc", "workflow", "init",
+                  "--profile", "standard", "--output-dir", str(d)], env=env)
+        assert r.returncode == 0, f"aigc workflow init failed:\n{r.stderr}"
+
+        artifact = _run_workflow_in_venv(
+            python, env, d / "workflow_example.py", "run_standard_workflow", tmp_dir
+        )
+
+        assert artifact["status"] == "COMPLETED", (
+            f"Expected COMPLETED, got {artifact['status']}"
+        )
+        assert len(artifact["steps"]) == 3, (
+            f"Expected 3 steps, got {len(artifact['steps'])}"
+        )
+        success_elapsed += time.time() - t0
+
+    gates.append(run_gate("standard_quickstart", gate_standard))
+
+    # ------------------------------------------------------------------
+    # Gate 4: regulated failure (intentional — must raise)
+    # ProvenanceGate runs at INSERTION_PRE_OUTPUT (inside enforce_step_post_call).
+    # ------------------------------------------------------------------
+    def gate_failure():
+        nonlocal regulated_original_source
+        regulated_dir.mkdir()
+
+        r = _run([python, "-m", "aigc", "workflow", "init",
+                  "--profile", "regulated-high-assurance", "--output-dir", str(regulated_dir)], env=env)
+        assert r.returncode == 0, f"aigc workflow init failed:\n{r.stderr}"
+        regulated_original_source = _break_regulated_starter(
+            regulated_dir / "workflow_example.py"
+        )
+
+        r = _run([python, str(regulated_dir / "workflow_example.py")], env=env)
+        assert r.returncode != 0, (
+            "Expected non-zero exit from broken regulated starter, "
+            f"got returncode={r.returncode}"
+        )
+
+    gates.append(run_gate("regulated_failure", gate_failure))
+
+    # ------------------------------------------------------------------
+    # Gate 5: doctor diagnosis
+    # ------------------------------------------------------------------
+    def gate_diagnosis():
+        r = _run([python, "-m", "aigc", "workflow", "doctor",
+                  str(regulated_dir), "--json"], env=env)
+        assert r.returncode == 0, (
+            f"aigc workflow doctor exited {r.returncode}:\n{r.stderr}"
+        )
+        findings = json.loads(r.stdout)
+        codes = [f["code"] for f in findings]
+        assert "WORKFLOW_SOURCE_REQUIRED" in codes, (
+            f"Expected WORKFLOW_SOURCE_REQUIRED in doctor findings. Got: {codes}\n"
+            f"Full output: {r.stdout}"
+        )
+
+    gates.append(run_gate("doctor_diagnosis", gate_diagnosis))
+
+    # ------------------------------------------------------------------
+    # Gate 6: regulated fix applied to the same starter directory -> COMPLETED
+    # ------------------------------------------------------------------
+    def gate_fix():
+        nonlocal success_elapsed
+        assert regulated_original_source is not None, (
+            "regulated starter source was not captured before the failure gate"
+        )
+        (regulated_dir / "workflow_example.py").write_text(
+            regulated_original_source,
+            encoding="utf-8",
+        )
+        t0 = time.time()
+
+        artifact = _run_workflow_in_venv(
+            python, env, regulated_dir / "workflow_example.py", "run_regulated_workflow", tmp_dir
+        )
+
+        assert artifact["status"] == "COMPLETED", (
+            f"Expected COMPLETED after fix, got {artifact['status']}"
+        )
+        success_elapsed += time.time() - t0
+
+    gates.append(run_gate("regulated_fix_rerun", gate_fix))
+
+    # ------------------------------------------------------------------
+    # Summary
+    # ------------------------------------------------------------------
+    return _emit_summary(gates, success_elapsed)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

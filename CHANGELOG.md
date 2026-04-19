@@ -5,9 +5,30 @@ All notable changes to AIGC are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
----
-
 ## [0.3.3] — 2026-04-10
+
+### Source-Only `v0.9.0` Beta Track Note
+
+The repo also contains a source-only `v0.9.0` beta workflow-governance line on
+local `develop`. The published package version remains `0.3.3` until the beta
+release train reaches PR-11 and a `release/v0.9.0` cut is made.
+
+Beta-only surfaces currently available from source:
+
+- `AIGC.open_session(...)`, `GovernanceSession`, `SessionPreCallResult`
+- `aigc workflow init`, `aigc policy init`, `aigc workflow lint`,
+  `aigc workflow doctor`
+- starter scaffolds, migration docs, beta proof harness, and workflow demo lab
+
+Still deferred beyond the current beta public surface:
+
+- `aigc workflow trace`
+- `aigc workflow export`
+- `AgentIdentity`
+- `AgentCapabilityManifest`
+- `ValidatorHook` as a public API
+- `BedrockTraceAdapter`
+- `A2AAdapter`
 
 ### Added
 
@@ -61,6 +82,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Split enforcement (Phase A before the model call, Phase B after) is the standard
   execution model for `v0.3.3+`. Existing call sites that omit `pre_call_enforcement`
   will now run in split mode.
+- Release-facing runtime docs now advertise the current verification baseline:
+  `1372 tests`, coverage above the `90%` CI gate, and audit schema `v1.4`.
 
   **Migration:** No change required for call sites that already pass
   `pre_call_enforcement=True`. Call sites that rely on unified mode must add

@@ -33,7 +33,7 @@ no further public-surface work proceeds until the default path is repaired.
 
 ## Current State
 
-- PR-01 through PR-08 are complete on local `develop`.
+- PR-01 through PR-09 are complete on local `develop`.
 - The source-only `v0.9.0` beta path currently ships:
   - `AIGC.open_session(...)`
   - `GovernanceSession`
@@ -42,6 +42,8 @@ no further public-surface work proceeds until the default path is repaired.
   - `aigc policy init`
   - `aigc workflow lint`
   - `aigc workflow doctor`
+  - `aigc workflow trace`
+  - `aigc workflow export`
 - The default adopter path succeeds without Bedrock or A2A.
 - `ValidatorHook` is implemented as an internal engine capability in PR-08. It
   is not a public beta surface.

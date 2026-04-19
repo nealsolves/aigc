@@ -52,11 +52,14 @@ def reconstruct_trace(
         else None
     )
 
-    unresolved = [
-        s["invocation_artifact_checksum"]
-        for s in steps
-        if not s["resolved"] and s["invocation_artifact_checksum"]
-    ]
+    # Union of invocation_audit_checksums and step references so trace and
+    # export report the same unresolved set even when those sources diverge.
+    expected: set[str] = set(workflow_artifact.get("invocation_audit_checksums", []))
+    for step in raw_steps:
+        cs = step.get("invocation_artifact_checksum")
+        if cs:
+            expected.add(cs)
+    unresolved = sorted(expected - set(inv_by_cs.keys()))
 
     return {
         "trace_schema_version": TRACE_SCHEMA_VERSION,

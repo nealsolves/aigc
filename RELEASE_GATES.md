@@ -102,7 +102,7 @@ no further public-surface work proceeds until the default path is repaired.
 - [ ] PR-01 through PR-10 work is merged to `origin/develop`
 - [x] the golden-path contract is frozen before later public-surface expansion
 - [x] quickstart, starters, migration, diagnostics, beta proof, and engine hardening are test-backed on local `develop`
-- [ ] PR-09 operator polish lands
+- [x] PR-09 operator polish lands
 - [ ] optional adapter work lands
 - [ ] `feat/v0.9-11-beta-freeze` lands
 - [ ] `release/v0.9.0` is cut from the PR-11 result

@@ -375,9 +375,14 @@ def _cmd_workflow_trace(args: argparse.Namespace) -> int:
                 try:
                     artifact = json.loads(line)
                 except json.JSONDecodeError:
-                    continue
+                    print(f"ERROR: malformed JSONL line (not valid JSON): {line!r}", file=sys.stderr)
+                    return 1
                 if not isinstance(artifact, dict):
-                    continue
+                    print(
+                        f"ERROR: malformed JSONL line (not a JSON object, got {type(artifact).__name__}): {line!r}",
+                        file=sys.stderr,
+                    )
+                    return 1
                 if artifact.get("artifact_type") == "workflow":
                     workflow_artifacts.append(artifact)
                 else:
@@ -431,9 +436,14 @@ def _cmd_workflow_export(args: argparse.Namespace) -> int:
                 try:
                     artifact = json.loads(line)
                 except json.JSONDecodeError:
-                    continue
+                    print(f"ERROR: malformed JSONL line (not valid JSON): {line!r}", file=sys.stderr)
+                    return 1
                 if not isinstance(artifact, dict):
-                    continue
+                    print(
+                        f"ERROR: malformed JSONL line (not a JSON object, got {type(artifact).__name__}): {line!r}",
+                        file=sys.stderr,
+                    )
+                    return 1
                 if artifact.get("artifact_type") == "workflow":
                     workflow_artifacts.append(artifact)
                 else:

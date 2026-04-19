@@ -222,7 +222,7 @@ class TestWorkflowTraceCLI:
         finally:
             os.unlink(path)
 
-    def test_trace_skips_malformed_jsonl_lines(self, capsys):
+    def test_trace_fails_on_malformed_jsonl_line(self, capsys):
         f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
         f.write("{not valid json}\n")
         f.write(json.dumps(WORKFLOW_ARTIFACT) + "\n")
@@ -230,10 +230,22 @@ class TestWorkflowTraceCLI:
         f.close()
         try:
             rc = cli_main(["workflow", "trace", "--input", f.name])
-            assert rc == 0
-            out = capsys.readouterr().out
-            traces = json.loads(out)
-            assert len(traces) == 1
+            assert rc == 1
+            err = capsys.readouterr().err
+            assert "malformed JSONL" in err
+        finally:
+            os.unlink(f.name)
+
+    def test_trace_fails_on_non_dict_jsonl_line(self, capsys):
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        f.write("[1, 2, 3]\n")  # valid JSON but not an object
+        f.write(json.dumps(WORKFLOW_ARTIFACT) + "\n")
+        f.close()
+        try:
+            rc = cli_main(["workflow", "trace", "--input", f.name])
+            assert rc == 1
+            err = capsys.readouterr().err
+            assert "malformed JSONL" in err
         finally:
             os.unlink(f.name)
 

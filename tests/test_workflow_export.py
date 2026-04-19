@@ -284,6 +284,32 @@ class TestWorkflowExportCLI:
         finally:
             os.unlink(path)
 
+    def test_export_fails_on_malformed_jsonl_line(self, capsys):
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        f.write("{not valid json}\n")
+        f.write(json.dumps(WORKFLOW_ARTIFACT) + "\n")
+        f.close()
+        try:
+            rc = cli_main(["workflow", "export", "--input", f.name, "--mode", "operator"])
+            assert rc == 1
+            err = capsys.readouterr().err
+            assert "malformed JSONL" in err
+        finally:
+            os.unlink(f.name)
+
+    def test_export_fails_on_non_dict_jsonl_line(self, capsys):
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        f.write("[1, 2, 3]\n")  # valid JSON but not an object
+        f.write(json.dumps(WORKFLOW_ARTIFACT) + "\n")
+        f.close()
+        try:
+            rc = cli_main(["workflow", "export", "--input", f.name, "--mode", "audit"])
+            assert rc == 1
+            err = capsys.readouterr().err
+            assert "malformed JSONL" in err
+        finally:
+            os.unlink(f.name)
+
     def test_corrupt_steps_in_workflow_artifact_exits_1(self):
         corrupt_wa = {
             **WORKFLOW_ARTIFACT,
@@ -295,6 +321,68 @@ class TestWorkflowExportCLI:
             assert rc == 1
         finally:
             os.unlink(path)
+
+
+class TestExportIntegrityStepReferenceParity:
+    """Regression tests for F-01: export unresolved set must include step references
+    absent from invocation_audit_checksums, keeping trace/export accounting aligned."""
+
+    def test_step_ref_absent_from_summary_list_is_unresolved(self):
+        # steps[0] references a checksum that was never added to invocation_audit_checksums.
+        # Export must still report it unresolved (same as trace would).
+        orphan_cs = "f" * 64
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [
+                {"step_id": "step-1", "participant_id": "agent", "invocation_artifact_checksum": orphan_cs}
+            ],
+            "invocation_audit_checksums": [],  # summary list intentionally empty
+        }
+        result = export_workflow([wa], [], "operator")
+        assert result["integrity"]["unresolved_count"] == 1
+        assert orphan_cs in result["integrity"]["unresolved_invocation_checksums"]
+
+    def test_step_ref_absent_from_summary_list_is_unresolved_audit_mode(self):
+        orphan_cs = "e" * 64
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [
+                {"step_id": "step-1", "participant_id": "agent", "invocation_artifact_checksum": orphan_cs}
+            ],
+            "invocation_audit_checksums": [],
+        }
+        result = export_workflow([wa], [], "audit")
+        assert result["integrity"]["unresolved_count"] == 1
+        assert orphan_cs in result["integrity"]["unresolved_invocation_checksums"]
+
+    def test_step_ref_provided_as_artifact_resolves(self):
+        # When the artifact is supplied, a step ref absent from invocation_audit_checksums
+        # is still resolved because export now checks step references directly.
+        orphan_inv = {**INV_ARTIFACT, "timestamp": 9999999}
+        orphan_cs = _cs(orphan_inv)
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [
+                {"step_id": "step-1", "participant_id": "agent", "invocation_artifact_checksum": orphan_cs}
+            ],
+            "invocation_audit_checksums": [],
+        }
+        result = export_workflow([wa], [orphan_inv], "operator")
+        assert result["integrity"]["unresolved_count"] == 0
+        assert result["integrity"]["unresolved_invocation_checksums"] == []
+
+    def test_summary_list_ref_absent_from_steps_is_still_unresolved(self):
+        # A checksum in invocation_audit_checksums but with no matching artifact
+        # must remain unresolved regardless of step presence.
+        extra_cs = "d" * 64
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [],
+            "invocation_audit_checksums": [extra_cs],
+        }
+        result = export_workflow([wa], [], "operator")
+        assert result["integrity"]["unresolved_count"] == 1
+        assert extra_cs in result["integrity"]["unresolved_invocation_checksums"]
 
 
 class TestChecksumCorrelationParityExport:

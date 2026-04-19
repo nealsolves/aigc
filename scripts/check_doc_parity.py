@@ -1984,6 +1984,9 @@ _PR09_STALE_PATTERNS = [
     "planned for PR-09",
     "not started | Trace, export",
     "Begins in PR-09",
+    # pr_context.md header/status lines written when PR-09 had not yet started
+    "Between PR-08 And PR-09",
+    "PR-09 has not started",
 ]
 
 # Positive anchors that MUST appear in the CLI reference doc
@@ -1993,6 +1996,15 @@ _PR09_CLI_REF_ANCHORS = [
     "--mode operator",
     "--mode audit",
 ]
+
+# Positive anchors that MUST appear in the HLD v0.9.0 beta surface table
+_PR09_HLD_BETA_ANCHORS = [
+    "workflow trace",
+    "workflow export",
+]
+
+# HLD section header that delimits the planned-only surface table
+_HLD_PLANNED_SECTION_HEADER = "Planned for 1.0.0 or later"
 
 
 def check_v090_pr09_contract() -> list[str]:
@@ -2011,6 +2023,33 @@ def check_v090_pr09_contract() -> list[str]:
                 errors.append(
                     f"{pfx} {rel}: still contains stale pre-PR-09 language: {stale!r}"
                 )
+
+    # HLD must list trace/export in the v0.9.0 beta surface table and must NOT
+    # list them under the "Planned for 1.0.0 or later" section.
+    hld_path = REPO_ROOT / "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md"
+    if hld_path.exists():
+        hld_text = hld_path.read_text(encoding="utf-8")
+        for anchor in _PR09_HLD_BETA_ANCHORS:
+            if anchor not in hld_text:
+                errors.append(
+                    f"{pfx} AIGC_HIGH_LEVEL_DESIGN.md: missing shipped surface {anchor!r}"
+                )
+        # Isolate the planned-only section to check it does not contain trace/export.
+        if _HLD_PLANNED_SECTION_HEADER in hld_text:
+            planned_start = hld_text.index(_HLD_PLANNED_SECTION_HEADER)
+            # The planned section ends at the next level-3 heading (###)
+            next_heading = hld_text.find("\n###", planned_start + 1)
+            planned_block = (
+                hld_text[planned_start:next_heading]
+                if next_heading != -1
+                else hld_text[planned_start:]
+            )
+            for anchor in _PR09_HLD_BETA_ANCHORS:
+                if anchor in planned_block:
+                    errors.append(
+                        f"{pfx} AIGC_HIGH_LEVEL_DESIGN.md: {anchor!r} still listed under "
+                        f"{_HLD_PLANNED_SECTION_HEADER!r} — move it to the v0.9.0 beta surface table"
+                    )
 
     # CLI reference must document both commands
     cli_ref = REPO_ROOT / "docs/reference/WORKFLOW_CLI.md"

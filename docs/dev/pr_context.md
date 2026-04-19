@@ -1,8 +1,8 @@
-# PR Context — `v0.9.0` Between PR-08 And PR-09
+# PR Context — `v0.9.0` PR-09 exports-and-ops
 
-Date: 2026-04-18
-Status: `develop` contains PR-01 through PR-08; PR-09 has not started
-Active branch: `develop`
+Date: 2026-04-19
+Status: `feat/v0.9-09-exports-and-ops` contains PR-01 through PR-09
+Active branch: `feat/v0.9-09-exports-and-ops`
 
 ---
 

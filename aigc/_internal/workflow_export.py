@@ -54,9 +54,17 @@ def export_workflow(
 
     inv_by_cs: dict[str, dict[str, Any]] = {_checksum(a): a for a in invocation_artifacts}
 
+    # Derive expected checksums from both the top-level summary list and actual step
+    # references so trace and export report the same unresolved set even when the two
+    # sources diverge (e.g. a corrupt artifact whose steps[] references a checksum that
+    # was never added to invocation_audit_checksums).
     expected: set[str] = set()
     for wa in workflow_artifacts:
         expected.update(wa.get("invocation_audit_checksums", []))
+        for step in wa.get("steps", []):
+            cs = step.get("invocation_artifact_checksum")
+            if cs:
+                expected.add(cs)
     unresolved = sorted(expected - set(inv_by_cs.keys()))
 
     if mode == "operator":

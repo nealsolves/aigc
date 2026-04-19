@@ -86,6 +86,13 @@ class ValidatorHook(abc.ABC):
         DENY and REVIEW_REQUIRED decisions are never retried automatically.
 
     Hook contract: evaluate() must not raise and must not mutate envelope.invocation.
+
+    Thread lifetime warning: once timeout_ms elapses, _invoke_hook() returns a
+    TIMEOUT result (fail-closed) and abandons the evaluate() thread. The thread
+    continues running as a daemon until it returns naturally or the process exits.
+    Implementations must be written to be safe under that condition — they may
+    produce side effects or consume resources past the timeout window the caller
+    observes.
     """
 
     hook_id: str

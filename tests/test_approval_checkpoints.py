@@ -177,7 +177,8 @@ def test_complete_with_pending_checkpoint_raises():
             # deliberately skip resume() — checkpoint remains pending
             session.complete()
     assert exc_info.value.code == "WORKFLOW_INVALID_TRANSITION"
-    assert exc_info.value.details["pending_checkpoint_id"] == "chk-pending"
+    assert exc_info.value.details["unresolved_checkpoint_id"] == "chk-pending"
+    assert exc_info.value.details["checkpoint_status"] == "pending"
 
 
 def test_complete_with_all_checkpoints_resolved_succeeds():

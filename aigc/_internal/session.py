@@ -76,6 +76,10 @@ class SessionPreCallResult:
     step_id: str
     participant_id: str | None
     _token_id: str = field(repr=False)
+    # Frozen bypass: _consumed starts False and is set to True exactly once by
+    # the owning GovernanceSession via object.__setattr__. The frozen constraint
+    # is intentional for all other fields; this field is lifecycle state, not
+    # immutable data.
     _consumed: bool = field(default=False, init=False, repr=False)
 
 
@@ -442,7 +446,8 @@ class GovernanceSession:
                     f" {rec['checkpoint_id']!r} (status={rec['status']!r})",
                     details={
                         "session_id": self._session_id,
-                        "pending_checkpoint_id": rec["checkpoint_id"],
+                        "unresolved_checkpoint_id": rec["checkpoint_id"],
+                        "checkpoint_status": rec["status"],
                     },
                 )
         self._transition(STATE_COMPLETED)

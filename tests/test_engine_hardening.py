@@ -373,6 +373,18 @@ def test_child_cannot_widen_participants():
         load_policy("tests/test_policies/composition_p4_widen_participants.yaml")
 
 
+def test_child_cannot_clear_participants_explicit_empty():
+    """Child cannot set participants: [] when base declares participants — disables enforcement."""
+    with pytest.raises(PolicyValidationError, match="clears all participants"):
+        load_policy("tests/test_policies/composition_p4_clear_participants.yaml")
+
+
+def test_child_cannot_drop_participants_via_replace():
+    """Child cannot drop participants key under replace strategy — merged result would be empty."""
+    with pytest.raises(PolicyValidationError, match="clears all participants"):
+        load_policy("tests/test_policies/composition_p4_drop_participants_replace.yaml")
+
+
 def test_child_cannot_widen_participant_protocols():
     """Child cannot widen protocols for a participant."""
     with pytest.raises(PolicyValidationError, match="escalation"):

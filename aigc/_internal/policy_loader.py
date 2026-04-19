@@ -334,6 +334,14 @@ def _validate_composition_restriction(
     # Participant narrowing check: child participants (by id) must be ⊆ base participants
     base_participants = {p["id"] for p in (base_wf.get("participants") or [])}
     child_participants = {p["id"] for p in (child_wf.get("participants") or [])}
+    merged_participants = {p["id"] for p in (merged_wf.get("participants") or [])}
+    if base_participants and not merged_participants:
+        # Removal-to-empty: cleared participants disable enforcement entirely
+        raise PolicyValidationError(
+            "Composition escalation: child policy clears all participants declared in base, "
+            "disabling participant enforcement",
+            details={"base_participant_ids": sorted(base_participants)},
+        )
     if base_participants and (added := sorted(child_participants - base_participants)):
         raise PolicyValidationError(
             f"Composition escalation: child policy adds participants not in base: {added}",

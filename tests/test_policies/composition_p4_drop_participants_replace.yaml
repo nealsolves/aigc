@@ -1,0 +1,9 @@
+extends: composition_p4_base.yaml
+composition_strategy: replace
+policy_version: "1.0"
+roles:
+  - planner
+  - reviewer
+workflow:
+  max_steps: 10
+  max_total_tool_calls: 50

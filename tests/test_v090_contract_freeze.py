@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 import aigc
-from aigc import AIGC, PreCallResult
+from aigc import PreCallResult
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]

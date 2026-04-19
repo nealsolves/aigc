@@ -3,7 +3,6 @@ PR-08 ValidatorHook interface tests: contract shape, decision types, session int
 """
 from __future__ import annotations
 import time
-import threading
 import uuid
 import pytest
 
@@ -50,6 +49,10 @@ def test_validator_hook_importable_from_internal():
         VALIDATOR_ALLOW, VALIDATOR_DENY,
     )
     assert ValidatorHook is not None
+    assert ValidatorHookEnvelope is not None
+    assert ValidatorHookResult is not None
+    assert isinstance(VALIDATOR_ALLOW, str)
+    assert isinstance(VALIDATOR_DENY, str)
 
 
 # ---------------------------------------------------------------------------
@@ -548,8 +551,12 @@ def test_multi_hook_each_gets_own_deadline():
         session.complete()
 
     # Verify each hook received its own deadline
-    assert Hook1.received_deadline == 200, f"Hook1 should receive deadline_ms=200, got {Hook1.received_deadline}"
-    assert Hook2.received_deadline == 800, f"Hook2 should receive deadline_ms=800, got {Hook2.received_deadline}"
+    assert Hook1.received_deadline == 200, (
+        f"Hook1 should receive deadline_ms=200, got {Hook1.received_deadline}"
+    )
+    assert Hook2.received_deadline == 800, (
+        f"Hook2 should receive deadline_ms=800, got {Hook2.received_deadline}"
+    )
     assert session.workflow_artifact["status"] == "COMPLETED"
 
 

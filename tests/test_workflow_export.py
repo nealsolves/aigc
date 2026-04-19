@@ -2,10 +2,14 @@
 """Tests for workflow export (operator and audit modes)."""
 import hashlib
 import json
+import os
+import tempfile
+from pathlib import Path
 
 import pytest
 
 from aigc._internal.workflow_export import export_workflow
+from aigc._internal.cli import main as cli_main
 
 
 def _cs(artifact):
@@ -175,3 +179,94 @@ class TestExportValidation:
         result = export_workflow([], [], "operator")
         assert result["sessions"] == []
         assert result["integrity"]["total_workflow_artifacts"] == 0
+
+
+class TestWorkflowExportCLI:
+    def _write_jsonl(self, artifacts):
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        for a in artifacts:
+            f.write(json.dumps(a) + "\n")
+        f.close()
+        return f.name
+
+    def test_operator_mode_exits_0(self):
+        path = self._write_jsonl([WORKFLOW_ARTIFACT, INV_ARTIFACT])
+        try:
+            rc = cli_main(["workflow", "export", "--input", path, "--mode", "operator"])
+            assert rc == 0
+        finally:
+            os.unlink(path)
+
+    def test_audit_mode_exits_0(self):
+        path = self._write_jsonl([WORKFLOW_ARTIFACT, INV_ARTIFACT])
+        try:
+            rc = cli_main(["workflow", "export", "--input", path, "--mode", "audit"])
+            assert rc == 0
+        finally:
+            os.unlink(path)
+
+    def test_operator_output_valid_json(self, capsys):
+        path = self._write_jsonl([WORKFLOW_ARTIFACT, INV_ARTIFACT])
+        try:
+            cli_main(["workflow", "export", "--input", path, "--mode", "operator"])
+            out = capsys.readouterr().out
+            result = json.loads(out)
+            assert result["export_mode"] == "operator"
+            assert result["export_schema_version"] == "0.9.0"
+        finally:
+            os.unlink(path)
+
+    def test_audit_output_valid_json(self, capsys):
+        path = self._write_jsonl([WORKFLOW_ARTIFACT, INV_ARTIFACT])
+        try:
+            cli_main(["workflow", "export", "--input", path, "--mode", "audit"])
+            out = capsys.readouterr().out
+            result = json.loads(out)
+            assert result["export_mode"] == "audit"
+            assert "compliance_summary" in result
+        finally:
+            os.unlink(path)
+
+    def test_file_output_written(self, tmp_path):
+        jsonl_path = self._write_jsonl([WORKFLOW_ARTIFACT, INV_ARTIFACT])
+        out_path = str(tmp_path / "export.json")
+        try:
+            rc = cli_main(
+                ["workflow", "export", "--input", jsonl_path, "--mode", "audit", "--output", out_path]
+            )
+            assert rc == 0
+            data = json.loads(Path(out_path).read_text())
+            assert data["export_mode"] == "audit"
+        finally:
+            os.unlink(jsonl_path)
+
+    def test_missing_input_exits_1(self):
+        rc = cli_main(["workflow", "export", "--input", "/no/file.jsonl", "--mode", "operator"])
+        assert rc == 1
+
+    def test_no_workflow_artifacts_exits_1(self):
+        path = self._write_jsonl([INV_ARTIFACT])  # no workflow artifact
+        try:
+            rc = cli_main(["workflow", "export", "--input", path, "--mode", "operator"])
+            assert rc == 1
+        finally:
+            os.unlink(path)
+
+    def test_unresolved_checksums_in_operator_export(self, capsys):
+        path = self._write_jsonl([WORKFLOW_ARTIFACT])  # workflow artifact only
+        try:
+            cli_main(["workflow", "export", "--input", path, "--mode", "operator"])
+            out = capsys.readouterr().out
+            result = json.loads(out)
+            assert result["integrity"]["unresolved_count"] == 1
+        finally:
+            os.unlink(path)
+
+    def test_export_exits_0_with_unresolved_checksums(self):
+        # Unresolved checksums are advisory — CLI must still exit 0
+        path = self._write_jsonl([WORKFLOW_ARTIFACT])
+        try:
+            rc = cli_main(["workflow", "export", "--input", path, "--mode", "audit"])
+            assert rc == 0
+        finally:
+            os.unlink(path)

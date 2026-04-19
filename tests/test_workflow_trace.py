@@ -13,10 +13,9 @@ from aigc._internal.cli import main as cli_main
 
 
 def _cs(artifact):
-    """Canonical checksum matching audit.checksum()."""
-    return hashlib.sha256(
-        json.dumps(artifact, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
+    """Canonical checksum — must match audit.checksum() and session._checksum()."""
+    from aigc._internal.utils import canonical_json_bytes
+    return hashlib.sha256(canonical_json_bytes(artifact)).hexdigest()
 
 
 INV_ARTIFACT = {
@@ -246,3 +245,68 @@ class TestWorkflowTraceCLI:
             assert rc == 0
         finally:
             os.unlink(path)
+
+    def test_unwritable_output_path_exits_1(self):
+        path = self._write_jsonl([WORKFLOW_ARTIFACT, INV_ARTIFACT])
+        try:
+            rc = cli_main([
+                "workflow", "trace",
+                "--input", path,
+                "--output", "/nonexistent-parent-dir/trace.json",
+            ])
+            assert rc == 1
+        finally:
+            os.unlink(path)
+
+    def test_corrupt_steps_in_workflow_artifact_exits_1(self):
+        corrupt_wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [123, {"step_id": "s2", "participant_id": "p2", "invocation_artifact_checksum": "b" * 64}],
+        }
+        path = self._write_jsonl([corrupt_wa, INV_ARTIFACT])
+        try:
+            rc = cli_main(["workflow", "trace", "--input", path])
+            assert rc == 1
+        finally:
+            os.unlink(path)
+
+
+class TestChecksumCorrelationParity:
+    """Regression tests for F-01: session._checksum and audit.checksum must agree."""
+
+    def test_integer_valued_float_resolves_correctly(self):
+        """Artifact with risk_score=1.0 must correlate — integer-valued float parity."""
+        inv_with_float = {**INV_ARTIFACT, "risk_score": 1.0}
+        cs = _cs(inv_with_float)
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [{"step_id": "s1", "participant_id": None, "invocation_artifact_checksum": cs}],
+            "invocation_audit_checksums": [cs],
+        }
+        trace = reconstruct_trace(wa, [inv_with_float])
+        assert trace["steps"][0]["resolved"] is True
+        assert trace["unresolved_checksums"] == []
+
+    def test_non_ascii_content_resolves_correctly(self):
+        """Artifact with non-ASCII text must correlate via UTF-8 canonical bytes."""
+        inv_unicode = {**INV_ARTIFACT, "context": {"note": "résumé — 日本語"}}
+        cs = _cs(inv_unicode)
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [{"step_id": "s1", "participant_id": None, "invocation_artifact_checksum": cs}],
+            "invocation_audit_checksums": [cs],
+        }
+        trace = reconstruct_trace(wa, [inv_unicode])
+        assert trace["steps"][0]["resolved"] is True
+        assert trace["unresolved_checksums"] == []
+
+    def test_checksum_helpers_agree_on_plain_artifact(self):
+        """canonical_json_bytes path and audit.checksum must agree on a plain artifact."""
+        from aigc._internal.audit import checksum as audit_checksum
+        assert _cs(INV_ARTIFACT) == audit_checksum(INV_ARTIFACT)
+
+    def test_checksum_helpers_agree_on_integer_float(self):
+        """canonical_json_bytes path and audit.checksum must agree for risk_score=1.0."""
+        from aigc._internal.audit import checksum as audit_checksum
+        inv = {**INV_ARTIFACT, "risk_score": 1.0}
+        assert _cs(inv) == audit_checksum(inv)

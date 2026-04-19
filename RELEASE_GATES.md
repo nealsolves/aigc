@@ -69,11 +69,14 @@ no further public-surface work proceeds until the default path is repaired.
 - [x] workflow-step exceptions raised by public session methods are catchable through `aigc` and `aigc.errors`
 - [x] failed Phase B attempts clean up session tokens deterministically
 
-## Deferred To PR-09 And Later
+## PR-09 — Exports and Ops Gate
 
-- [ ] `aigc workflow trace`
-- [ ] `aigc workflow export`
-- [ ] operator-facing export portability and timeline reconstruction
+- [x] `aigc workflow trace` — timeline reconstruction from workflow and invocation artifacts
+- [x] `aigc workflow export` — operator and audit export modes with checksum integrity reporting
+- [x] operator-facing export portability and timeline reconstruction
+
+## Deferred To PR-10 And Later
+
 - [ ] optional Bedrock and A2A adapter tracks
 
 ---

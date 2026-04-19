@@ -43,6 +43,15 @@ def export_workflow(
     if mode not in ("operator", "audit"):
         raise ValueError(f"Unknown export mode: {mode!r}. Use 'operator' or 'audit'.")
 
+    for wa_idx, wa in enumerate(workflow_artifacts):
+        for i, step in enumerate(wa.get("steps", [])):
+            if not isinstance(step, dict):
+                raise ValueError(
+                    f"Corrupt workflow artifact at index {wa_idx}: steps[{i}] is not an object "
+                    f"(type={type(step).__name__!r}). "
+                    f"Run 'aigc workflow lint' to diagnose."
+                )
+
     inv_by_cs: dict[str, dict[str, Any]] = {_checksum(a): a for a in invocation_artifacts}
 
     expected: set[str] = set()
@@ -64,8 +73,6 @@ def _build_operator(
     for wa in workflow_artifacts:
         enriched = []
         for step in wa.get("steps", []):
-            if not isinstance(step, dict):
-                continue
             cs = step.get("invocation_artifact_checksum")
             enriched.append({**step, "invocation_artifact": inv_by_cs.get(cs) if cs else None})
         sessions.append({**wa, "steps": enriched})
@@ -96,8 +103,6 @@ def _build_audit(
         counts[status] = counts.get(status, 0) + 1
         step_summaries = []
         for step in wa.get("steps", []):
-            if not isinstance(step, dict):
-                continue
             cs = step.get("invocation_artifact_checksum")
             inv = inv_by_cs.get(cs) if cs else None
             step_summaries.append({

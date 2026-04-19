@@ -22,10 +22,17 @@ def reconstruct_trace(
         _checksum(a): a for a in invocation_artifacts
     }
 
-    steps: list[dict[str, Any]] = []
-    for i, step in enumerate(workflow_artifact.get("steps", [])):
+    raw_steps = workflow_artifact.get("steps", [])
+    for i, step in enumerate(raw_steps):
         if not isinstance(step, dict):
-            continue
+            raise ValueError(
+                f"Corrupt workflow artifact: steps[{i}] is not an object "
+                f"(type={type(step).__name__!r}). "
+                f"Run 'aigc workflow lint' to diagnose."
+            )
+
+    steps: list[dict[str, Any]] = []
+    for i, step in enumerate(raw_steps):
         cs = step.get("invocation_artifact_checksum")
         inv = inv_by_cs.get(cs) if cs else None
         steps.append({

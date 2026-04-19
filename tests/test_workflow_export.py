@@ -13,9 +13,9 @@ from aigc._internal.cli import main as cli_main
 
 
 def _cs(artifact):
-    return hashlib.sha256(
-        json.dumps(artifact, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
+    """Canonical checksum — must match audit.checksum() and session._checksum()."""
+    from aigc._internal.utils import canonical_json_bytes
+    return hashlib.sha256(canonical_json_bytes(artifact)).hexdigest()
 
 
 INV_ARTIFACT = {
@@ -270,3 +270,56 @@ class TestWorkflowExportCLI:
             assert rc == 0
         finally:
             os.unlink(path)
+
+    def test_unwritable_output_path_exits_1(self):
+        path = self._write_jsonl([WORKFLOW_ARTIFACT, INV_ARTIFACT])
+        try:
+            rc = cli_main([
+                "workflow", "export",
+                "--input", path,
+                "--mode", "operator",
+                "--output", "/nonexistent-parent-dir/export.json",
+            ])
+            assert rc == 1
+        finally:
+            os.unlink(path)
+
+    def test_corrupt_steps_in_workflow_artifact_exits_1(self):
+        corrupt_wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [123, {"step_id": "s2", "participant_id": "p2", "invocation_artifact_checksum": "b" * 64}],
+        }
+        path = self._write_jsonl([corrupt_wa, INV_ARTIFACT])
+        try:
+            rc = cli_main(["workflow", "export", "--input", path, "--mode", "audit"])
+            assert rc == 1
+        finally:
+            os.unlink(path)
+
+
+class TestChecksumCorrelationParityExport:
+    """Regression tests for F-01: integer-valued float checksums must resolve in export."""
+
+    def test_integer_valued_float_resolves_in_operator_export(self):
+        inv_with_float = {**INV_ARTIFACT, "risk_score": 1.0}
+        cs = _cs(inv_with_float)
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [{"step_id": "s1", "participant_id": None, "invocation_artifact_checksum": cs}],
+            "invocation_audit_checksums": [cs],
+        }
+        result = export_workflow([wa], [inv_with_float], "operator")
+        assert result["integrity"]["unresolved_count"] == 0
+        assert result["integrity"]["unresolved_invocation_checksums"] == []
+
+    def test_integer_valued_float_resolves_in_audit_export(self):
+        inv_with_float = {**INV_ARTIFACT, "risk_score": 1.0}
+        cs = _cs(inv_with_float)
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [{"step_id": "s1", "participant_id": None, "invocation_artifact_checksum": cs}],
+            "invocation_audit_checksums": [cs],
+        }
+        result = export_workflow([wa], [inv_with_float], "audit")
+        assert result["integrity"]["unresolved_count"] == 0
+        assert result["sessions"][0]["steps"][0]["enforcement_result"] == "PASS"

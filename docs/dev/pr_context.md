@@ -52,7 +52,7 @@ no further public-surface work proceeds until the default path is repaired.
 - Invocation artifacts remain separate from workflow/session artifacts.
 - Public examples, docs, starters, presets, and demo code must use public
   `aigc` imports only and must not import from `aigc._internal`.
-- `aigc workflow trace` and `aigc workflow export` remain unshipped until PR-09.
+- `aigc workflow trace` and `aigc workflow export` shipped in PR-09.
 - `AgentIdentity`, `AgentCapabilityManifest`, `BedrockTraceAdapter`, and
   `A2AAdapter` remain later-track surfaces.
 
@@ -69,10 +69,17 @@ no further public-surface work proceeds until the default path is repaired.
 - Session post-call attempts now clean up session tokens deterministically on
   failure instead of leaving dead pending tokens behind.
 
+## PR-09 Outcomes
+
+PR-09 shipped:
+
+- `aigc workflow trace` — timeline reconstruction from workflow and invocation artifacts
+- `aigc workflow export` — operator and audit export modes
+- operator-facing visibility and portability polish
+
 ## Next PR
 
-PR-09 remains the next branch:
+PR-10a (`feat/v0.9-10-bedrock-adapter`) is the next branch:
 
-- `aigc workflow trace`
-- `aigc workflow export`
-- operator-facing visibility and portability polish
+- `BedrockTraceAdapter` — alias-backed identity, fail-closed on missing trace
+- optional Bedrock adapter track

@@ -390,12 +390,21 @@ def _cmd_workflow_trace(args: argparse.Namespace) -> int:
         print("ERROR: no workflow artifacts found in input file.", file=sys.stderr)
         return 1
 
-    traces = [reconstruct_trace(wa, invocation_artifacts) for wa in workflow_artifacts]
+    try:
+        traces = [reconstruct_trace(wa, invocation_artifacts) for wa in workflow_artifacts]
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+
     output = json.dumps(traces, indent=2, sort_keys=True)
 
     if args.output:
         output_path = Path(args.output)
-        output_path.write_text(output + "\n", encoding="utf-8")
+        try:
+            output_path.write_text(output + "\n", encoding="utf-8")
+        except OSError as e:
+            print(f"ERROR: cannot write file: {e}", file=sys.stderr)
+            return 1
         print(f"Workflow trace written to: {output_path}")
     else:
         print(output)
@@ -437,12 +446,21 @@ def _cmd_workflow_export(args: argparse.Namespace) -> int:
         print("ERROR: no workflow artifacts found in input file.", file=sys.stderr)
         return 1
 
-    export = export_workflow(workflow_artifacts, invocation_artifacts, mode=args.mode)
+    try:
+        export = export_workflow(workflow_artifacts, invocation_artifacts, mode=args.mode)
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+
     output = json.dumps(export, indent=2, sort_keys=True)
 
     if args.output:
         output_path = Path(args.output)
-        output_path.write_text(output + "\n", encoding="utf-8")
+        try:
+            output_path.write_text(output + "\n", encoding="utf-8")
+        except OSError as e:
+            print(f"ERROR: cannot write file: {e}", file=sys.stderr)
+            return 1
         print(f"Workflow export written to: {output_path}")
     else:
         print(output)

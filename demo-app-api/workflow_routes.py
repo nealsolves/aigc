@@ -17,7 +17,7 @@ import uuid
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 import aigc.presets as presets
@@ -325,8 +325,16 @@ def trace_evidence():
         [sys.executable, "-m", "aigc", "workflow", "trace", "--input", jsonl_path],
         capture_output=True, text=True,
     )
+    if result.returncode != 0:
+        raise HTTPException(
+            status_code=500,
+            detail=f"workflow trace failed: {result.stderr.strip() or '(no stderr)'}",
+        )
     try:
         traces = json.loads(result.stdout) if result.stdout.strip() else []
     except json.JSONDecodeError:
-        traces = []
+        raise HTTPException(
+            status_code=500,
+            detail="workflow trace returned non-JSON output",
+        )
     return {"traces": traces, "artifact": session.workflow_artifact}

@@ -24,6 +24,8 @@ def reconstruct_trace(
 
     steps: list[dict[str, Any]] = []
     for i, step in enumerate(workflow_artifact.get("steps", [])):
+        if not isinstance(step, dict):
+            continue
         cs = step.get("invocation_artifact_checksum")
         inv = inv_by_cs.get(cs) if cs else None
         steps.append({

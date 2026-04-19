@@ -64,6 +64,8 @@ def _build_operator(
     for wa in workflow_artifacts:
         enriched = []
         for step in wa.get("steps", []):
+            if not isinstance(step, dict):
+                continue
             cs = step.get("invocation_artifact_checksum")
             enriched.append({**step, "invocation_artifact": inv_by_cs.get(cs) if cs else None})
         sessions.append({**wa, "steps": enriched})
@@ -94,6 +96,8 @@ def _build_audit(
         counts[status] = counts.get(status, 0) + 1
         step_summaries = []
         for step in wa.get("steps", []):
+            if not isinstance(step, dict):
+                continue
             cs = step.get("invocation_artifact_checksum")
             inv = inv_by_cs.get(cs) if cs else None
             step_summaries.append({

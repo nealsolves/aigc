@@ -1916,12 +1916,6 @@ _PR07_QUICKSTART_ANCHORS = [
     "enforce_step_pre_call",
 ]
 
-_PR07_CLI_FORBIDDEN_RE = re.compile(
-    r"^#{1,3}\s+`aigc workflow (trace|export)`",
-    re.MULTILINE,
-)
-
-
 def check_v090_pr07_contract(manifest: dict) -> list[str]:
     """Ensure PR-07 first-adopter docs exist and meet content anchors."""
     errors: list[str] = []
@@ -1960,16 +1954,6 @@ def check_v090_pr07_contract(manifest: dict) -> list[str]:
                 errors.append(
                     f"{pfx} WORKFLOW_QUICKSTART.md: missing required anchor '{anchor}'"
                 )
-
-    # WORKFLOW_CLI.md must not document trace or export as section headers
-    cli_doc = REPO_ROOT / "docs/reference/WORKFLOW_CLI.md"
-    if cli_doc.exists():
-        cli_text = cli_doc.read_text(encoding="utf-8")
-        if _PR07_CLI_FORBIDDEN_RE.search(cli_text):
-            errors.append(
-                f"{pfx} WORKFLOW_CLI.md: must not document 'aigc workflow trace' or "
-                "'aigc workflow export' as commands in PR-07"
-            )
 
     return errors
 

@@ -1151,3 +1151,176 @@ def test_pr05_contract_rejects_missing_pr05_surfaces(tmp_path, monkeypatch):
     assert any("aigc policy init" in e and "README.md" in e for e in errors), (
         f"Expected README error for missing aigc policy init, got: {errors}"
     )
+
+
+# ---------------------------------------------------------------------------
+# PR-09 parity tests — check_v090_pr09_contract()
+# ---------------------------------------------------------------------------
+
+_PR09_PR_CONTEXT_CONTENT = """\
+# PR Context — `v0.9.0` PR-09 exports-and-ops
+
+Date: 2026-04-19
+Status: `feat/v0.9-09-exports-and-ops` contains PR-01 through PR-09
+Active branch: `feat/v0.9-09-exports-and-ops`
+
+## PR-09 Outcomes
+
+- `aigc workflow trace` — timeline reconstruction from workflow and invocation artifacts
+- `aigc workflow export` — operator and audit export modes
+"""
+
+_PR09_HLD_CONTENT = """\
+Available in the source-only `v0.9.0` beta line — not part of the `v0.3.3` artifact:
+
+| Surface | Intended role |
+| ------- | ------------- |
+| `aigc workflow lint` / `aigc workflow doctor` | beta diagnostic surface |
+| `aigc workflow trace` / `aigc workflow export` | operator inspection and audit export surface (shipped in PR-09) |
+
+Planned for 1.0.0 or later (not in the current beta public surface):
+
+| Planned surface | Intended role in `1.0.0` |
+| --------------- | ------------------------ |
+| `AgentIdentity` | participant identity contract |
+| `BedrockTraceAdapter` | optional Bedrock normalization adapter |
+
+### 13.2 Stability Contract
+"""
+
+_PR09_CLI_REF_CONTENT = """\
+## workflow trace
+
+`aigc workflow trace --input <file> [--output <file>]`
+
+## workflow export
+
+`aigc workflow export --input <file> --mode operator|audit [--output <file>]`
+
+Options: `--mode operator`, `--mode audit`
+"""
+
+_PR09_OPS_RUNBOOK_CONTENT = """\
+## Observability
+
+Use `aigc workflow trace` and `aigc workflow export` for evidence inspection.
+"""
+
+_PR09_GENERIC_DOC_CONTENT = """\
+# Generic v0.9.0 document
+
+No stale pre-PR-09 language here.
+"""
+
+
+def _seed_pr09_contract_repo(
+    root: Path,
+    *,
+    pr_context: str = _PR09_PR_CONTEXT_CONTENT,
+    hld: str = _PR09_HLD_CONTENT,
+    cli_ref: str = _PR09_CLI_REF_CONTENT,
+    ops_runbook: str = _PR09_OPS_RUNBOOK_CONTENT,
+    generic: str = _PR09_GENERIC_DOC_CONTENT,
+) -> None:
+    _write_file(root, "docs/dev/pr_context.md", pr_context)
+    _write_file(root, "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md", hld)
+    _write_file(root, "docs/reference/WORKFLOW_CLI.md", cli_ref)
+    _write_file(root, "docs/reference/OPERATIONS_RUNBOOK.md", ops_runbook)
+    for rel in ["CLAUDE.md", "RELEASE_GATES.md", "implementation_status.md",
+                "README.md", "docs/PUBLIC_INTEGRATION_CONTRACT.md"]:
+        _write_file(root, rel, generic)
+
+
+def test_pr09_contract_accepts_valid_docs(tmp_path, monkeypatch):
+    """Seeded valid PR-09 docs pass check_v090_pr09_contract() with no errors."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    _seed_pr09_contract_repo(tmp_path)
+
+    errors = module.check_v090_pr09_contract()
+    assert errors == [], f"Unexpected errors: {errors}"
+
+
+def test_pr09_contract_rejects_stale_between_pr08_and_pr09_header(tmp_path, monkeypatch):
+    """pr_context.md with old 'Between PR-08 And PR-09' header → error."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    stale_ctx = "# PR Context — `v0.9.0` Between PR-08 And PR-09\n\nDate: 2026-04-18\n"
+    _seed_pr09_contract_repo(tmp_path, pr_context=stale_ctx)
+
+    errors = module.check_v090_pr09_contract()
+    assert any("Between PR-08 And PR-09" in e for e in errors), (
+        f"Expected stale-header error, got: {errors}"
+    )
+
+
+def test_pr09_contract_rejects_pr09_has_not_started(tmp_path, monkeypatch):
+    """pr_context.md with 'PR-09 has not started' status line → error."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    stale_ctx = "# PR Context\n\nStatus: PR-09 has not started\nActive branch: develop\n"
+    _seed_pr09_contract_repo(tmp_path, pr_context=stale_ctx)
+
+    errors = module.check_v090_pr09_contract()
+    assert any("PR-09 has not started" in e for e in errors), (
+        f"Expected 'PR-09 has not started' error, got: {errors}"
+    )
+
+
+def test_pr09_contract_rejects_hld_trace_export_in_planned_section(tmp_path, monkeypatch):
+    """HLD listing trace/export under 'Planned for 1.0.0 or later' → error."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    stale_hld = """\
+Available in the source-only `v0.9.0` beta line:
+
+| Surface | Intended role |
+| ------- | ------------- |
+| `aigc workflow lint` / `aigc workflow doctor` | beta diagnostic surface |
+
+Planned for 1.0.0 or later (not in the current beta public surface):
+
+| Planned surface | Intended role in `1.0.0` |
+| --------------- | ------------------------ |
+| `aigc workflow trace` and `aigc workflow export` | operator inspection and export surface |
+
+### 13.2 Stability Contract
+"""
+    _seed_pr09_contract_repo(tmp_path, hld=stale_hld)
+
+    errors = module.check_v090_pr09_contract()
+    assert any("workflow trace" in e and "Planned for 1.0.0" in e for e in errors), (
+        f"Expected HLD planned-section drift error, got: {errors}"
+    )
+
+
+def test_pr09_contract_rejects_missing_cli_ref_anchor(tmp_path, monkeypatch):
+    """WORKFLOW_CLI.md missing '--mode operator' → error."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_cli_ref = "## workflow trace\n\n`aigc workflow trace --input <file>`\n\n## workflow export\n\nOptions: --mode audit\n"
+    _seed_pr09_contract_repo(tmp_path, cli_ref=bad_cli_ref)
+
+    errors = module.check_v090_pr09_contract()
+    assert any("--mode operator" in e and "WORKFLOW_CLI.md" in e for e in errors), (
+        f"Expected missing anchor error, got: {errors}"
+    )
+
+
+def test_pr09_contract_rejects_missing_ops_runbook_command(tmp_path, monkeypatch):
+    """OPERATIONS_RUNBOOK.md missing 'aigc workflow export' → error."""
+    module = _load_doc_parity_module()
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    bad_runbook = "## Observability\n\nUse `aigc workflow trace` for evidence inspection.\n"
+    _seed_pr09_contract_repo(tmp_path, ops_runbook=bad_runbook)
+
+    errors = module.check_v090_pr09_contract()
+    assert any("aigc workflow export" in e and "OPERATIONS_RUNBOOK.md" in e for e in errors), (
+        f"Expected missing ops runbook command error, got: {errors}"
+    )

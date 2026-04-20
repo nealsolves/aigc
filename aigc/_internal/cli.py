@@ -4,7 +4,13 @@ Policy CLI for AIGC governance SDK.
 Provides:
 - ``aigc policy lint`` — YAML syntax and schema validation
 - ``aigc policy validate`` — full semantic validation including extends
-- ``aigc compliance export`` — compliance export of audit artifacts
+- ``aigc policy init`` — generate a governance policy scaffold
+- ``aigc compliance export`` — compliance export of invocation audit artifacts
+- ``aigc workflow init`` — generate a workflow starter scaffold
+- ``aigc workflow lint`` — statically lint governance targets
+- ``aigc workflow doctor`` — runtime/evidence diagnostics
+- ``aigc workflow trace`` — reconstruct workflow timelines from JSONL artifact files
+- ``aigc workflow export`` — export governed workflow evidence (operator or audit mode)
 """
 
 from __future__ import annotations
@@ -349,6 +355,138 @@ def _cmd_workflow_doctor(args: argparse.Namespace) -> int:
     return exit_code
 
 
+def _cmd_workflow_trace(args: argparse.Namespace) -> int:
+    """Reconstruct workflow timelines from a JSONL artifact file."""
+    from aigc._internal.workflow_trace import reconstruct_trace
+
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"ERROR: file not found: {input_path}", file=sys.stderr)
+        return 1
+
+    workflow_artifacts: list[dict[str, Any]] = []
+    invocation_artifacts: list[dict[str, Any]] = []
+    try:
+        with open(input_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    artifact = json.loads(line)
+                except json.JSONDecodeError:
+                    print(
+                        f"ERROR: malformed JSONL line (not valid JSON): {line!r}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                if not isinstance(artifact, dict):
+                    kind = type(artifact).__name__
+                    print(
+                        f"ERROR: malformed JSONL line (not a JSON object,"
+                        f" got {kind}): {line!r}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                if artifact.get("artifact_type") == "workflow":
+                    workflow_artifacts.append(artifact)
+                else:
+                    invocation_artifacts.append(artifact)
+    except OSError as e:
+        print(f"ERROR: cannot read file: {e}", file=sys.stderr)
+        return 1
+
+    if not workflow_artifacts:
+        print("ERROR: no workflow artifacts found in input file.", file=sys.stderr)
+        return 1
+
+    try:
+        traces = [reconstruct_trace(wa, invocation_artifacts) for wa in workflow_artifacts]
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+
+    output = json.dumps(traces, indent=2, sort_keys=True)
+
+    if args.output:
+        output_path = Path(args.output)
+        try:
+            output_path.write_text(output + "\n", encoding="utf-8")
+        except OSError as e:
+            print(f"ERROR: cannot write file: {e}", file=sys.stderr)
+            return 1
+        print(f"Workflow trace written to: {output_path}")
+    else:
+        print(output)
+    return 0
+
+
+def _cmd_workflow_export(args: argparse.Namespace) -> int:
+    """Export governed workflow evidence in operator or audit mode."""
+    from aigc._internal.workflow_export import export_workflow
+
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"ERROR: file not found: {input_path}", file=sys.stderr)
+        return 1
+
+    workflow_artifacts: list[dict[str, Any]] = []
+    invocation_artifacts: list[dict[str, Any]] = []
+    try:
+        with open(input_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    artifact = json.loads(line)
+                except json.JSONDecodeError:
+                    print(
+                        f"ERROR: malformed JSONL line (not valid JSON): {line!r}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                if not isinstance(artifact, dict):
+                    kind = type(artifact).__name__
+                    print(
+                        f"ERROR: malformed JSONL line (not a JSON object,"
+                        f" got {kind}): {line!r}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                if artifact.get("artifact_type") == "workflow":
+                    workflow_artifacts.append(artifact)
+                else:
+                    invocation_artifacts.append(artifact)
+    except OSError as e:
+        print(f"ERROR: cannot read file: {e}", file=sys.stderr)
+        return 1
+
+    if not workflow_artifacts:
+        print("ERROR: no workflow artifacts found in input file.", file=sys.stderr)
+        return 1
+
+    try:
+        export = export_workflow(workflow_artifacts, invocation_artifacts, mode=args.mode)
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+
+    output = json.dumps(export, indent=2, sort_keys=True)
+
+    if args.output:
+        output_path = Path(args.output)
+        try:
+            output_path.write_text(output + "\n", encoding="utf-8")
+        except OSError as e:
+            print(f"ERROR: cannot write file: {e}", file=sys.stderr)
+            return 1
+        print(f"Workflow export written to: {output_path}")
+    else:
+        print(output)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
@@ -527,6 +665,46 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output findings as JSON array",
     )
     workflow_doctor_parser.set_defaults(func=_cmd_workflow_doctor)
+
+    # aigc workflow trace --input <file> [--output <file>]
+    workflow_trace_parser = workflow_sub.add_parser(
+        "trace",
+        help="Reconstruct workflow timelines from a JSONL artifact file",
+    )
+    workflow_trace_parser.add_argument(
+        "--input",
+        required=True,
+        help="JSONL file containing workflow and invocation artifacts",
+    )
+    workflow_trace_parser.add_argument(
+        "--output",
+        default=None,
+        help="Output JSON file (default: stdout)",
+    )
+    workflow_trace_parser.set_defaults(func=_cmd_workflow_trace)
+
+    # aigc workflow export --input <file> --mode {operator|audit} [--output <file>]
+    workflow_export_parser = workflow_sub.add_parser(
+        "export",
+        help="Export governed workflow evidence in operator or audit mode",
+    )
+    workflow_export_parser.add_argument(
+        "--input",
+        required=True,
+        help="JSONL file containing workflow and invocation artifacts",
+    )
+    workflow_export_parser.add_argument(
+        "--mode",
+        choices=["operator", "audit"],
+        required=True,
+        help="'operator' = full technical dump; 'audit' = compliance-focused step summaries",
+    )
+    workflow_export_parser.add_argument(
+        "--output",
+        default=None,
+        help="Output JSON file (default: stdout)",
+    )
+    workflow_export_parser.set_defaults(func=_cmd_workflow_export)
 
     return parser
 

@@ -1877,15 +1877,18 @@ def check_v090_pr05_contract() -> list[str]:
                 f"{pfx} {_V090_HLD_REL}: planned-only sentence not updated: {forbidden!r}"
             )
 
-    # -- implementation_status.md: PR-05 complete and starters row present --
-    _require_all(
-        errors,
-        "implementation_status.md",
-        texts["implementation_status.md"],
-        ["PR-01 through PR-08 are complete", "Starters and migration"],
-        "PR-01 through PR-08 complete + starters row",
-        error_prefix=pfx,
+    # -- implementation_status.md: at least PR-08 complete and starters row present --
+    # Accept "PR-01 through PR-08" or any later "PR-01 through PR-0N" form
+    _impl_text = texts["implementation_status.md"]
+    _has_pr_range = any(
+        f"PR-01 through PR-0{n} are complete" in _impl_text
+        for n in range(8, 10)  # 8 or 9
     )
+    if not _has_pr_range or "Starters and migration" not in _impl_text:
+        errors.append(
+            f"{pfx} implementation_status.md: missing PR-01 through PR-08 complete"
+            f" (or later) + starters row: PR-01 through PR-08 are complete"
+        )
 
     return errors
 
@@ -1915,12 +1918,6 @@ _PR07_QUICKSTART_ANCHORS = [
     "AIGC.open_session",
     "enforce_step_pre_call",
 ]
-
-_PR07_CLI_FORBIDDEN_RE = re.compile(
-    r"^#{1,3}\s+`aigc workflow (trace|export)`",
-    re.MULTILINE,
-)
-
 
 def check_v090_pr07_contract(manifest: dict) -> list[str]:
     """Ensure PR-07 first-adopter docs exist and meet content anchors."""
@@ -1961,15 +1958,122 @@ def check_v090_pr07_contract(manifest: dict) -> list[str]:
                     f"{pfx} WORKFLOW_QUICKSTART.md: missing required anchor '{anchor}'"
                 )
 
-    # WORKFLOW_CLI.md must not document trace or export as section headers
-    cli_doc = REPO_ROOT / "docs/reference/WORKFLOW_CLI.md"
-    if cli_doc.exists():
-        cli_text = cli_doc.read_text(encoding="utf-8")
-        if _PR07_CLI_FORBIDDEN_RE.search(cli_text):
-            errors.append(
-                f"{pfx} WORKFLOW_CLI.md: must not document 'aigc workflow trace' or "
-                "'aigc workflow export' as commands in PR-07"
+    return errors
+
+
+# ---------------------------------------------------------------------------
+# Check O: v0.9.0 PR-09 release-packet truth
+# ---------------------------------------------------------------------------
+
+_PR09_SHIPPED_COMMANDS = ["aigc workflow trace", "aigc workflow export"]
+
+_PR09_SOURCE_OF_TRUTH_DOCS = [
+    "CLAUDE.md",
+    "docs/dev/pr_context.md",
+    "RELEASE_GATES.md",
+    "implementation_status.md",
+    "README.md",
+    "docs/PUBLIC_INTEGRATION_CONTRACT.md",
+    "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md",
+]
+
+# Stale fragments that must NOT appear once PR-09 has landed
+_PR09_STALE_PATTERNS = [
+    "reserved for PR-09",
+    "remain unshipped until PR-09",
+    "planned for PR-09",
+    "not started | Trace, export",
+    "Begins in PR-09",
+    # pr_context.md header/status lines written when PR-09 had not yet started
+    "Between PR-08 And PR-09",
+    "PR-09 has not started",
+]
+
+# Positive anchors that MUST appear in the CLI reference doc
+_PR09_CLI_REF_ANCHORS = [
+    "workflow trace",
+    "workflow export",
+    "--mode operator",
+    "--mode audit",
+]
+
+# Positive anchors that MUST appear in the HLD v0.9.0 beta surface table
+_PR09_HLD_BETA_ANCHORS = [
+    "workflow trace",
+    "workflow export",
+]
+
+# HLD section header that delimits the planned-only surface table
+_HLD_PLANNED_SECTION_HEADER = "Planned for 1.0.0 or later"
+
+
+def check_v090_pr09_contract() -> list[str]:
+    """Ensure PR-09 release-packet docs treat trace/export as shipped, not deferred."""
+    errors: list[str] = []
+    pfx = "[v0.9.0-pr09]"
+
+    for rel in _PR09_SOURCE_OF_TRUTH_DOCS:
+        path = REPO_ROOT / rel
+        if not path.exists():
+            errors.append(f"{pfx} missing required file: {rel}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        for stale in _PR09_STALE_PATTERNS:
+            if stale in text:
+                errors.append(
+                    f"{pfx} {rel}: still contains stale pre-PR-09 language: {stale!r}"
+                )
+
+    # HLD must list trace/export in the v0.9.0 beta surface table and must NOT
+    # list them under the "Planned for 1.0.0 or later" section.
+    hld_path = REPO_ROOT / "docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md"
+    if hld_path.exists():
+        hld_text = hld_path.read_text(encoding="utf-8")
+        for anchor in _PR09_HLD_BETA_ANCHORS:
+            if anchor not in hld_text:
+                errors.append(
+                    f"{pfx} AIGC_HIGH_LEVEL_DESIGN.md: missing shipped surface {anchor!r}"
+                )
+        # Isolate the planned-only section to check it does not contain trace/export.
+        if _HLD_PLANNED_SECTION_HEADER in hld_text:
+            planned_start = hld_text.index(_HLD_PLANNED_SECTION_HEADER)
+            # The planned section ends at the next level-3 heading (###)
+            next_heading = hld_text.find("\n###", planned_start + 1)
+            planned_block = (
+                hld_text[planned_start:next_heading]
+                if next_heading != -1
+                else hld_text[planned_start:]
             )
+            for anchor in _PR09_HLD_BETA_ANCHORS:
+                if anchor in planned_block:
+                    errors.append(
+                        f"{pfx} AIGC_HIGH_LEVEL_DESIGN.md: {anchor!r} still listed under "
+                        f"{_HLD_PLANNED_SECTION_HEADER!r} — move it to the v0.9.0 beta surface table"
+                    )
+
+    # CLI reference must document both commands
+    cli_ref = REPO_ROOT / "docs/reference/WORKFLOW_CLI.md"
+    if cli_ref.exists():
+        cli_text = cli_ref.read_text(encoding="utf-8")
+        for anchor in _PR09_CLI_REF_ANCHORS:
+            if anchor not in cli_text:
+                errors.append(
+                    f"{pfx} WORKFLOW_CLI.md: missing required anchor {anchor!r}"
+                )
+    else:
+        errors.append(f"{pfx} missing required file: docs/reference/WORKFLOW_CLI.md")
+
+    # Operations runbook must reference both commands
+    ops_ref = REPO_ROOT / "docs/reference/OPERATIONS_RUNBOOK.md"
+    if ops_ref.exists():
+        ops_text = ops_ref.read_text(encoding="utf-8")
+        for cmd in _PR09_SHIPPED_COMMANDS:
+            if cmd not in ops_text:
+                errors.append(
+                    f"{pfx} OPERATIONS_RUNBOOK.md: missing shipped command reference {cmd!r}"
+                )
+    else:
+        errors.append(f"{pfx} missing required file: docs/reference/OPERATIONS_RUNBOOK.md")
 
     return errors
 
@@ -2027,6 +2131,7 @@ def main() -> int:
         ("L. v0.9.0 PR-05 starters-and-migration contract truth", check_v090_pr05_contract),
         ("M. v0.9.0 PR-07 first-adopter docs and beta proof", lambda: check_v090_pr07_contract(manifest)),
         ("N. Demo backend public-import boundary", lambda: check_demo_backend_import_boundary(manifest)),
+        ("O. v0.9.0 PR-09 exports-and-ops release-packet truth", check_v090_pr09_contract),
     ]
 
     for name, check_fn in checks:

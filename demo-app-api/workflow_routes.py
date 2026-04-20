@@ -17,11 +17,11 @@ import uuid
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 import aigc.presets as presets
-from aigc import AIGC
+from aigc import AIGC, JsonFileAuditSink
 
 router = APIRouter(prefix="/api/workflow/v090", tags=["workflow-v090"])
 
@@ -287,3 +287,54 @@ def diagnose_last_failure(run_id: str | None = None):
     except json.JSONDecodeError:
         findings = []
     return {"findings": findings, "source": "failure_starter_dir"}
+
+
+@router.get("/trace")
+def trace_evidence():
+    """Run a governed 2-step minimal session with a JSONL sink and return the workflow trace.
+
+    Implements the evidence view: produces real workflow + invocation artifacts,
+    writes them to a temp JSONL file via JsonFileAuditSink, then reconstructs the
+    timeline via 'aigc workflow trace'. No fake backend behavior.
+    """
+    policy_file = _get_policy_path("minimal")
+    jsonl_file = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".jsonl", delete=False, dir=_POLICY_TMPDIR.name
+    )
+    jsonl_path = jsonl_file.name
+    jsonl_file.close()
+
+    sink = JsonFileAuditSink(jsonl_path)
+    governance = AIGC(sink=sink)
+    prompts = ["Analyze the document.", "Summarize the findings."]
+    with governance.open_session(policy_file=policy_file) as session:
+        for prompt in prompts:
+            pre = session.enforce_step_pre_call({
+                "policy_file": policy_file,
+                "input": {"prompt": prompt},
+                "output": {},
+                "context": {"caller_id": "demo-evidence"},
+                "model_provider": "anthropic",
+                "model_identifier": "claude-sonnet-4-6",
+                "role": "ai-assistant",
+            })
+            session.enforce_step_post_call(pre, {"result": f"Response to: {prompt[:60]}"})
+        session.complete()
+
+    result = subprocess.run(
+        [sys.executable, "-m", "aigc", "workflow", "trace", "--input", jsonl_path],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        raise HTTPException(
+            status_code=500,
+            detail=f"workflow trace failed: {result.stderr.strip() or '(no stderr)'}",
+        )
+    try:
+        traces = json.loads(result.stdout) if result.stdout.strip() else []
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=500,
+            detail="workflow trace returned non-JSON output",
+        )
+    return {"traces": traces, "artifact": session.workflow_artifact}

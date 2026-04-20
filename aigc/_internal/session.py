@@ -5,7 +5,6 @@ GovernanceSession and SessionPreCallResult — v0.9.0 workflow primitives.
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import time
 import uuid
@@ -17,6 +16,7 @@ from aigc._internal.errors import (
     SessionStateError,
 )
 from aigc._internal.sinks import emit_to_sink
+from aigc._internal.utils import canonical_json_bytes
 
 if TYPE_CHECKING:
     from aigc._internal.enforcement import AIGC
@@ -88,9 +88,8 @@ class SessionPreCallResult:
 # ---------------------------------------------------------------------------
 
 def _checksum(artifact: dict) -> str:
-    """SHA-256 hex digest of canonical JSON."""
-    canonical = json.dumps(artifact, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode()).hexdigest()
+    """SHA-256 hex digest of canonical JSON (same canonicalization as audit.checksum)."""
+    return hashlib.sha256(canonical_json_bytes(artifact)).hexdigest()
 
 
 def _compute_policy_file(

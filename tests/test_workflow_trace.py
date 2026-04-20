@@ -6,6 +6,8 @@ import os
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from aigc._internal.workflow_trace import reconstruct_trace
 from aigc._internal.cli import main as cli_main
 

@@ -458,6 +458,43 @@ class TestMalformedChecksumContainer:
         finally:
             os.unlink(f.name)
 
+    def test_integer_step_checksum_raises_value_error(self):
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [{"step_id": "s1", "participant_id": None, "invocation_artifact_checksum": 99}],
+        }
+        with pytest.raises(
+            ValueError,
+            match=r"steps\[0\]\.invocation_artifact_checksum.*must be a string or null",
+        ):
+            reconstruct_trace(wa, [INV_ARTIFACT])
+
+    def test_nested_list_step_checksum_raises_value_error(self):
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [{"step_id": "s1", "participant_id": None, "invocation_artifact_checksum": [99]}],
+        }
+        with pytest.raises(
+            ValueError,
+            match=r"steps\[0\]\.invocation_artifact_checksum.*must be a string or null",
+        ):
+            reconstruct_trace(wa, [INV_ARTIFACT])
+
+    def test_non_string_step_checksum_cli_exits_1(self, capsys):
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [{"step_id": "s1", "participant_id": None, "invocation_artifact_checksum": 99}],
+        }
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        f.write(json.dumps(wa) + "\n")
+        f.close()
+        try:
+            rc = cli_main(["workflow", "trace", "--input", f.name])
+            assert rc == 1
+            assert "ERROR" in capsys.readouterr().err
+        finally:
+            os.unlink(f.name)
+
 
 class TestChecksumCorrelationParity:
     """Regression tests for F-01: session._checksum and audit.checksum must agree."""

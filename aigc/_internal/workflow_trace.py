@@ -40,6 +40,14 @@ def reconstruct_trace(
                 f"(type={type(step).__name__!r}). "
                 f"Run 'aigc workflow lint' to diagnose."
             )
+        _cs_val = step.get("invocation_artifact_checksum")
+        if _cs_val is not None and not isinstance(_cs_val, str):
+            raise ValueError(
+                "Corrupt workflow artifact: "
+                f"steps[{i}].invocation_artifact_checksum must be a string or null, "
+                f"got {type(_cs_val).__name__!r}. "
+                "Run 'aigc workflow lint' to diagnose."
+            )
 
     # Consume one available artifact per step so duplicate-checksum steps are
     # counted individually — a second step for the same checksum is unresolved

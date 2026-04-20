@@ -283,6 +283,160 @@ class TestWorkflowTraceCLI:
             os.unlink(path)
 
 
+class TestChecksumMultiplicity:
+    """Regression tests for duplicate-checksum steps losing multiplicity (High finding)."""
+
+    def test_two_steps_same_checksum_single_artifact_first_resolves_second_does_not(self):
+        # Two steps reference the same checksum; only one artifact is available.
+        # The first step should resolve, the second should be unresolved.
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [
+                {"step_id": "s1", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+                {"step_id": "s2", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+            ],
+            "invocation_audit_checksums": [INV_CHECKSUM, INV_CHECKSUM],
+        }
+        trace = reconstruct_trace(wa, [INV_ARTIFACT])
+        assert trace["steps"][0]["resolved"] is True
+        assert trace["steps"][1]["resolved"] is False
+        assert trace["unresolved_checksums"] == [INV_CHECKSUM]
+
+    def test_two_steps_same_checksum_two_artifacts_both_resolve(self):
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [
+                {"step_id": "s1", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+                {"step_id": "s2", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+            ],
+            "invocation_audit_checksums": [INV_CHECKSUM, INV_CHECKSUM],
+        }
+        trace = reconstruct_trace(wa, [INV_ARTIFACT, INV_ARTIFACT])
+        assert trace["steps"][0]["resolved"] is True
+        assert trace["steps"][1]["resolved"] is True
+        assert trace["unresolved_checksums"] == []
+
+    def test_unresolved_count_matches_missing_duplicate_occurrences(self):
+        # Three steps same checksum, two artifacts — one slot unresolved.
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [
+                {"step_id": f"s{i}", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM}
+                for i in range(3)
+            ],
+            "invocation_audit_checksums": [INV_CHECKSUM] * 3,
+        }
+        trace = reconstruct_trace(wa, [INV_ARTIFACT, INV_ARTIFACT])
+        assert len(trace["unresolved_checksums"]) == 1
+        assert trace["unresolved_checksums"] == [INV_CHECKSUM]
+
+
+class TestMalformedTimestamp:
+    """Regression tests for malformed started_at/finalized_at crashing trace (Medium finding)."""
+
+    def test_string_started_at_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "started_at": "1"}
+        with pytest.raises(ValueError, match="started_at must be numeric"):
+            reconstruct_trace(wa, [INV_ARTIFACT])
+
+    def test_string_finalized_at_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "finalized_at": "bad"}
+        with pytest.raises(ValueError, match="finalized_at must be numeric"):
+            reconstruct_trace(wa, [INV_ARTIFACT])
+
+    def test_list_started_at_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "started_at": []}
+        with pytest.raises(ValueError, match="started_at must be numeric"):
+            reconstruct_trace(wa, [INV_ARTIFACT])
+
+    def test_bool_started_at_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "started_at": True}
+        with pytest.raises(ValueError, match="started_at must be numeric"):
+            reconstruct_trace(wa, [INV_ARTIFACT])
+
+    def test_bool_finalized_at_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "finalized_at": False}
+        with pytest.raises(ValueError, match="finalized_at must be numeric"):
+            reconstruct_trace(wa, [INV_ARTIFACT])
+
+    def test_malformed_started_at_cli_exits_1(self, capsys):
+        import tempfile
+        import os
+        import json
+        wa = {**WORKFLOW_ARTIFACT, "started_at": "1"}
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        f.write(json.dumps(wa) + "\n")
+        f.close()
+        try:
+            from aigc._internal.cli import main as cli_main
+            rc = cli_main(["workflow", "trace", "--input", f.name])
+            assert rc == 1
+            err = capsys.readouterr().err
+            assert "started_at" in err or "ERROR" in err
+        finally:
+            os.unlink(f.name)
+
+
+class TestMalformedStepsContainer:
+    """Regression: steps: null must raise ValueError, not TypeError."""
+
+    def test_null_steps_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "steps": None}
+        with pytest.raises(ValueError, match="'steps' must be a list"):
+            reconstruct_trace(wa, [INV_ARTIFACT])
+
+    def test_null_steps_cli_exits_1(self, capsys):
+        wa = {**WORKFLOW_ARTIFACT, "steps": None}
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        f.write(json.dumps(wa) + "\n")
+        f.close()
+        try:
+            rc = cli_main(["workflow", "trace", "--input", f.name])
+            assert rc == 1
+            assert "ERROR" in capsys.readouterr().err
+        finally:
+            os.unlink(f.name)
+
+
+class TestMalformedChecksumContainer:
+    """Regression: invocation_audit_checksums: null/string must raise ValueError, not TypeError."""
+
+    def test_null_invocation_audit_checksums_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": None}
+        with pytest.raises(ValueError, match="'invocation_audit_checksums' must be a list"):
+            reconstruct_trace(wa, [INV_ARTIFACT])
+
+    def test_string_invocation_audit_checksums_raises_value_error(self):
+        # A bare string iterates as individual characters — must fail closed.
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": "abc"}
+        with pytest.raises(ValueError, match="'invocation_audit_checksums' must be a list"):
+            reconstruct_trace(wa, [INV_ARTIFACT])
+
+    def test_null_invocation_audit_checksums_cli_exits_1(self, capsys):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": None}
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        f.write(json.dumps(wa) + "\n")
+        f.close()
+        try:
+            rc = cli_main(["workflow", "trace", "--input", f.name])
+            assert rc == 1
+            assert "ERROR" in capsys.readouterr().err
+        finally:
+            os.unlink(f.name)
+
+    def test_string_invocation_audit_checksums_cli_exits_1(self, capsys):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": "xyz"}
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        f.write(json.dumps(wa) + "\n")
+        f.close()
+        try:
+            rc = cli_main(["workflow", "trace", "--input", f.name])
+            assert rc == 1
+            assert "ERROR" in capsys.readouterr().err
+        finally:
+            os.unlink(f.name)
+
+
 class TestChecksumCorrelationParity:
     """Regression tests for F-01: session._checksum and audit.checksum must agree."""
 

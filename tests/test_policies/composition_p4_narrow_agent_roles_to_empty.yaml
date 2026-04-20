@@ -1,0 +1,38 @@
+extends: composition_p4_base.yaml
+composition_strategy: replace
+policy_version: "1.0"
+roles:
+  - planner
+  - reviewer
+workflow:
+  max_steps: 10
+  max_total_tool_calls: 50
+  participants:
+    - id: agent-1
+      roles:
+        - planner
+      protocols:
+        - local
+      manifest_ref: manifests/agent-1.yaml
+    - id: agent-2
+      roles:
+        - reviewer
+      protocols:
+        - local
+  required_sequence:
+    - step-a
+    - step-b
+  allowed_transitions:
+    step-a:
+      - step-b
+    step-b:
+      - step-c
+  allowed_agent_roles: []
+  handoffs:
+    - from: agent-1
+      to: agent-2
+  escalation:
+    require_approval_after_steps: 5
+  protocol_constraints:
+    local:
+      min_version: "1.0"

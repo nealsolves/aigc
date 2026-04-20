@@ -140,7 +140,11 @@ def test_workflow_run_regulated():
 
 
 def test_workflow_trace_happy_path():
+    import workflow_routes
+
+    before = {p.name for p in Path(workflow_routes._POLICY_TMPDIR.name).glob("*.jsonl")}
     r = client.get("/api/workflow/v090/trace")
+    after = {p.name for p in Path(workflow_routes._POLICY_TMPDIR.name).glob("*.jsonl")}
     assert r.status_code == 200
     data = r.json()
     assert "traces" in data, f"response missing 'traces': {data}"
@@ -155,29 +159,36 @@ def test_workflow_trace_happy_path():
     artifact = data["artifact"]
     assert artifact["status"] == "COMPLETED"
     assert len(artifact["steps"]) == 2
+    assert after == before
 
 
 def test_workflow_trace_cli_failure_returns_500(monkeypatch):
     import subprocess
     import workflow_routes
 
+    before = {p.name for p in Path(workflow_routes._POLICY_TMPDIR.name).glob("*.jsonl")}
     fake_result = subprocess.CompletedProcess(
         args=[], returncode=1, stdout="", stderr="trace engine exploded"
     )
     monkeypatch.setattr(workflow_routes.subprocess, "run", lambda *a, **kw: fake_result)
     r = client.get("/api/workflow/v090/trace")
+    after = {p.name for p in Path(workflow_routes._POLICY_TMPDIR.name).glob("*.jsonl")}
     assert r.status_code == 500
     assert "trace engine exploded" in r.json()["detail"]
+    assert after == before
 
 
 def test_workflow_trace_non_json_output_returns_500(monkeypatch):
     import subprocess
     import workflow_routes
 
+    before = {p.name for p in Path(workflow_routes._POLICY_TMPDIR.name).glob("*.jsonl")}
     fake_result = subprocess.CompletedProcess(
         args=[], returncode=0, stdout="not json at all", stderr=""
     )
     monkeypatch.setattr(workflow_routes.subprocess, "run", lambda *a, **kw: fake_result)
     r = client.get("/api/workflow/v090/trace")
+    after = {p.name for p in Path(workflow_routes._POLICY_TMPDIR.name).glob("*.jsonl")}
     assert r.status_code == 500
     assert "non-JSON" in r.json()["detail"]
+    assert after == before

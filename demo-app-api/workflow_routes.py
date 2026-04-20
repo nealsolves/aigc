@@ -304,38 +304,43 @@ def trace_evidence():
     )
     jsonl_path = jsonl_file.name
     jsonl_file.close()
-
-    sink = JsonFileAuditSink(jsonl_path)
-    governance = AIGC(sink=sink)
-    prompts = ["Analyze the document.", "Summarize the findings."]
-    with governance.open_session(policy_file=policy_file) as session:
-        for prompt in prompts:
-            pre = session.enforce_step_pre_call({
-                "policy_file": policy_file,
-                "input": {"prompt": prompt},
-                "output": {},
-                "context": {"caller_id": "demo-evidence"},
-                "model_provider": "anthropic",
-                "model_identifier": "claude-sonnet-4-6",
-                "role": "ai-assistant",
-            })
-            session.enforce_step_post_call(pre, {"result": f"Response to: {prompt[:60]}"})
-        session.complete()
-
-    result = subprocess.run(
-        [sys.executable, "-m", "aigc", "workflow", "trace", "--input", jsonl_path],
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        raise HTTPException(
-            status_code=500,
-            detail=f"workflow trace failed: {result.stderr.strip() or '(no stderr)'}",
-        )
     try:
-        traces = json.loads(result.stdout) if result.stdout.strip() else []
-    except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=500,
-            detail="workflow trace returned non-JSON output",
+        sink = JsonFileAuditSink(jsonl_path)
+        governance = AIGC(sink=sink)
+        prompts = ["Analyze the document.", "Summarize the findings."]
+        with governance.open_session(policy_file=policy_file) as session:
+            for prompt in prompts:
+                pre = session.enforce_step_pre_call({
+                    "policy_file": policy_file,
+                    "input": {"prompt": prompt},
+                    "output": {},
+                    "context": {"caller_id": "demo-evidence"},
+                    "model_provider": "anthropic",
+                    "model_identifier": "claude-sonnet-4-6",
+                    "role": "ai-assistant",
+                })
+                session.enforce_step_post_call(pre, {"result": f"Response to: {prompt[:60]}"})
+            session.complete()
+
+        result = subprocess.run(
+            [sys.executable, "-m", "aigc", "workflow", "trace", "--input", jsonl_path],
+            capture_output=True, text=True,
         )
-    return {"traces": traces, "artifact": session.workflow_artifact}
+        if result.returncode != 0:
+            raise HTTPException(
+                status_code=500,
+                detail=f"workflow trace failed: {result.stderr.strip() or '(no stderr)'}",
+            )
+        try:
+            traces = json.loads(result.stdout) if result.stdout.strip() else []
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=500,
+                detail="workflow trace returned non-JSON output",
+            )
+        return {"traces": traces, "artifact": session.workflow_artifact}
+    finally:
+        try:
+            Path(jsonl_path).unlink()
+        except FileNotFoundError:
+            pass

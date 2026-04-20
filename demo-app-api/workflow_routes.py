@@ -28,7 +28,8 @@ router = APIRouter(prefix="/api/workflow/v090", tags=["workflow-v090"])
 # Per-run state keyed by run_id returned from the failure scenario.
 # Bounded to prevent unbounded temp-dir growth; evicted entries are cleaned up.
 _MAX_RUNS = 20
-_run_state: dict[str, dict] = {}   # run_id -> {"starter_dir": str, "artifact": dict, "original_source": str}
+# run_id -> {"starter_dir": str, "artifact": dict, "original_source": str}
+_run_state: dict[str, dict] = {}
 _POLICY_TMPDIR = tempfile.TemporaryDirectory(prefix="aigc_demo_policies_")
 _policy_cache: dict[str, str] = {}
 

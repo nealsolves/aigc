@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from collections import Counter
 from typing import Any
 
 from aigc._internal.audit import checksum as _checksum
@@ -44,45 +45,93 @@ def export_workflow(
         raise ValueError(f"Unknown export mode: {mode!r}. Use 'operator' or 'audit'.")
 
     for wa_idx, wa in enumerate(workflow_artifacts):
-        for i, step in enumerate(wa.get("steps", [])):
-            if not isinstance(step, dict):
+        status = wa.get("status", "INCOMPLETE")
+        if not isinstance(status, str):
+            raise ValueError(
+                f"Corrupt workflow artifact at index {wa_idx}: status must be a string, "
+                f"got {type(status).__name__!r}. "
+                f"Run 'aigc workflow lint' to diagnose."
+            )
+        if "steps" in wa:
+            _wa_steps = wa["steps"]
+            if not isinstance(_wa_steps, list):
                 raise ValueError(
-                    f"Corrupt workflow artifact at index {wa_idx}: steps[{i}] is not an object "
-                    f"(type={type(step).__name__!r}). "
+                    f"Corrupt workflow artifact at index {wa_idx}: 'steps' must be a list, "
+                    f"got {type(_wa_steps).__name__!r}. "
+                    f"Run 'aigc workflow lint' to diagnose."
+                )
+            for i, step in enumerate(_wa_steps):
+                if not isinstance(step, dict):
+                    raise ValueError(
+                        f"Corrupt workflow artifact at index {wa_idx}: steps[{i}] is not an object "
+                        f"(type={type(step).__name__!r}). "
+                        f"Run 'aigc workflow lint' to diagnose."
+                    )
+        if "invocation_audit_checksums" in wa:
+            _wa_iac = wa["invocation_audit_checksums"]
+            if not isinstance(_wa_iac, list):
+                raise ValueError(
+                    f"Corrupt workflow artifact at index {wa_idx}: "
+                    f"'invocation_audit_checksums' must be a list, "
+                    f"got {type(_wa_iac).__name__!r}. "
                     f"Run 'aigc workflow lint' to diagnose."
                 )
 
     inv_by_cs: dict[str, dict[str, Any]] = {_checksum(a): a for a in invocation_artifacts}
+    available: Counter[str] = Counter(_checksum(a) for a in invocation_artifacts)
 
-    # Derive expected checksums from both the top-level summary list and actual step
-    # references so trace and export report the same unresolved set even when the two
-    # sources diverge (e.g. a corrupt artifact whose steps[] references a checksum that
-    # was never added to invocation_audit_checksums).
-    expected: set[str] = set()
+    # Expected checksums: sum contributions across sessions, using max(summary_count,
+    # step_count) within each session to avoid double-counting divergent sources.
+    # Summing across sessions matches the sink model — the sink writes one line per
+    # emitted invocation artifact, so two sessions that both record the same checksum
+    # each expect their own artifact in the sink.
+    expected: Counter[str] = Counter()
     for wa in workflow_artifacts:
-        expected.update(wa.get("invocation_audit_checksums", []))
-        for step in wa.get("steps", []):
-            cs = step.get("invocation_artifact_checksum")
-            if cs:
-                expected.add(cs)
-    unresolved = sorted(expected - set(inv_by_cs.keys()))
+        s_counts: Counter[str] = Counter(
+            cs for cs in wa.get("invocation_audit_checksums", []) if cs
+        )
+        st_counts: Counter[str] = Counter(
+            step.get("invocation_artifact_checksum")
+            for step in wa.get("steps", [])
+            if step.get("invocation_artifact_checksum")
+        )
+        for cs in set(s_counts) | set(st_counts):
+            expected[cs] += max(s_counts[cs], st_counts[cs])
+
+    unresolved = sorted(
+        cs
+        for cs, exp_count in expected.items()
+        for _ in range(max(0, exp_count - available[cs]))
+    )
 
     if mode == "operator":
-        return _build_operator(workflow_artifacts, inv_by_cs, unresolved)
-    return _build_audit(workflow_artifacts, inv_by_cs, unresolved)
+        return _build_operator(
+            workflow_artifacts, inv_by_cs, available, unresolved, len(invocation_artifacts)
+        )
+    return _build_audit(workflow_artifacts, inv_by_cs, available, unresolved)
 
 
 def _build_operator(
     workflow_artifacts: list[dict[str, Any]],
     inv_by_cs: dict[str, dict[str, Any]],
+    available: Counter[str],
     unresolved: list[str],
+    total_invocation_artifacts: int,
 ) -> dict[str, Any]:
+    # Consume one artifact slot per step across all sessions so a second step
+    # referencing the same checksum gets None when only one artifact is present.
+    remaining = Counter(available)
     sessions = []
     for wa in workflow_artifacts:
         enriched = []
         for step in wa.get("steps", []):
             cs = step.get("invocation_artifact_checksum")
-            enriched.append({**step, "invocation_artifact": inv_by_cs.get(cs) if cs else None})
+            if cs and remaining[cs] > 0:
+                remaining[cs] -= 1
+                inv = inv_by_cs.get(cs)
+            else:
+                inv = None
+            enriched.append({**step, "invocation_artifact": inv})
         sessions.append({**wa, "steps": enriched})
     return {
         "export_schema_version": EXPORT_SCHEMA_VERSION,
@@ -91,7 +140,7 @@ def _build_operator(
         "sessions": sessions,
         "integrity": {
             "total_workflow_artifacts": len(workflow_artifacts),
-            "total_invocation_artifacts": len(inv_by_cs),
+            "total_invocation_artifacts": total_invocation_artifacts,
             "unresolved_invocation_checksums": unresolved,
             "unresolved_count": len(unresolved),
             "verification_guidance": _OPERATOR_GUIDANCE,
@@ -102,8 +151,10 @@ def _build_operator(
 def _build_audit(
     workflow_artifacts: list[dict[str, Any]],
     inv_by_cs: dict[str, dict[str, Any]],
+    available: Counter[str],
     unresolved: list[str],
 ) -> dict[str, Any]:
+    remaining = Counter(available)
     counts: dict[str, int] = {"COMPLETED": 0, "FAILED": 0, "CANCELED": 0, "INCOMPLETE": 0}
     sessions = []
     for wa in workflow_artifacts:
@@ -112,7 +163,11 @@ def _build_audit(
         step_summaries = []
         for step in wa.get("steps", []):
             cs = step.get("invocation_artifact_checksum")
-            inv = inv_by_cs.get(cs) if cs else None
+            if cs and remaining[cs] > 0:
+                remaining[cs] -= 1
+                inv = inv_by_cs.get(cs)
+            else:
+                inv = None
             step_summaries.append({
                 "step_id": step.get("step_id"),
                 "participant_id": step.get("participant_id"),

@@ -385,6 +385,220 @@ class TestExportIntegrityStepReferenceParity:
         assert extra_cs in result["integrity"]["unresolved_invocation_checksums"]
 
 
+class TestChecksumMultiplicityExport:
+    """Regression tests for duplicate-checksum steps losing multiplicity (High finding)."""
+
+    def test_two_steps_same_checksum_single_artifact_reports_one_unresolved(self):
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [
+                {"step_id": "s1", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+                {"step_id": "s2", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+            ],
+            "invocation_audit_checksums": [INV_CHECKSUM, INV_CHECKSUM],
+        }
+        result = export_workflow([wa], [INV_ARTIFACT], "operator")
+        assert result["integrity"]["unresolved_count"] == 1
+        assert INV_CHECKSUM in result["integrity"]["unresolved_invocation_checksums"]
+
+    def test_two_steps_same_checksum_two_artifacts_fully_resolved(self):
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [
+                {"step_id": "s1", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+                {"step_id": "s2", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+            ],
+            "invocation_audit_checksums": [INV_CHECKSUM, INV_CHECKSUM],
+        }
+        result = export_workflow([wa], [INV_ARTIFACT, INV_ARTIFACT], "operator")
+        assert result["integrity"]["unresolved_count"] == 0
+
+    def test_total_invocation_artifacts_counts_duplicates(self):
+        # Supplying two identical artifacts (same checksum) must count as 2.
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [
+                {"step_id": "s1", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+                {"step_id": "s2", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+            ],
+            "invocation_audit_checksums": [INV_CHECKSUM, INV_CHECKSUM],
+        }
+        result = export_workflow([wa], [INV_ARTIFACT, INV_ARTIFACT], "operator")
+        assert result["integrity"]["total_invocation_artifacts"] == 2
+
+    def test_cross_session_same_checksum_requires_two_artifacts(self):
+        # Two sessions each reference the same checksum once. The sink writes one
+        # line per emitted artifact, so two artifacts are expected — one per session.
+        # One artifact present → one unresolved occurrence.
+        wa2 = {**WORKFLOW_ARTIFACT, "session_id": "sess-xyz"}
+        result = export_workflow([WORKFLOW_ARTIFACT, wa2], [INV_ARTIFACT], "operator")
+        assert result["integrity"]["unresolved_count"] == 1
+
+    def test_cross_session_same_checksum_two_artifacts_fully_resolved(self):
+        # Two sessions, same checksum, two artifacts → fully resolved.
+        wa2 = {**WORKFLOW_ARTIFACT, "session_id": "sess-xyz"}
+        result = export_workflow([WORKFLOW_ARTIFACT, wa2], [INV_ARTIFACT, INV_ARTIFACT], "operator")
+        assert result["integrity"]["unresolved_count"] == 0
+
+    def test_two_steps_same_checksum_single_artifact_operator_second_step_null(self):
+        # First step consumes the artifact slot; second step invocation_artifact must be None.
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [
+                {"step_id": "s1", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+                {"step_id": "s2", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+            ],
+            "invocation_audit_checksums": [INV_CHECKSUM, INV_CHECKSUM],
+        }
+        result = export_workflow([wa], [INV_ARTIFACT], "operator")
+        steps = result["sessions"][0]["steps"]
+        assert steps[0]["invocation_artifact"] is not None
+        assert steps[1]["invocation_artifact"] is None
+
+    def test_two_steps_same_checksum_single_artifact_audit_second_step_null_enforcement(self):
+        # First step gets enforcement_result; second must be None, not PASS.
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [
+                {"step_id": "s1", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+                {"step_id": "s2", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+            ],
+            "invocation_audit_checksums": [INV_CHECKSUM, INV_CHECKSUM],
+        }
+        result = export_workflow([wa], [INV_ARTIFACT], "audit")
+        steps = result["sessions"][0]["steps"]
+        assert steps[0]["enforcement_result"] == INV_ARTIFACT.get("enforcement_result")
+        assert steps[1]["enforcement_result"] is None
+
+    def test_duplicate_checksum_in_audit_mode_reports_unresolved(self):
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [
+                {"step_id": "s1", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+                {"step_id": "s2", "participant_id": "agent", "invocation_artifact_checksum": INV_CHECKSUM},
+            ],
+            "invocation_audit_checksums": [INV_CHECKSUM, INV_CHECKSUM],
+        }
+        result = export_workflow([wa], [INV_ARTIFACT], "audit")
+        assert result["integrity"]["unresolved_count"] == 1
+
+
+class TestMalformedStatusExport:
+    """Regression tests for malformed status crashing export (Medium finding)."""
+
+    def test_list_status_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "status": []}
+        with pytest.raises(ValueError, match="status must be a string"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_integer_status_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "status": 0}
+        with pytest.raises(ValueError, match="status must be a string"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_malformed_status_cli_exits_1(self, capsys):
+        import tempfile
+        import os
+        import json
+        wa = {**WORKFLOW_ARTIFACT, "status": []}
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        f.write(json.dumps(wa) + "\n")
+        f.close()
+        try:
+            from aigc._internal.cli import main as cli_main
+            rc = cli_main(["workflow", "export", "--input", f.name, "--mode", "audit"])
+            assert rc == 1
+            err = capsys.readouterr().err
+            assert "ERROR" in err
+        finally:
+            os.unlink(f.name)
+
+    def test_operator_mode_with_list_status_raises_value_error(self):
+        # Status validation happens before mode dispatch — operator mode rejects it too.
+        wa = {**WORKFLOW_ARTIFACT, "status": []}
+        with pytest.raises(ValueError, match="status must be a string"):
+            export_workflow([wa], [INV_ARTIFACT], "operator")
+
+    def test_malformed_status_operator_cli_exits_1(self, capsys):
+        import tempfile
+        import os
+        import json
+        wa = {**WORKFLOW_ARTIFACT, "status": []}
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        f.write(json.dumps(wa) + "\n")
+        f.close()
+        try:
+            from aigc._internal.cli import main as cli_main
+            rc = cli_main(["workflow", "export", "--input", f.name, "--mode", "operator"])
+            assert rc == 1
+            err = capsys.readouterr().err
+            assert "ERROR" in err
+        finally:
+            os.unlink(f.name)
+
+
+class TestMalformedContainersExport:
+    """Regression: steps: null and invocation_audit_checksums: null/string must raise ValueError."""
+
+    def _write_jsonl(self, artifacts):
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        for a in artifacts:
+            f.write(json.dumps(a) + "\n")
+        f.close()
+        return f.name
+
+    def test_null_steps_raises_value_error_audit(self):
+        wa = {**WORKFLOW_ARTIFACT, "steps": None}
+        with pytest.raises(ValueError, match="'steps' must be a list"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_null_steps_raises_value_error_operator(self):
+        wa = {**WORKFLOW_ARTIFACT, "steps": None}
+        with pytest.raises(ValueError, match="'steps' must be a list"):
+            export_workflow([wa], [INV_ARTIFACT], "operator")
+
+    def test_null_steps_cli_exits_1(self, capsys):
+        wa = {**WORKFLOW_ARTIFACT, "steps": None}
+        path = self._write_jsonl([wa])
+        try:
+            rc = cli_main(["workflow", "export", "--input", path, "--mode", "audit"])
+            assert rc == 1
+            assert "ERROR" in capsys.readouterr().err
+        finally:
+            os.unlink(path)
+
+    def test_null_invocation_audit_checksums_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": None}
+        with pytest.raises(ValueError, match="'invocation_audit_checksums' must be a list"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_string_invocation_audit_checksums_raises_value_error(self):
+        # A bare string iterates as individual characters — must fail closed.
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": "abc"}
+        with pytest.raises(ValueError, match="'invocation_audit_checksums' must be a list"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_null_invocation_audit_checksums_cli_exits_1(self, capsys):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": None}
+        path = self._write_jsonl([wa])
+        try:
+            rc = cli_main(["workflow", "export", "--input", path, "--mode", "operator"])
+            assert rc == 1
+            assert "ERROR" in capsys.readouterr().err
+        finally:
+            os.unlink(path)
+
+    def test_string_invocation_audit_checksums_cli_exits_1(self, capsys):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": "xyz"}
+        path = self._write_jsonl([wa])
+        try:
+            rc = cli_main(["workflow", "export", "--input", path, "--mode", "operator"])
+            assert rc == 1
+            assert "ERROR" in capsys.readouterr().err
+        finally:
+            os.unlink(path)
+
+
 class TestChecksumCorrelationParityExport:
     """Regression tests for F-01: integer-valued float checksums must resolve in export."""
 

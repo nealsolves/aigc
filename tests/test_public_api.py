@@ -34,6 +34,15 @@ from aigc.sinks import (
 )
 
 
+def test_sink_classes_and_functions_exported():
+    """Sink classes and management functions are importable from aigc.sinks."""
+    assert AuditSink is not None
+    assert CallbackAuditSink is not None
+    assert JsonFileAuditSink is not None
+    assert callable(get_audit_sink)
+    assert callable(set_audit_sink)
+
+
 def test_public_api_imports():
     assert callable(enforce_invocation)
     assert __version__ == "0.3.3"

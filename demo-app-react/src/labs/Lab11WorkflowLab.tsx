@@ -22,7 +22,7 @@ interface WorkflowArtifact {
     invocation_artifact_checksum: string
   }>
   invocation_audit_checksums: string[]
-  failure_summary: string | null
+  failure_summary: { exception_type: string; message: string } | null
   metadata: Record<string, unknown>
 }
 

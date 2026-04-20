@@ -13,7 +13,6 @@ from aigc._internal.enforcement import AIGC
 from aigc._internal.errors import AuditSinkError, InvocationValidationError, SessionStateError
 from aigc._internal.session import (
     STATE_COMPLETED,
-    STATE_FAILED,
     STATE_FINALIZED,
     STATE_OPEN,
     STATE_PAUSED,

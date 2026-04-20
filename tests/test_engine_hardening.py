@@ -373,6 +373,18 @@ def test_child_cannot_widen_participants():
         load_policy("tests/test_policies/composition_p4_widen_participants.yaml")
 
 
+def test_child_cannot_clear_participants_explicit_empty():
+    """Child cannot set participants: [] when base declares participants — disables enforcement."""
+    with pytest.raises(PolicyValidationError, match="clears all participants"):
+        load_policy("tests/test_policies/composition_p4_clear_participants.yaml")
+
+
+def test_child_cannot_drop_participants_via_replace():
+    """Child cannot drop participants key under replace strategy — merged result would be empty."""
+    with pytest.raises(PolicyValidationError, match="clears all participants"):
+        load_policy("tests/test_policies/composition_p4_drop_participants_replace.yaml")
+
+
 def test_child_cannot_widen_participant_protocols():
     """Child cannot widen protocols for a participant."""
     with pytest.raises(PolicyValidationError, match="escalation"):
@@ -432,6 +444,48 @@ def test_child_cannot_widen_handoffs():
     """Child cannot add handoff pairs not in base."""
     with pytest.raises(PolicyValidationError, match="escalation"):
         load_policy("tests/test_policies/composition_p4_widen_handoffs.yaml")
+
+
+def test_child_cannot_drop_required_sequence_via_replace():
+    """Child cannot drop required_sequence key under replace strategy — disables enforcement."""
+    with pytest.raises(PolicyValidationError, match="clears required_sequence"):
+        load_policy("tests/test_policies/composition_p4_drop_required_sequence_replace.yaml")
+
+
+def test_child_cannot_drop_allowed_transitions_via_replace():
+    """Child cannot drop allowed_transitions key (null/absent) — gate would go inactive."""
+    with pytest.raises(PolicyValidationError, match="clears allowed_transitions"):
+        load_policy("tests/test_policies/composition_p4_drop_allowed_transitions_replace.yaml")
+
+
+def test_child_can_narrow_allowed_transitions_to_empty_dict():
+    """{} means 'no transitions permitted' — gate stays active (deny-all), not a drop."""
+    policy = load_policy("tests/test_policies/composition_p4_narrow_transitions_to_empty.yaml")
+    assert policy["workflow"]["allowed_transitions"] == {}
+
+
+def test_child_cannot_drop_allowed_agent_roles_via_replace():
+    """Child cannot drop allowed_agent_roles key (null/absent) — gate would go inactive."""
+    with pytest.raises(PolicyValidationError, match="clears allowed_agent_roles"):
+        load_policy("tests/test_policies/composition_p4_drop_allowed_agent_roles_replace.yaml")
+
+
+def test_child_can_narrow_allowed_agent_roles_to_empty_list():
+    """[] means 'no agent role permitted' — gate stays active (deny-all), not a drop."""
+    policy = load_policy("tests/test_policies/composition_p4_narrow_agent_roles_to_empty.yaml")
+    assert policy["workflow"]["allowed_agent_roles"] == []
+
+
+def test_child_cannot_drop_handoffs_via_replace():
+    """Child cannot drop handoffs key (null/absent) — gate would go inactive."""
+    with pytest.raises(PolicyValidationError, match="clears all handoffs"):
+        load_policy("tests/test_policies/composition_p4_drop_handoffs_replace.yaml")
+
+
+def test_child_can_narrow_handoffs_to_empty_list():
+    """[] means 'no handoffs permitted' — gate stays active (deny-all), not a drop."""
+    policy = load_policy("tests/test_policies/composition_p4_narrow_handoffs_to_empty.yaml")
+    assert policy["workflow"]["handoffs"] == []
 
 
 def test_child_can_narrow_escalation_threshold():

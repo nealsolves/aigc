@@ -67,6 +67,14 @@ def export_workflow(
                         f"(type={type(step).__name__!r}). "
                         f"Run 'aigc workflow lint' to diagnose."
                     )
+                _cs_val = step.get("invocation_artifact_checksum")
+                if _cs_val is not None and not isinstance(_cs_val, str):
+                    raise ValueError(
+                        f"Corrupt workflow artifact at index {wa_idx}: "
+                        f"steps[{i}].invocation_artifact_checksum must be a string or null, "
+                        f"got {type(_cs_val).__name__!r}. "
+                        f"Run 'aigc workflow lint' to diagnose."
+                    )
         if "invocation_audit_checksums" in wa:
             _wa_iac = wa["invocation_audit_checksums"]
             if not isinstance(_wa_iac, list):
@@ -76,6 +84,14 @@ def export_workflow(
                     f"got {type(_wa_iac).__name__!r}. "
                     f"Run 'aigc workflow lint' to diagnose."
                 )
+            for _j, _entry in enumerate(_wa_iac):
+                if not isinstance(_entry, str):
+                    raise ValueError(
+                        f"Corrupt workflow artifact at index {wa_idx}: "
+                        f"invocation_audit_checksums[{_j}] must be a string, "
+                        f"got {type(_entry).__name__!r}. "
+                        f"Run 'aigc workflow lint' to diagnose."
+                    )
 
     inv_by_cs: dict[str, dict[str, Any]] = {_checksum(a): a for a in invocation_artifacts}
     available: Counter[str] = Counter(_checksum(a) for a in invocation_artifacts)

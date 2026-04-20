@@ -436,6 +436,28 @@ class TestMalformedChecksumContainer:
         finally:
             os.unlink(f.name)
 
+    def test_integer_element_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": [1, "abc"]}
+        with pytest.raises(ValueError, match=r"invocation_audit_checksums\[0\].*must be a string"):
+            reconstruct_trace(wa, [INV_ARTIFACT])
+
+    def test_nested_list_element_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": [["nested"]]}
+        with pytest.raises(ValueError, match=r"invocation_audit_checksums\[0\].*must be a string"):
+            reconstruct_trace(wa, [INV_ARTIFACT])
+
+    def test_non_string_element_cli_exits_1(self, capsys):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": [99]}
+        f = tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+        f.write(json.dumps(wa) + "\n")
+        f.close()
+        try:
+            rc = cli_main(["workflow", "trace", "--input", f.name])
+            assert rc == 1
+            assert "ERROR" in capsys.readouterr().err
+        finally:
+            os.unlink(f.name)
+
 
 class TestChecksumCorrelationParity:
     """Regression tests for F-01: session._checksum and audit.checksum must agree."""

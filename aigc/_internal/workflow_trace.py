@@ -96,6 +96,13 @@ def reconstruct_trace(
                 "Run 'aigc workflow lint' to diagnose."
             )
         _iac = _iac_field
+    for _j, _entry in enumerate(_iac):
+        if not isinstance(_entry, str):
+            raise ValueError(
+                f"Corrupt workflow artifact: invocation_audit_checksums[{_j}] "
+                f"must be a string, got {type(_entry).__name__!r}. "
+                "Run 'aigc workflow lint' to diagnose."
+            )
     summary_counts: Counter[str] = Counter(cs for cs in _iac if cs)
     step_counts: Counter[str] = Counter(
         step.get("invocation_artifact_checksum")

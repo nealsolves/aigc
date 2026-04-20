@@ -598,6 +598,47 @@ class TestMalformedContainersExport:
         finally:
             os.unlink(path)
 
+    def test_integer_element_in_iac_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": [1, "abc"]}
+        with pytest.raises(ValueError, match=r"invocation_audit_checksums\[0\].*must be a string"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_nested_list_element_in_iac_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": [["nested"]]}
+        with pytest.raises(ValueError, match=r"invocation_audit_checksums\[0\].*must be a string"):
+            export_workflow([wa], [INV_ARTIFACT], "operator")
+
+    def test_non_string_iac_element_cli_exits_1(self, capsys):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": [99]}
+        path = self._write_jsonl([wa])
+        try:
+            rc = cli_main(["workflow", "export", "--input", path, "--mode", "audit"])
+            assert rc == 1
+            assert "ERROR" in capsys.readouterr().err
+        finally:
+            os.unlink(path)
+
+    def test_integer_step_checksum_raises_value_error(self):
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [{"step_id": "s1", "invocation_artifact_checksum": 42}],
+        }
+        with pytest.raises(ValueError, match=r"steps\[0\]\.invocation_artifact_checksum.*must be a string"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_non_string_step_checksum_cli_exits_1(self, capsys):
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [{"step_id": "s1", "invocation_artifact_checksum": 7}],
+        }
+        path = self._write_jsonl([wa])
+        try:
+            rc = cli_main(["workflow", "export", "--input", path, "--mode", "operator"])
+            assert rc == 1
+            assert "ERROR" in capsys.readouterr().err
+        finally:
+            os.unlink(path)
+
 
 class TestChecksumCorrelationParityExport:
     """Regression tests for F-01: integer-valued float checksums must resolve in export."""

@@ -401,7 +401,13 @@ def _cmd_workflow_trace(args: argparse.Namespace) -> int:
         return 1
 
     try:
-        traces = [reconstruct_trace(wa, invocation_artifacts) for wa in workflow_artifacts]
+        from collections import Counter
+        from aigc._internal.audit import checksum as _checksum
+        shared_remaining: Counter[str] = Counter(_checksum(a) for a in invocation_artifacts)
+        traces = [
+            reconstruct_trace(wa, invocation_artifacts, shared_remaining=shared_remaining)
+            for wa in workflow_artifacts
+        ]
     except ValueError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1

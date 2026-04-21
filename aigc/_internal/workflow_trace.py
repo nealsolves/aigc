@@ -12,6 +12,8 @@ TRACE_SCHEMA_VERSION = "0.9.0"
 def reconstruct_trace(
     workflow_artifact: dict[str, Any],
     invocation_artifacts: list[dict[str, Any]],
+    *,
+    shared_remaining: Counter[str] | None = None,
 ) -> dict[str, Any]:
     """Reconstruct a timeline for a single workflow artifact.
 
@@ -21,6 +23,9 @@ def reconstruct_trace(
     """
     inv_by_cs: dict[str, dict[str, Any]] = {_checksum(a): a for a in invocation_artifacts}
     available: Counter[str] = Counter(_checksum(a) for a in invocation_artifacts)
+    # When shared_remaining is provided (multi-session CLI), consume from the shared
+    # pool so cross-session checksum multiplicity is tracked correctly.
+    remaining: Counter[str] = shared_remaining if shared_remaining is not None else Counter(available)
 
     if "steps" not in workflow_artifact:
         raw_steps: list[dict[str, Any]] = []
@@ -49,10 +54,9 @@ def reconstruct_trace(
                 "Run 'aigc workflow lint' to diagnose."
             )
 
-    # Consume one available artifact per step so duplicate-checksum steps are
-    # counted individually — a second step for the same checksum is unresolved
-    # when only one matching artifact is present.
-    remaining = Counter(available)
+    # Snapshot remaining before step consumption; used below to compute unresolved
+    # checksums relative to what was available at the start of this session.
+    snapshot: Counter[str] = Counter(remaining)
     steps: list[dict[str, Any]] = []
     for i, step in enumerate(raw_steps):
         cs = step.get("invocation_artifact_checksum")
@@ -124,7 +128,7 @@ def reconstruct_trace(
     unresolved = sorted(
         cs
         for cs, exp_count in expected.items()
-        for _ in range(max(0, exp_count - available[cs]))
+        for _ in range(max(0, exp_count - snapshot[cs]))
     )
 
     return {

@@ -257,6 +257,22 @@ class TestWorkflowTraceCLI:
         finally:
             os.unlink(path)
 
+    def test_cross_session_shared_checksum_reports_unresolved(self, capsys):
+        # Two sessions reference the same checksum; only one artifact is present.
+        # The CLI should use shared consumption so one session reports unresolved.
+        wa2 = {**WORKFLOW_ARTIFACT, "session_id": "sess-xyz"}
+        path = self._write_jsonl([WORKFLOW_ARTIFACT, wa2, INV_ARTIFACT])
+        try:
+            cli_main(["workflow", "trace", "--input", path])
+            out = capsys.readouterr().out
+            traces = json.loads(out)
+            assert len(traces) == 2
+            unresolved_counts = [len(t["unresolved_checksums"]) for t in traces]
+            # Exactly one session should have an unresolved checksum
+            assert sum(unresolved_counts) == 1
+        finally:
+            os.unlink(path)
+
     def test_unwritable_output_path_exits_1(self):
         path = self._write_jsonl([WORKFLOW_ARTIFACT, INV_ARTIFACT])
         try:
@@ -328,6 +344,30 @@ class TestChecksumMultiplicity:
         trace = reconstruct_trace(wa, [INV_ARTIFACT, INV_ARTIFACT])
         assert len(trace["unresolved_checksums"]) == 1
         assert trace["unresolved_checksums"] == [INV_CHECKSUM]
+
+    def test_cross_session_shared_remaining_first_resolves_second_does_not(self):
+        # Two sessions reference the same checksum; only one artifact is available.
+        # With shared_remaining, only the first session resolves the step.
+        from collections import Counter
+        from aigc.audit import checksum as _checksum_fn
+        wa2 = {**WORKFLOW_ARTIFACT, "session_id": "sess-xyz"}
+        shared = Counter({INV_CHECKSUM: 1})
+        trace_a = reconstruct_trace(WORKFLOW_ARTIFACT, [INV_ARTIFACT], shared_remaining=shared)
+        trace_b = reconstruct_trace(wa2, [INV_ARTIFACT], shared_remaining=shared)
+        assert trace_a["steps"][0]["resolved"] is True
+        assert trace_b["steps"][0]["resolved"] is False
+        assert INV_CHECKSUM in trace_b["unresolved_checksums"]
+
+    def test_cross_session_shared_remaining_two_artifacts_both_resolve(self):
+        from collections import Counter
+        wa2 = {**WORKFLOW_ARTIFACT, "session_id": "sess-xyz"}
+        shared = Counter({INV_CHECKSUM: 2})
+        trace_a = reconstruct_trace(WORKFLOW_ARTIFACT, [INV_ARTIFACT], shared_remaining=shared)
+        trace_b = reconstruct_trace(wa2, [INV_ARTIFACT], shared_remaining=shared)
+        assert trace_a["steps"][0]["resolved"] is True
+        assert trace_b["steps"][0]["resolved"] is True
+        assert trace_a["unresolved_checksums"] == []
+        assert trace_b["unresolved_checksums"] == []
 
 
 class TestMalformedTimestamp:

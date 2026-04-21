@@ -92,6 +92,24 @@ def export_workflow(
                         f"got {type(_entry).__name__!r}. "
                         f"Run 'aigc workflow lint' to diagnose."
                     )
+        _started = wa.get("started_at")
+        if _started is not None and (
+            isinstance(_started, bool) or not isinstance(_started, (int, float))
+        ):
+            raise ValueError(
+                f"Corrupt workflow artifact at index {wa_idx}: "
+                f"started_at must be numeric, got {type(_started).__name__!r}. "
+                f"Run 'aigc workflow lint' to diagnose."
+            )
+        _finalized = wa.get("finalized_at")
+        if _finalized is not None and (
+            isinstance(_finalized, bool) or not isinstance(_finalized, (int, float))
+        ):
+            raise ValueError(
+                f"Corrupt workflow artifact at index {wa_idx}: "
+                f"finalized_at must be numeric, got {type(_finalized).__name__!r}. "
+                f"Run 'aigc workflow lint' to diagnose."
+            )
 
     inv_by_cs: dict[str, dict[str, Any]] = {_checksum(a): a for a in invocation_artifacts}
     available: Counter[str] = Counter(_checksum(a) for a in invocation_artifacts)

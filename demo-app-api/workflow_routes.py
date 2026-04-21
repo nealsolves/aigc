@@ -331,16 +331,26 @@ def trace_evidence():
                 status_code=500,
                 detail=f"workflow trace failed: {result.stderr.strip() or '(no stderr)'}",
             )
+        if not result.stdout.strip():
+            raise HTTPException(
+                status_code=500,
+                detail="workflow trace returned empty output",
+            )
         try:
-            traces = json.loads(result.stdout) if result.stdout.strip() else []
+            traces = json.loads(result.stdout)
         except json.JSONDecodeError:
             raise HTTPException(
                 status_code=500,
                 detail="workflow trace returned non-JSON output",
             )
+        if not isinstance(traces, list) or not traces:
+            raise HTTPException(
+                status_code=500,
+                detail="workflow trace returned no traces",
+            )
         return {"traces": traces, "artifact": session.workflow_artifact}
     finally:
         try:
             Path(jsonl_path).unlink()
-        except FileNotFoundError:
+        except OSError:
             pass

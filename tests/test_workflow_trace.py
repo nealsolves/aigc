@@ -1,6 +1,5 @@
 # tests/test_workflow_trace.py
 """Tests for workflow timeline reconstruction."""
-import hashlib
 import json
 import os
 import tempfile
@@ -8,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from aigc._internal.workflow_trace import reconstruct_trace
-from aigc._internal.cli import main as cli_main
+from aigc.audit import checksum
+from aigc.cli import main as cli_main
+from aigc.workflow_trace import reconstruct_trace
 
 
 def _cs(artifact):
     """Canonical checksum — must match audit.checksum() and session._checksum()."""
-    from aigc._internal.utils import canonical_json_bytes
-    return hashlib.sha256(canonical_json_bytes(artifact)).hexdigest()
+    return checksum(artifact)
 
 
 INV_ARTIFACT = {
@@ -368,7 +367,6 @@ class TestMalformedTimestamp:
         f.write(json.dumps(wa) + "\n")
         f.close()
         try:
-            from aigc._internal.cli import main as cli_main
             rc = cli_main(["workflow", "trace", "--input", f.name])
             assert rc == 1
             err = capsys.readouterr().err
@@ -527,11 +525,9 @@ class TestChecksumCorrelationParity:
 
     def test_checksum_helpers_agree_on_plain_artifact(self):
         """canonical_json_bytes path and audit.checksum must agree on a plain artifact."""
-        from aigc._internal.audit import checksum as audit_checksum
-        assert _cs(INV_ARTIFACT) == audit_checksum(INV_ARTIFACT)
+        assert _cs(INV_ARTIFACT) == checksum(INV_ARTIFACT)
 
     def test_checksum_helpers_agree_on_integer_float(self):
         """canonical_json_bytes path and audit.checksum must agree for risk_score=1.0."""
-        from aigc._internal.audit import checksum as audit_checksum
         inv = {**INV_ARTIFACT, "risk_score": 1.0}
-        assert _cs(inv) == audit_checksum(inv)
+        assert _cs(inv) == checksum(inv)

@@ -192,3 +192,42 @@ def test_workflow_trace_non_json_output_returns_500(monkeypatch):
     assert r.status_code == 500
     assert "non-JSON" in r.json()["detail"]
     assert after == before
+
+
+def test_workflow_trace_empty_output_returns_500(monkeypatch):
+    import subprocess
+    import workflow_routes
+
+    before = {p.name for p in Path(workflow_routes._POLICY_TMPDIR.name).glob("*.jsonl")}
+    fake_result = subprocess.CompletedProcess(
+        args=[], returncode=0, stdout="", stderr=""
+    )
+    monkeypatch.setattr(workflow_routes.subprocess, "run", lambda *a, **kw: fake_result)
+    r = client.get("/api/workflow/v090/trace")
+    after = {p.name for p in Path(workflow_routes._POLICY_TMPDIR.name).glob("*.jsonl")}
+    assert r.status_code == 500
+    assert "empty output" in r.json()["detail"]
+    assert after == before
+
+
+def test_workflow_trace_cleanup_oserror_does_not_mask_cli_failure(monkeypatch):
+    import os
+    import subprocess
+    import workflow_routes
+
+    before = {p.name for p in Path(workflow_routes._POLICY_TMPDIR.name).glob("*.jsonl")}
+    fake_result = subprocess.CompletedProcess(
+        args=[], returncode=1, stdout="", stderr="trace engine exploded"
+    )
+
+    def _raise_permission_error(_self):
+        raise PermissionError("cleanup denied")
+
+    monkeypatch.setattr(workflow_routes.subprocess, "run", lambda *a, **kw: fake_result)
+    monkeypatch.setattr(workflow_routes.Path, "unlink", _raise_permission_error)
+    r = client.get("/api/workflow/v090/trace")
+    after = {p.name for p in Path(workflow_routes._POLICY_TMPDIR.name).glob("*.jsonl")}
+    for leaked in after - before:
+        os.unlink(Path(workflow_routes._POLICY_TMPDIR.name) / leaked)
+    assert r.status_code == 500
+    assert "trace engine exploded" in r.json()["detail"]

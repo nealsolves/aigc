@@ -500,6 +500,22 @@ def lint_workflow_artifact(path: str) -> list[dict]:
             str(p),
         ))
 
+    missing_step_checksums = [
+        idx
+        for idx, step in enumerate(steps)
+        if not isinstance(step.get("invocation_artifact_checksum"), str)
+        or not step.get("invocation_artifact_checksum")
+    ]
+    if missing_step_checksums:
+        findings.append(_finding(
+            "WORKFLOW_STARTER_INTEGRITY_ERROR",
+            "Workflow artifact has steps with missing or invalid "
+            "invocation_artifact_checksum values at indexes "
+            f"{missing_step_checksums}. Artifact may be incomplete or corrupt.",
+            "workflow_artifact",
+            str(p),
+        ))
+
     # failure_summary consistency
     status = artifact.get("status", "")
     failure_summary = artifact.get("failure_summary")

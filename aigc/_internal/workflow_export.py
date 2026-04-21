@@ -175,7 +175,13 @@ def _build_audit(
     sessions = []
     for wa in workflow_artifacts:
         status = wa.get("status", "INCOMPLETE")
-        counts[status] = counts.get(status, 0) + 1
+        if status not in counts:
+            raise ValueError(
+                f"Corrupt workflow artifact: unsupported status {status!r}. "
+                "Expected one of COMPLETED, FAILED, CANCELED, INCOMPLETE. "
+                "Run 'aigc workflow lint' to diagnose."
+            )
+        counts[status] += 1
         step_summaries = []
         for step in wa.get("steps", []):
             cs = step.get("invocation_artifact_checksum")

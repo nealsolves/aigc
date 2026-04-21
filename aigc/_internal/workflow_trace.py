@@ -25,7 +25,9 @@ def reconstruct_trace(
     available: Counter[str] = Counter(_checksum(a) for a in invocation_artifacts)
     # When shared_remaining is provided (multi-session CLI), consume from the shared
     # pool so cross-session checksum multiplicity is tracked correctly.
-    remaining: Counter[str] = shared_remaining if shared_remaining is not None else Counter(available)
+    remaining: Counter[str] = (
+        shared_remaining if shared_remaining is not None else Counter(available)
+    )
 
     if "steps" not in workflow_artifact:
         raw_steps: list[dict[str, Any]] = []

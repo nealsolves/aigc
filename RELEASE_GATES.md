@@ -69,11 +69,14 @@ no further public-surface work proceeds until the default path is repaired.
 - [x] workflow-step exceptions raised by public session methods are catchable through `aigc` and `aigc.errors`
 - [x] failed Phase B attempts clean up session tokens deterministically
 
-## Deferred To PR-09 And Later
+## PR-09 — Exports and Ops Gate
 
-- [ ] `aigc workflow trace`
-- [ ] `aigc workflow export`
-- [ ] operator-facing export portability and timeline reconstruction
+- [x] `aigc workflow trace` — timeline reconstruction from workflow and invocation artifacts
+- [x] `aigc workflow export` — operator and audit export modes with checksum integrity reporting
+- [x] operator-facing export portability and timeline reconstruction
+
+## Deferred To PR-10 And Later
+
 - [ ] optional Bedrock and A2A adapter tracks
 
 ---
@@ -99,7 +102,7 @@ no further public-surface work proceeds until the default path is repaired.
 - [ ] PR-01 through PR-10 work is merged to `origin/develop`
 - [x] the golden-path contract is frozen before later public-surface expansion
 - [x] quickstart, starters, migration, diagnostics, beta proof, and engine hardening are test-backed on local `develop`
-- [ ] PR-09 operator polish lands
+- [x] PR-09 operator polish lands
 - [ ] optional adapter work lands
 - [ ] `feat/v0.9-11-beta-freeze` lands
 - [ ] `release/v0.9.0` is cut from the PR-11 result

@@ -17,18 +17,19 @@ import uuid
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 import aigc.presets as presets
-from aigc import AIGC
+from aigc import AIGC, JsonFileAuditSink
 
 router = APIRouter(prefix="/api/workflow/v090", tags=["workflow-v090"])
 
 # Per-run state keyed by run_id returned from the failure scenario.
 # Bounded to prevent unbounded temp-dir growth; evicted entries are cleaned up.
 _MAX_RUNS = 20
-_run_state: dict[str, dict] = {}   # run_id -> {"starter_dir": str, "artifact": dict, "original_source": str}
+# run_id -> {"starter_dir": str, "artifact": dict, "original_source": str}
+_run_state: dict[str, dict] = {}
 _POLICY_TMPDIR = tempfile.TemporaryDirectory(prefix="aigc_demo_policies_")
 _policy_cache: dict[str, str] = {}
 
@@ -287,3 +288,69 @@ def diagnose_last_failure(run_id: str | None = None):
     except json.JSONDecodeError:
         findings = []
     return {"findings": findings, "source": "failure_starter_dir"}
+
+
+@router.get("/trace")
+def trace_evidence():
+    """Run a governed 2-step minimal session with a JSONL sink and return the workflow trace.
+
+    Implements the evidence view: produces real workflow + invocation artifacts,
+    writes them to a temp JSONL file via JsonFileAuditSink, then reconstructs the
+    timeline via 'aigc workflow trace'. No fake backend behavior.
+    """
+    policy_file = _get_policy_path("minimal")
+    jsonl_file = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".jsonl", delete=False, dir=_POLICY_TMPDIR.name
+    )
+    jsonl_path = jsonl_file.name
+    jsonl_file.close()
+    try:
+        sink = JsonFileAuditSink(jsonl_path)
+        governance = AIGC(sink=sink)
+        prompts = ["Analyze the document.", "Summarize the findings."]
+        with governance.open_session(policy_file=policy_file) as session:
+            for prompt in prompts:
+                pre = session.enforce_step_pre_call({
+                    "policy_file": policy_file,
+                    "input": {"prompt": prompt},
+                    "output": {},
+                    "context": {"caller_id": "demo-evidence"},
+                    "model_provider": "anthropic",
+                    "model_identifier": "claude-sonnet-4-6",
+                    "role": "ai-assistant",
+                })
+                session.enforce_step_post_call(pre, {"result": f"Response to: {prompt[:60]}"})
+            session.complete()
+
+        result = subprocess.run(
+            [sys.executable, "-m", "aigc", "workflow", "trace", "--input", jsonl_path],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            raise HTTPException(
+                status_code=500,
+                detail=f"workflow trace failed: {result.stderr.strip() or '(no stderr)'}",
+            )
+        if not result.stdout.strip():
+            raise HTTPException(
+                status_code=500,
+                detail="workflow trace returned empty output",
+            )
+        try:
+            traces = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=500,
+                detail="workflow trace returned non-JSON output",
+            )
+        if not isinstance(traces, list) or not traces:
+            raise HTTPException(
+                status_code=500,
+                detail="workflow trace returned no traces",
+            )
+        return {"traces": traces, "artifact": session.workflow_artifact}
+    finally:
+        try:
+            Path(jsonl_path).unlink()
+        except OSError:
+            pass

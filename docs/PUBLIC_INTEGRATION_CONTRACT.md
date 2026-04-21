@@ -29,10 +29,12 @@ governance). This is beta, not yet stable.
 The following surfaces remain planned-only beyond `v0.9.0` beta and are not
 part of the `v0.3.3` artifact or the current beta public surface:
 `AgentIdentity`, `AgentCapabilityManifest`, `ValidatorHook`,
-`BedrockTraceAdapter`, `A2AAdapter`, `aigc workflow trace`, and
-`aigc workflow export`. Do not build integrations against those names until
-they ship through the public package exports, instance API, CLI surface, and
-contract tests.
+`BedrockTraceAdapter`, and `A2AAdapter`. Do not build integrations against
+those names until they ship through the public package exports, instance API,
+CLI surface, and contract tests.
+
+`aigc workflow trace` and `aigc workflow export` shipped in PR-09 and are part
+of the current beta CLI surface.
 
 All public examples, starter packs, presets, demo code, and docs snippets
 must use public `aigc` imports only and must not depend on `aigc._internal`.

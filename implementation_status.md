@@ -3,14 +3,14 @@
 **Target Version:** `0.9.0` Beta
 **Baseline Version:** `0.3.3`
 **Active Branch:** `develop`
-**Last Updated:** 2026-04-18
+**Last Updated:** 2026-04-19
 
 ---
 
 ## Overall Progress
 
-- PR-01 through PR-08 are complete.
-- PR-09, PR-10a, PR-10b, and PR-11 have not started.
+- PR-01 through PR-09 are complete.
+- PR-10a, PR-10b, and PR-11 have not started.
 
 | Track | Status | Notes |
 |-------|--------|-------|
@@ -22,7 +22,7 @@
 | Diagnostics | complete | `aigc workflow lint` and `aigc workflow doctor` ship with stable first-user codes |
 | Beta proof | complete | Clean-env proof, real failure/diagnosis/fix/rerun flow, and demo parity are in place |
 | Engine hardening | complete | Budgets, transitions, protocol constraints, approvals, handoffs, and internal validator hooks are hardened |
-| Exports and ops | not started | Begins in PR-09 |
+| Exports and ops | complete | `aigc workflow trace` and `aigc workflow export` ship on `develop` |
 | Optional adapters | not started | Begin in PR-10a and PR-10b |
 | Beta freeze | not started | Begins in PR-11 |
 
@@ -50,7 +50,7 @@
 | PR-06 | `feat/v0.9-06-doctor-and-lint` | complete | Diagnostics: lint, doctor, stable reason codes |
 | PR-07 | `feat/v0.9-07-beta-proof` | complete | Mandatory stop-ship proof for quickstart, diagnosis, fix, rerun, and demo parity |
 | PR-08 | `feat/v0.9-08-engine-hardening` | complete | Sequencing, approvals, budgets, transitions, handoffs, protocol rules, and internal validator hooks |
-| PR-09 | `feat/v0.9-09-exports-and-ops` | not started | Trace, export, and operator polish |
+| PR-09 | `feat/v0.9-09-exports-and-ops` | complete | Trace, export, and operator polish |
 | PR-10a | `feat/v0.9-10-bedrock-adapter` | not started | Optional Bedrock adapter with alias-backed identity rules |
 | PR-10b | `feat/v0.9-10-a2a-adapter` | not started | Optional A2A adapter with strict wire-contract rules |
 | PR-11 | `feat/v0.9-11-beta-freeze` -> `release/v0.9.0` | not started | Public API freeze, beta gate verification, and release cut |

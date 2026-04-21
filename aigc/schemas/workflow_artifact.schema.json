@@ -22,7 +22,7 @@
     },
     "started_at": {"type": "integer"},
     "finalized_at": {"type": ["integer", "null"]},
-    "steps": {"type": "array"},
+    "steps": {"type": "array", "items": {"type": "object"}},
     "invocation_audit_checksums": {
       "type": "array",
       "items": {"type": "string"}

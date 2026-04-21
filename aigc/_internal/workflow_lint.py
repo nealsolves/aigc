@@ -475,14 +475,43 @@ def lint_workflow_artifact(path: str) -> list[dict]:
     if findings:
         return findings
 
-    # Checksum / step count consistency
+    # Validate every step entry is a mapping (schema only enforces array type)
     steps = artifact.get("steps", [])
+    for idx, step in enumerate(steps):
+        if not isinstance(step, dict):
+            findings.append(_finding(
+                "WORKFLOW_STARTER_INTEGRITY_ERROR",
+                f"steps[{idx}] is {type(step).__name__!r}, expected object. "
+                "Artifact may be corrupt.",
+                "workflow_artifact",
+                str(p),
+            ))
+    if findings:
+        return findings
+
+    # Checksum / step count consistency
     checksums = artifact.get("invocation_audit_checksums", [])
     if len(checksums) != len(steps):
         findings.append(_finding(
             "WORKFLOW_STARTER_INTEGRITY_ERROR",
             f"invocation_audit_checksums length ({len(checksums)}) does not "
             f"match steps length ({len(steps)}). Artifact may be corrupt.",
+            "workflow_artifact",
+            str(p),
+        ))
+
+    missing_step_checksums = [
+        idx
+        for idx, step in enumerate(steps)
+        if not isinstance(step.get("invocation_artifact_checksum"), str)
+        or not step.get("invocation_artifact_checksum")
+    ]
+    if missing_step_checksums:
+        findings.append(_finding(
+            "WORKFLOW_STARTER_INTEGRITY_ERROR",
+            "Workflow artifact has steps with missing or invalid "
+            "invocation_artifact_checksum values at indexes "
+            f"{missing_step_checksums}. Artifact may be incomplete or corrupt.",
             "workflow_artifact",
             str(p),
         ))

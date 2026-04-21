@@ -17,7 +17,7 @@ Governance in AIGC is runtime enforcement, not documentation and not prompting.
 - Current release scope: invocation governance plus workflow-aware provenance
   and lineage groundwork, audit schema `v1.4`, `AuditLineage`,
   `ProvenanceGate`, `RiskHistory`, `@governed` defaults to split enforcement
-- Verification baseline: `1376 tests`, coverage above the `90%` CI gate
+- Verification baseline: `1484 tests`, coverage above the `90%` CI gate
 
 ## Why This Repo Exists
 
@@ -52,12 +52,11 @@ legacy unified mode (deprecated).
 The source-only `v0.9.0` beta line on local `develop` adds workflow governance
 built around `AIGC.open_session(...)`, `GovernanceSession`,
 `SessionPreCallResult`, `aigc workflow init`, `aigc policy init`,
-`aigc workflow lint`, and `aigc workflow doctor`. No external API keys are
-required for the default adopter path. The currently shipped PyPI package
-remains `v0.3.3`. Optional Bedrock/A2A adapters and
-`aigc workflow trace` / `aigc workflow export` remain later PRs. The
-target-state architecture is captured in
-`docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
+`aigc workflow lint`, `aigc workflow doctor`, `aigc workflow trace`, and
+`aigc workflow export`. No external API keys are required for the default
+adopter path. The currently shipped PyPI package remains `v0.3.3`. Optional
+Bedrock/A2A adapters remain later PRs. The target-state architecture is
+captured in `docs/architecture/AIGC_HIGH_LEVEL_DESIGN.md`.
 
 ## Workflow Governance (v0.9.0 Beta)
 
@@ -221,10 +220,9 @@ The `aigc` console script exposes three practical commands:
   root/leaf/orphan lists, cycle detection)
 
 The source-only `v0.9.0` beta line adds `aigc workflow init`,
-`aigc policy init`, `aigc workflow lint`, and `aigc workflow doctor`.
-`aigc workflow trace` and `aigc workflow export` are planned for PR-09 and are
-not yet available. The current PyPI release (`v0.3.3`) CLI surface is
-unchanged.
+`aigc policy init`, `aigc workflow lint`, `aigc workflow doctor`,
+`aigc workflow trace`, and `aigc workflow export`. The current PyPI release
+(`v0.3.3`) CLI surface is unchanged.
 
 ## Repo Guide
 

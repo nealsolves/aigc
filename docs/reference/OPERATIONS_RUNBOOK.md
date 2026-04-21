@@ -47,12 +47,63 @@ The failure-and-fix tab should:
 2. diagnose that same starter directory
 3. rerun the same starter after the fix is restored
 
+## Operator Commands — Trace and Export
+
+`aigc workflow trace` and `aigc workflow export` are the two operator inspection
+tools for governed workflow evidence. Both consume a JSONL file produced by an
+`AuditSink` and produce JSON output.
+
+### When to use `aigc workflow trace`
+
+Use `workflow trace` to reconstruct a session timeline and verify audit sink
+completeness after a workflow run. It shows which steps were resolved (invocation
+artifact found in the JSONL) and which were not (possible sink failure).
+
+```bash
+aigc workflow trace --input audit.jsonl
+aigc workflow trace --input audit.jsonl --output timeline.json
+```
+
+### When to use `aigc workflow export --mode operator`
+
+Use `operator` mode for a full technical evidence dump — each step embeds the
+entire invocation artifact dict. Appropriate for incident reviews, debugging
+governance decisions, or cross-referencing enforcement results with raw model
+output.
+
+```bash
+aigc workflow export --input audit.jsonl --mode operator --output operator_export.json
+```
+
+### When to use `aigc workflow export --mode audit`
+
+Use `audit` mode for compliance handoff or external audit. Each step includes
+only `step_id`, `participant_id`, `invocation_artifact_checksum`, and
+`enforcement_result`. No raw invocation payload is included.
+
+```bash
+aigc workflow export --input audit.jsonl --mode audit --output audit_export.json
+```
+
+### Interpreting `unresolved_invocation_checksums`
+
+Both commands report `unresolved_invocation_checksums` in the integrity block.
+A checksum appears here when a workflow step references an invocation artifact
+by SHA-256 that is not present in the JSONL file. This typically indicates one of:
+
+- an audit sink write failure during the session
+- a truncated or partial JSONL export
+- a JSONL file that covers only some sessions
+
+Run `aigc workflow doctor` on the individual artifact file to diagnose further.
+Both commands exit `0` even when checksums are unresolved — the gap is advisory
+evidence, not an enforcement failure. The enforcement decision was already made
+at the session layer.
+
 ## Beta Scope Boundaries
 
 Not in the current beta surface:
 
-- `aigc workflow trace`
-- `aigc workflow export`
 - `AgentIdentity`
 - `AgentCapabilityManifest`
 - `ValidatorHook` as a public API

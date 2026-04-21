@@ -24,10 +24,10 @@ Availability boundary: this document describes the intended `1.0.0` public
 surface. The currently shipped package remains `v0.3.3`. The upcoming unreleased
 v0.9.0-beta line adds `GovernanceSession`, `SessionPreCallResult`,
 `AIGC.open_session(...)`, `aigc workflow init`, `aigc policy init`,
-`aigc workflow lint`, and `aigc workflow doctor`. `AgentIdentity`,
-`AgentCapabilityManifest`, `ValidatorHook`, `BedrockTraceAdapter`,
-`A2AAdapter`, `aigc workflow trace`, and `aigc workflow export` remain
-planned-only and are not part of the current beta public surface.
+`aigc workflow lint`, `aigc workflow doctor`, `aigc workflow trace`, and
+`aigc workflow export`. `AgentIdentity`, `AgentCapabilityManifest`,
+`ValidatorHook`, `BedrockTraceAdapter`, and `A2AAdapter` remain planned-only
+and are not part of the current beta public surface.
 
 Headline 1.0.0 capabilities:
 
@@ -616,6 +616,7 @@ Available in the source-only `v0.9.0` beta line — not part of the `v0.3.3` art
 | `AIGC.open_session(...)` | instance-scoped workflow entrypoint |
 | `aigc workflow init` / `aigc policy init` | starter and policy bootstrap surface |
 | `aigc workflow lint` / `aigc workflow doctor` | beta diagnostic surface |
+| `aigc workflow trace` / `aigc workflow export` | operator inspection and audit export surface (shipped in PR-09) |
 
 Planned for 1.0.0 or later (not in the current beta public surface):
 
@@ -626,7 +627,6 @@ Planned for 1.0.0 or later (not in the current beta public surface):
 | `ValidatorHook` | workflow validator extension point |
 | `BedrockTraceAdapter` | optional Bedrock normalization adapter |
 | `A2AAdapter` | optional A2A normalization adapter |
-| `aigc workflow trace` and `aigc workflow export` | operator inspection and export surface |
 
 ### 13.2 Stability Contract After `1.0.0` GA
 

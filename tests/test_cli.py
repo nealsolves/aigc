@@ -134,7 +134,10 @@ def _make_workflow_artifact(tmp_path: Path, status: str = "COMPLETED") -> Path:
         "status": status,
         "started_at": 1700000000,
         "finalized_at": 1700000100,
-        "steps": [{"step_id": "step-0"}, {"step_id": "step-1"}],
+        "steps": [
+            {"step_id": "step-0", "invocation_artifact_checksum": checksums[0]},
+            {"step_id": "step-1", "invocation_artifact_checksum": checksums[1]},
+        ],
         "invocation_audit_checksums": checksums,
         "failure_summary": None,
         "metadata": {},

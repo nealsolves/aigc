@@ -178,6 +178,44 @@ class TestExportValidation:
         assert result["sessions"] == []
         assert result["integrity"]["total_workflow_artifacts"] == 0
 
+    def test_string_started_at_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "started_at": "2024-01-01T00:00:00Z"}
+        with pytest.raises(ValueError, match="started_at must be numeric"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_bool_started_at_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "started_at": True}
+        with pytest.raises(ValueError, match="started_at must be numeric"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_string_finalized_at_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "finalized_at": "done"}
+        with pytest.raises(ValueError, match="finalized_at must be numeric"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_bool_finalized_at_raises_value_error(self):
+        wa = {**WORKFLOW_ARTIFACT, "finalized_at": False}
+        with pytest.raises(ValueError, match="finalized_at must be numeric"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_null_timestamps_are_allowed(self):
+        wa = {**WORKFLOW_ARTIFACT, "started_at": None, "finalized_at": None}
+        result = export_workflow([wa], [INV_ARTIFACT], "audit")
+        session = result["sessions"][0]
+        assert session["started_at"] is None
+        assert session["finalized_at"] is None
+
+    def test_operator_mode_rejects_string_started_at(self):
+        wa = {**WORKFLOW_ARTIFACT, "started_at": "bad"}
+        with pytest.raises(ValueError, match="started_at must be numeric"):
+            export_workflow([wa], [INV_ARTIFACT], "operator")
+
+    def test_timestamp_error_includes_artifact_index(self):
+        wa_good = {**WORKFLOW_ARTIFACT, "session_id": "sess-good"}
+        wa_bad = {**WORKFLOW_ARTIFACT, "session_id": "sess-bad", "started_at": "oops"}
+        with pytest.raises(ValueError, match="index 1"):
+            export_workflow([wa_good, wa_bad], [INV_ARTIFACT], "audit")
+
 
 class TestWorkflowExportCLI:
     def _write_jsonl(self, artifacts):

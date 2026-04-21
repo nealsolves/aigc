@@ -1,6 +1,5 @@
 # tests/test_workflow_export.py
 """Tests for workflow export (operator and audit modes)."""
-import hashlib
 import json
 import os
 import tempfile
@@ -8,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from aigc._internal.workflow_export import export_workflow
-from aigc._internal.cli import main as cli_main
+from aigc.audit import checksum
+from aigc.cli import main as cli_main
+from aigc.workflow_export import export_workflow
 
 
 def _cs(artifact):
     """Canonical checksum — must match audit.checksum() and session._checksum()."""
-    from aigc._internal.utils import canonical_json_bytes
-    return hashlib.sha256(canonical_json_bytes(artifact)).hexdigest()
+    return checksum(artifact)
 
 
 INV_ARTIFACT = {
@@ -150,11 +149,10 @@ class TestAuditExport:
         assert "verification_guidance" in result["integrity"]
         assert len(result["integrity"]["verification_guidance"]) > 0
 
-    def test_unknown_status_passed_through_without_crash(self):
+    def test_unknown_status_raises_value_error(self):
         wa = {**WORKFLOW_ARTIFACT, "status": "ABORTED"}
-        result = export_workflow([wa], [INV_ARTIFACT], "audit")
-        assert result["compliance_summary"]["total_sessions"] == 1
-        assert result["sessions"][0]["status"] == "ABORTED"
+        with pytest.raises(ValueError, match="unsupported status"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
 
     def test_stable_audit_output_shape(self):
         result = export_workflow([WORKFLOW_ARTIFACT], [INV_ARTIFACT], "audit")
@@ -505,7 +503,6 @@ class TestMalformedStatusExport:
         f.write(json.dumps(wa) + "\n")
         f.close()
         try:
-            from aigc._internal.cli import main as cli_main
             rc = cli_main(["workflow", "export", "--input", f.name, "--mode", "audit"])
             assert rc == 1
             err = capsys.readouterr().err
@@ -528,7 +525,6 @@ class TestMalformedStatusExport:
         f.write(json.dumps(wa) + "\n")
         f.close()
         try:
-            from aigc._internal.cli import main as cli_main
             rc = cli_main(["workflow", "export", "--input", f.name, "--mode", "operator"])
             assert rc == 1
             err = capsys.readouterr().err

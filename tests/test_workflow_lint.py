@@ -33,7 +33,7 @@ def _write(tmp_path: Path, filename: str, content: str) -> str:
 
 
 def _make_valid_workflow_artifact(steps: int = 2, status: str = "COMPLETED") -> dict:
-    checksums = ["a" * 64 for _ in range(steps)]
+    checksums = [f"{i + 1:064x}" for i in range(steps)]
     return {
         "workflow_schema_version": "1.0",
         "artifact_type": "workflow",
@@ -41,7 +41,13 @@ def _make_valid_workflow_artifact(steps: int = 2, status: str = "COMPLETED") -> 
         "status": status,
         "started_at": 1700000000,
         "finalized_at": 1700000100,
-        "steps": [{"step_id": f"step-{i}"} for i in range(steps)],
+        "steps": [
+            {
+                "step_id": f"step-{i}",
+                "invocation_artifact_checksum": checksums[i],
+            }
+            for i in range(steps)
+        ],
         "invocation_audit_checksums": checksums,
         "failure_summary": None,
         "approval_checkpoints": [],
@@ -361,6 +367,15 @@ class TestLintWorkflowArtifact:
             "invocation_audit_checksums" in f["message"] or "mismatch" in f["message"].lower()
             for f in findings
         )
+
+    def test_missing_per_step_checksum_returns_finding(self, tmp_path):
+        artifact = _make_valid_workflow_artifact()
+        del artifact["steps"][0]["invocation_artifact_checksum"]
+        artifact["steps"][1]["invocation_artifact_checksum"] = None
+        p = tmp_path / "wf.json"
+        p.write_text(json.dumps(artifact))
+        findings = lint_workflow_artifact(str(p))
+        assert any("invocation_artifact_checksum" in f["message"] for f in findings)
 
     def test_failed_without_failure_summary_returns_finding(self, tmp_path):
         artifact = _make_valid_workflow_artifact(status="FAILED")

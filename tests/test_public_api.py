@@ -231,6 +231,20 @@ def test_validator_reexport_stub():
     assert callable(validate_schema)
 
 
+def test_workflow_trace_reexport_stub():
+    """workflow trace utilities are importable from the public path."""
+    from aigc.workflow_trace import reconstruct_trace
+
+    assert callable(reconstruct_trace)
+
+
+def test_workflow_export_reexport_stub():
+    """workflow export utilities are importable from the public path."""
+    from aigc.workflow_export import export_workflow
+
+    assert callable(export_workflow)
+
+
 def test_telemetry_reexport_stub():
     """aigc.telemetry re-export is importable from the public path."""
     from aigc.telemetry import is_otel_available

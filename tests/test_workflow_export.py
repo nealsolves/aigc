@@ -636,6 +636,53 @@ class TestMalformedContainersExport:
             os.unlink(path)
 
 
+class TestEmptyChecksumRejection:
+    """P2: empty checksum strings must be rejected up front, not silently dropped."""
+
+    def test_empty_string_in_iac_raises_value_error_audit(self):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": [""]}
+        with pytest.raises(ValueError, match=r"invocation_audit_checksums\[0\].*must not be an empty string"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_empty_string_in_iac_raises_value_error_operator(self):
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": [""]}
+        with pytest.raises(ValueError, match=r"invocation_audit_checksums\[0\].*must not be an empty string"):
+            export_workflow([wa], [INV_ARTIFACT], "operator")
+
+    def test_empty_string_in_iac_does_not_yield_clean_unresolved_count(self):
+        # Without the fix, "" is silently dropped from expected and unresolved_count=0.
+        # With the fix, it raises before reaching integrity accounting.
+        wa = {**WORKFLOW_ARTIFACT, "invocation_audit_checksums": [""]}
+        with pytest.raises(ValueError):
+            export_workflow([wa], [], "operator")
+
+    def test_empty_step_checksum_raises_value_error_audit(self):
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [{"step_id": "s1", "participant_id": "agent", "invocation_artifact_checksum": ""}],
+        }
+        with pytest.raises(ValueError, match=r"steps\[0\]\.invocation_artifact_checksum.*must not be an empty string"):
+            export_workflow([wa], [INV_ARTIFACT], "audit")
+
+    def test_empty_step_checksum_raises_value_error_operator(self):
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [{"step_id": "s1", "participant_id": "agent", "invocation_artifact_checksum": ""}],
+        }
+        with pytest.raises(ValueError, match=r"steps\[0\]\.invocation_artifact_checksum.*must not be an empty string"):
+            export_workflow([wa], [INV_ARTIFACT], "operator")
+
+    def test_null_step_checksum_is_still_allowed(self):
+        # None means no invocation was made for this step — that's valid.
+        wa = {
+            **WORKFLOW_ARTIFACT,
+            "steps": [{"step_id": "s1", "participant_id": "agent", "invocation_artifact_checksum": None}],
+            "invocation_audit_checksums": [],
+        }
+        result = export_workflow([wa], [], "operator")
+        assert result["integrity"]["unresolved_count"] == 0
+
+
 class TestChecksumCorrelationParityExport:
     """Regression tests for F-01: integer-valued float checksums must resolve in export."""
 

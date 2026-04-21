@@ -75,6 +75,12 @@ def export_workflow(
                         f"got {type(_cs_val).__name__!r}. "
                         f"Run 'aigc workflow lint' to diagnose."
                     )
+                if isinstance(_cs_val, str) and not _cs_val:
+                    raise ValueError(
+                        f"Corrupt workflow artifact at index {wa_idx}: "
+                        f"steps[{i}].invocation_artifact_checksum must not be an empty string. "
+                        f"Run 'aigc workflow lint' to diagnose."
+                    )
         if "invocation_audit_checksums" in wa:
             _wa_iac = wa["invocation_audit_checksums"]
             if not isinstance(_wa_iac, list):
@@ -90,6 +96,12 @@ def export_workflow(
                         f"Corrupt workflow artifact at index {wa_idx}: "
                         f"invocation_audit_checksums[{_j}] must be a string, "
                         f"got {type(_entry).__name__!r}. "
+                        f"Run 'aigc workflow lint' to diagnose."
+                    )
+                if not _entry:
+                    raise ValueError(
+                        f"Corrupt workflow artifact at index {wa_idx}: "
+                        f"invocation_audit_checksums[{_j}] must not be an empty string. "
                         f"Run 'aigc workflow lint' to diagnose."
                     )
 

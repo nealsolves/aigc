@@ -11,6 +11,13 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      input: {
+        app: path.resolve(__dirname, 'app.html'),
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

@@ -1593,7 +1593,6 @@ result <span class="op">=</span> enforce_invocation({
       <h2 class="section-title" id="labs-title">Try AIGC <span class="accent">in the browser</span></h2>
       <p class="section-lead">
         Eleven interactive labs walk you through every AIGC capability. No model API key required for the core labs.
-        <a href="https://nealsolves.github.io/aigc" class="demo-link" target="_blank" rel="noopener">Open the demo app →</a>
       </p>
 
       <div class="labs-grid">
@@ -1677,13 +1676,6 @@ result <span class="op">=</span> enforce_invocation({
           <span class="lab-card-link" style="color:#ff8389">Open lab →</span>
         </a>
 
-        <a href="#" class="lab-card demo-link" data-lab="11" target="_blank" rel="noopener" aria-label="Lab 11: Workflow Governance (v0.9.0 Beta)">
-          <div class="lab-card-bar" style="background:linear-gradient(90deg,#be95ff,#78a9ff)"></div>
-          <div class="lab-card-num">Lab 11 <span class="lab-beta">v0.9.0 β</span></div>
-          <div class="lab-card-title">Workflow Governance</div>
-          <p class="lab-card-body">Hands-on GovernanceSession: open a session, step through a multi-invocation workflow, trigger intentional failures, run <code>workflow doctor</code>, and inspect the workflow artifact.</p>
-          <span class="lab-card-link" style="color:#be95ff">Open lab →</span>
-        </a>
       </div>
     </div>
   </section>
@@ -1710,6 +1702,16 @@ result <span class="op">=</span> enforce_invocation({
           <div class="version-timeline">
             <div class="version-item">
               <div class="version-line">
+                <div class="version-dot" style="background:var(--ibm-gray-50)"></div>
+                <div class="version-connector"></div>
+              </div>
+              <div>
+                <div class="version-label" style="color:var(--text-dim)">v0.2.x · legacy</div>
+                <div class="version-desc" style="color:var(--text-dim)">Original enforcement engine. Superseded by v0.3.3 audit schema and split enforcement.</div>
+              </div>
+            </div>
+            <div class="version-item">
+              <div class="version-line">
                 <div class="version-dot" style="background:var(--ibm-blue-40)"></div>
                 <div class="version-connector"></div>
               </div>
@@ -1721,20 +1723,10 @@ result <span class="op">=</span> enforce_invocation({
             <div class="version-item">
               <div class="version-line">
                 <div class="version-dot" style="background:var(--ibm-purple-40)"></div>
-                <div class="version-connector"></div>
               </div>
               <div>
-                <div class="version-label">v0.9.0 · beta on develop</div>
+                <div class="version-label">v0.9.0 · AEGIS beta on develop</div>
                 <div class="version-desc">GovernanceSession, workflow CLI (init / lint / doctor / trace / export), adapter layer for Bedrock, A2A, and OpenAI Agents. Renamed to AEGIS on release.</div>
-              </div>
-            </div>
-            <div class="version-item">
-              <div class="version-line">
-                <div class="version-dot" style="background:var(--ibm-gray-50)"></div>
-              </div>
-              <div>
-                <div class="version-label" style="color:var(--text-dim)">v0.2.x · legacy</div>
-                <div class="version-desc" style="color:var(--text-dim)">Original enforcement engine. Superseded by v0.3.3 audit schema and split enforcement.</div>
               </div>
             </div>
           </div>
@@ -1849,33 +1841,35 @@ result <span class="op">=</span> enforce_invocation({
         <div class="code-block-with-header">
           <div class="code-block-header"><span>v0.9.0 · GovernanceSession usage (preview)</span></div>
           <div class="code-block">
-<pre><span class="kw">import</span> AIGC
+<pre><span class="kw">from</span> aegis <span class="kw">import</span> AEGIS
 
-<span class="cm"># AIGC.open_session()  (always instance-scoped)</span>
-<span class="kw">with</span> AIGC.<span class="fn">open_session</span>(
-    manifest<span class="op">=</span><span class="str">"workflows/review.yaml"</span>,
-    context<span class="op">=</span>{<span class="str">"user_id"</span><span class="op">:</span> user_id},
+governance <span class="op">=</span> AEGIS()
+
+<span class="cm"># open_session() is always instance-scoped</span>
+<span class="kw">with</span> governance.<span class="fn">open_session</span>(
+    policy_file<span class="op">=</span><span class="str">"policies/review.yaml"</span>,
 ) <span class="kw">as</span> session:
 
-    <span class="cm"># Step 1: pre-call authorization</span>
-    pre <span class="op">=</span> session.<span class="fn">enforce_pre_call</span>({
-        <span class="str">"policy_file"</span><span class="op">:</span> <span class="str">"policies/review.yaml"</span>,
-        <span class="str">"input"</span><span class="op">:</span>       {<span class="str">"document"</span><span class="op">:</span> doc},
-        <span class="str">"role"</span><span class="op">:</span>        <span class="str">"reviewer"</span>,
+    <span class="cm"># Phase A: pre-call authorization</span>
+    pre <span class="op">=</span> session.<span class="fn">enforce_step_pre_call</span>({
+        <span class="str">"policy_file"</span><span class="op">:</span>      <span class="str">"policies/review.yaml"</span>,
+        <span class="str">"input"</span><span class="op">:</span>            {<span class="str">"prompt"</span><span class="op">:</span> prompt},
+        <span class="str">"output"</span><span class="op">:</span>           {},
+        <span class="str">"context"</span><span class="op">:</span>          {<span class="str">"caller_id"</span><span class="op">:</span> <span class="str">"demo"</span>},
         <span class="str">"model_provider"</span><span class="op">:</span>   <span class="str">"anthropic"</span>,
-        <span class="str">"model_identifier"</span><span class="op">:</span> <span class="str">"claude-3-5-sonnet"</span>,
+        <span class="str">"model_identifier"</span><span class="op">:</span> <span class="str">"claude-sonnet-4-6"</span>,
+        <span class="str">"role"</span><span class="op">:</span>             <span class="str">"ai-assistant"</span>,
     })
 
     <span class="cm"># You call the model</span>
-    response <span class="op">=</span> your_model_client.<span class="fn">call</span>(doc)
+    response <span class="op">=</span> your_model_client.<span class="fn">call</span>(prompt)
 
-    <span class="cm"># Step 2: post-call validation + audit</span>
-    result <span class="op">=</span> pre.<span class="fn">complete</span>({
-        <span class="str">"output"</span><span class="op">:</span>  {<span class="str">"response"</span><span class="op">:</span> response},
-        <span class="str">"context"</span><span class="op">:</span> {<span class="str">"latency_ms"</span><span class="op">:</span> <span class="num">312</span>},
-    })
+    <span class="cm"># Phase B: post-call validation + audit</span>
+    session.<span class="fn">enforce_step_post_call</span>(pre, {<span class="str">"result"</span><span class="op">:</span> response})
 
-<span class="cm"># Workflow artifact produced on __exit__</span>
+    session.<span class="fn">complete</span>()
+
+<span class="cm"># Workflow artifact on session.workflow_artifact after __exit__</span>
 <span class="cm"># Source: github.com/nealsolves/aegis/tree/develop</span></pre>
           </div>
         </div>

@@ -1204,7 +1204,7 @@
           <a href="#audit"    onclick="closeMenu()"><span class="dd-num">04</span> Audit &amp; Evidence</a>
           <a href="#gates"    onclick="closeMenu()"><span class="dd-num">05</span> Custom Gates</a>
           <a href="#risk"     onclick="closeMenu()"><span class="dd-num">06</span> Risk Scoring</a>
-          <a href="#labs"     onclick="closeMenu()"><span class="dd-num">07</span> Labs (11)</a>
+          <a href="#labs"     onclick="closeMenu()"><span class="dd-num">07</span> Labs (10)</a>
           <a href="#install"  onclick="closeMenu()"><span class="dd-num">08</span> Install</a>
           <a href="#workflow" onclick="closeMenu()"><span class="dd-num">09</span> Workflow v0.9.0 ↗</a>
           <a href="https://nealsolves.github.io/aigc" class="demo-link" target="_blank" rel="noopener" onclick="closeMenu()"><span class="dd-num">↗</span> Open Demo →</a>
@@ -1271,7 +1271,7 @@
               <div class="stat-label">gate insertion points</div>
             </div>
             <div class="stat-item">
-              <div class="stat-num">11</div>
+              <div class="stat-num">10</div>
               <div class="stat-label">interactive labs</div>
             </div>
           </div>
@@ -1592,7 +1592,7 @@ result <span class="op">=</span> enforce_invocation({
       <p class="section-label">// 07 interactive labs</p>
       <h2 class="section-title" id="labs-title">Try AIGC <span class="accent">in the browser</span></h2>
       <p class="section-lead">
-        Eleven interactive labs walk you through every AIGC capability. No model API key required for the core labs.
+        Ten interactive labs walk you through every AIGC capability. No model API key required for the core labs.
       </p>
 
       <div class="labs-grid">
@@ -1839,11 +1839,43 @@ result <span class="op">=</span> enforce_invocation({
         </div>
 
         <div class="code-block-with-header">
-          <div class="code-block-header"><span>v0.9.0 · GovernanceSession usage (preview)</span></div>
-          <div class="code-block">
-<pre><span class="kw">from</span> aegis <span class="kw">import</span> AEGIS
+          <div class="code-block-header">
+            <span>v0.9.0 · GovernanceSession usage (preview)</span>
+            <button class="copy-btn" onclick="copyCode(this)" data-code="from aigc import AIGC
 
-governance <span class="op">=</span> AEGIS()
+governance = AIGC()
+
+# open_session() is always instance-scoped
+with governance.open_session(
+    policy_file='policies/review.yaml',
+) as session:
+
+    # Phase A: pre-call authorization
+    pre = session.enforce_step_pre_call({
+        'policy_file':      'policies/review.yaml',
+        'input':            {'prompt': prompt},
+        'output':           {},
+        'context':          {'caller_id': 'demo'},
+        'model_provider':   'anthropic',
+        'model_identifier': 'claude-sonnet-4-6',
+        'role':             'ai-assistant',
+    })
+
+    # You call the model
+    response = your_model_client.call(prompt)
+
+    # Phase B: post-call validation + audit
+    session.enforce_step_post_call(pre, {'result': response})
+
+    session.complete()
+
+# Workflow artifact on session.workflow_artifact after __exit__
+# Source: github.com/nealsolves/aigc/tree/develop">Copy</button>
+          </div>
+          <div class="code-block">
+<pre><span class="kw">from</span> aigc <span class="kw">import</span> AIGC
+
+governance <span class="op">=</span> AIGC()
 
 <span class="cm"># open_session() is always instance-scoped</span>
 <span class="kw">with</span> governance.<span class="fn">open_session</span>(
@@ -1870,7 +1902,7 @@ governance <span class="op">=</span> AEGIS()
     session.<span class="fn">complete</span>()
 
 <span class="cm"># Workflow artifact on session.workflow_artifact after __exit__</span>
-<span class="cm"># Source: github.com/nealsolves/aegis/tree/develop</span></pre>
+<span class="cm"># Source: github.com/nealsolves/aigc/tree/develop</span></pre>
           </div>
         </div>
       </div>
